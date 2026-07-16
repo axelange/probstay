@@ -1,0 +1,310 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MODERATOR
+  AGENT
+}
+
+enum Permission {
+  MANAGE_USERS
+  MANAGE_CONTACTS
+  MANAGE_PROPERTIES
+  MANAGE_RENTALS
+  MANAGE_INVOICES
+  MANAGE_REGISTERS
+  VIEW_FINANCIALS
+}
+
+// The booking pipeline. Terminal states are CHECK_OUT and CANCELLED.
+// The deposit / security deposit / balance stage isn't here — those
+// three settle independently of the booking's progress, so they're
+// tracked as separate payment statuses on Rental.
+enum RentalBookingStatus {
+  INQUIRY
+  BOOKING_CONFIRMATION
+  CONTRACT
+  KYC
+  CHECK_IN
+  CHECK_OUT
+  CANCELLED
+}
+
+enum RentalPaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  REFUNDED
+}
+
+// Only OWNER contacts may be linked as a Property's owner (enforced by
+// a DB trigger, see migration). Partner/Provider are purely
+// informational — used later for invoice generation, no relations yet.
+// CLIENT is the business "Tenant" (the customer renting a property) —
+// same concept, this is the Contact-system term for it.
+// A Contact can hold more than one type at once (e.g. an Owner who is
+// also a Client) — see Contact.types.
+enum ContactType {
+  OWNER
+  CLIENT
+  PARTNER
+  PROVIDER
+}
+
+// id matches the corresponding auth.users.id (Supabase Auth) — set
+// explicitly when the profile is created, never auto-generated here.
+model User {
+  id          String           @id @db.Uuid
+  email       String           @unique
+  fullName    String
+  role        Role
+  permissions UserPermission[]
+  properties  Property[]       @relation("PropertyAgent")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  archivedAt  DateTime?
+
+  @@map("users")
+}
+
+// Per-user grant/revoke overrides on top of a Role's baseline
+// capabilities (enforced in server code). Lets an Admin adjust a
+// Moderator's or Agent's access without a migration.
+model UserPermission {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String     @db.Uuid
+  user       User       @relation(fields: [userId], references: [id])
+  permission Permission
+  granted    Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+
+  @@unique([userId, permission])
+  @@map("user_permissions")
+}
+
+model Contact {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // Multi-valued: the same Contact can hold more than one type at once
+  // (e.g. an Owner who is also a Client). Plain array instead of a
+  // join table so reading a Contact's types never needs a second query.
+  types ContactType[]
+
+  // APIMO's owner shape isn't confirmed yet — none of the sampled
+  // properties (step=1) had a populated `owner` field. Revisit once a
+  // populated example or the contacts endpoint is available.
+  apimoId       Int?           @unique
+  firstName     String
+  lastName      String
+  email         String         @unique
+  phone         String?
+  iban          String?
+  notes         String?
+  properties    Property[]
+  rentalsOwned  Rental[]
+  rentalTenants RentalTenant[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  archivedAt    DateTime?
+
+  // Supports the 'CLIENT' = any(types) lookup used by the Agent
+  // contact-visibility RLS policy.
+  @@index([types], map: "contacts_types_gin_idx", type: Gin)
+  @@map("contacts")
+}
+
+model Property {
+  id            String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apimoId       Int?   @unique
+  reference     Int?
+  apimoAgencyId Int?
+
+  // Nullable: real APIMO data commonly has no owner assigned yet
+  // (all 52 sampled step=1 properties had owner: null).
+  // Must reference a Contact with type = OWNER — enforced by a DB
+  // trigger (see migration), not a plain FK, since Postgres can't
+  // constrain "FK to a row with a specific column value" natively.
+  ownerId String?  @db.Uuid
+  owner   Contact? @relation(fields: [ownerId], references: [id])
+
+  // Our own User FK, resolved separately (e.g. by matching email)
+  // since APIMO's `user.id` is a different ID space than our UUIDs.
+  agentId      String? @db.Uuid
+  agent        User?   @relation("PropertyAgent", fields: [agentId], references: [id])
+  apimoAgentId Int?
+
+  // Classification (APIMO reference codes — see api3.apimo.com referentiel)
+  category    Int?
+  subcategory Int?
+  type        Int?
+  subtype     Int?
+  status      Int?
+  step        Int?
+  quality     Int?
+  name        String?
+
+  // Address / location
+  address         String?
+  addressMore     String?
+  publishAddress  Boolean @default(false)
+  country         String?
+  region          String?
+  regionApimoId   Int?
+  city            String?
+  cityApimoId     Int?
+  zipcode         String?
+  district        String?
+  districtApimoId Int?
+  latitude        Float?
+  longitude       Float?
+  altitude        Int?
+
+  // Size
+  areaValue Float?
+  areaUnit  Int?
+  areaTotal Float?
+  rooms     Int?
+  bedrooms  Int?
+  sleeps    Int?
+
+  // Pricing
+  priceValue      Decimal? @db.Decimal(12, 2)
+  priceMax        Decimal? @db.Decimal(12, 2)
+  priceCurrency   String?
+  pricePeriod     Int?
+  priceCommission Decimal? @db.Decimal(12, 2)
+  priceDeposit    Decimal? @db.Decimal(12, 2)
+  priceFees       Decimal? @db.Decimal(12, 2)
+
+  // Condition / construction
+  condition        Int?
+  standing         Int?
+  constructionYear Int?
+  renovationYear   Int?
+
+  // Availability
+  availability String?
+  availableAt  DateTime?
+  deliveredAt  DateTime?
+
+  // APIMO reference-code arrays (resolved to labels via the
+  // referentiel lookup when needed, not stored as text here)
+  services    Int[]
+  proximities Int[]
+  tags        Int[]
+
+  url         String?
+  description String?
+  notes       String?
+
+  pictures PropertyPicture[]
+  rentals  Rental[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+
+  @@map("properties")
+}
+
+model PropertyPicture {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propertyId String   @db.Uuid
+  property   Property @relation(fields: [propertyId], references: [id])
+  apimoId    Int      @unique
+  rank       Int?
+  url        String
+  widthMax   Int?
+  heightMax  Int?
+  isPanorama Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@map("property_pictures")
+}
+
+// The central business object — nothing financial exists outside a
+// Rental. Created in the app (agents set up bookings); not synced from
+// APIMO, hence no apimoId.
+model Rental {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  propertyId String   @db.Uuid
+  property   Property @relation(fields: [propertyId], references: [id])
+
+  // Owner of record for this rental, snapshotted from the property's
+  // owner when the rental is created. Deliberately not read through
+  // property.ownerId: if a property later changes hands, past rentals
+  // must stay attributed to the owner they actually belonged to, or
+  // historical Owner Statements silently rewrite themselves.
+  // Nullable because APIMO-synced properties often have no owner yet.
+  ownerId String?  @db.Uuid
+  owner   Contact? @relation(fields: [ownerId], references: [id])
+
+  tenants RentalTenant[]
+
+  bookingStatus RentalBookingStatus @default(INQUIRY)
+
+  // Deposit, security deposit and balance settle independently of each
+  // other and of the booking's stage, so each carries its own status.
+  depositStatus         RentalPaymentStatus @default(UNPAID)
+  securityDepositStatus RentalPaymentStatus @default(UNPAID)
+  balanceStatus         RentalPaymentStatus @default(UNPAID)
+
+  checkIn  DateTime
+  checkOut DateTime
+
+  // grossAmount is the rental revenue. securityDepositAmount is held
+  // separately and is never agency revenue — the two must never be
+  // conflated. The outstanding balance is derived (gross - deposit),
+  // never stored; balanceStatus tracks whether it's been settled.
+  grossAmount           Decimal  @db.Decimal(12, 2)
+  depositAmount         Decimal? @db.Decimal(12, 2)
+  securityDepositAmount Decimal? @db.Decimal(12, 2)
+
+  // Resolved output of the commission engine, stored per-rental so the
+  // rules can change without rewriting history. Never a hardcoded rate.
+  commissionAmount Decimal? @db.Decimal(12, 2)
+  commissionRate   Decimal? @db.Decimal(5, 2)
+
+  currency String @default("EUR")
+
+  notes String?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+
+  @@index([propertyId])
+  @@index([ownerId])
+  @@index([checkIn, checkOut])
+  @@index([bookingStatus])
+  @@map("rentals")
+}
+
+// A rental has one or more tenants; a tenant takes part in many
+// rentals. Each linked Contact must hold the CLIENT type — enforced by
+// a DB trigger (see migration), same pattern as Property.ownerId.
+model RentalTenant {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rentalId  String   @db.Uuid
+  rental    Rental   @relation(fields: [rentalId], references: [id])
+  contactId String   @db.Uuid
+  contact   Contact  @relation(fields: [contactId], references: [id])
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([rentalId, contactId])
+  @@index([contactId])
+  @@map("rental_tenants")
+}
