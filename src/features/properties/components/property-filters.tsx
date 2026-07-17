@@ -228,19 +228,11 @@ export function RangeFilter({
 const ALL = "all";
 
 /**
- * A segmented control: the whole choice is visible without opening
- * anything, and the selection slides between segments the way a phone
- * switch does, so the eye follows it rather than hunting for what
- * changed.
+ * A segmented control for a filter with few, permanent options — the
+ * whole choice is visible without opening anything, and picking a
+ * different one is a single click rather than three.
  *
- * Only worth it at this size — eight towns belong in a dropdown.
- *
- * The sliding pill is one absolutely-positioned element rather than a
- * background on each segment: that's what can actually animate between
- * positions. Segments are equal width so its offset is index * 100% of
- * its own width, with no measuring. It's aria-hidden — decoration; the
- * real state is on the buttons underneath, which stay real buttons with
- * arrow-key navigation.
+ * Only worth it at this size. Eight towns belong in a dropdown.
  */
 export function SegmentedFilter({
   label,
@@ -254,45 +246,32 @@ export function SegmentedFilter({
   value: string;
   onChange: (next: string) => void;
 }) {
-  const items = [{ value: ALL, label: "Tous" }, ...options];
-  const current = value === "" ? ALL : value;
-  const activeIndex = Math.max(
-    0,
-    items.findIndex((i) => i.value === current)
-  );
-
   return (
     <ToggleGroup
       aria-label={label}
+      variant="outline"
+      size="sm"
       spacing={0}
-      value={[current]}
+      value={[value === "" ? ALL : value]}
       onValueChange={(next) => {
         // Pressing the active item deselects it, giving []. That reads
         // as "no filter", same as choosing Tous — rather than leaving
-        // nothing selected and no filter visibly applied.
+        // nothing selected and no filter obviously applied.
         const picked = next[0];
         onChange(!picked || picked === ALL ? "" : picked);
       }}
-      className="bg-muted relative grid w-fit rounded-lg p-0.5"
-      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+      className="w-fit rounded-lg border p-0.5"
     >
-      <span
-        aria-hidden="true"
-        className="bg-background pointer-events-none absolute inset-y-0.5 left-0.5 rounded-md shadow-sm transition-transform duration-200 ease-out"
-        style={{
-          width: `calc((100% - 0.25rem) / ${items.length})`,
-          transform: `translateX(${activeIndex * 100}%)`,
-        }}
-      />
-      {items.map((item) => (
+      <ToggleGroupItem value={ALL} className="rounded-md px-3">
+        Tous
+      </ToggleGroupItem>
+      {options.map((option) => (
         <ToggleGroupItem
-          key={item.value}
-          value={item.value}
-          // z-10 to sit above the pill; the pill is opaque and would
-          // otherwise cover the label it's meant to highlight.
-          className="relative z-10 rounded-md px-3 hover:bg-transparent data-[state=on]:bg-transparent"
+          key={option.value}
+          value={option.value}
+          className="rounded-md px-3"
         >
-          {item.label}
+          {option.label}
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
