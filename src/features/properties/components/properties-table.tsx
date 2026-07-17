@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   type ColumnDef,
   type SortingState,
@@ -92,7 +93,12 @@ const columns: ColumnDef<PropertyListItem>[] = [
       />
     ),
     cell: ({ row }) => (
-      <span className="font-medium tabular-nums">{row.original.reference}</span>
+      <Link
+        href={`/properties/${row.original.id}`}
+        className="focus-visible:ring-ring rounded-sm font-medium tabular-nums underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+      >
+        {row.original.reference}
+      </Link>
     ),
   },
   {

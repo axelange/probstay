@@ -1,6 +1,8 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import type { CurrentUser } from "@/lib/auth";
+import { canSeePropertyConfidential } from "@/features/properties/utils/property-access";
 
 /**
  * A property as shown in the list.
@@ -52,4 +54,61 @@ export async function listProperties() {
 
 export async function countProperties() {
   return prisma.property.count({ where: { archivedAt: null } });
+}
+
+export type PropertyDetail = NonNullable<
+  Awaited<ReturnType<typeof getPropertyDetail>>
+>;
+
+/**
+ * A single property, with its confidential side removed unless this user
+ * may see it.
+ *
+ * The stripping happens here rather than in the page so there is one
+ * place to get it right, and so the values never cross into a component
+ * that might render or serialise them. The row is read in full and then
+ * narrowed: Prisma can't express a conditional select cleanly, and the
+ * discarded values never leave the server either way.
+ */
+export async function getPropertyDetail(id: string, user: CurrentUser) {
+  const property = await prisma.property.findFirst({
+    where: { id, archivedAt: null },
+    include: {
+      agent: { select: { id: true, fullName: true, email: true } },
+      owner: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          iban: true,
+        },
+      },
+      pictures: {
+        orderBy: { rank: "asc" },
+        select: { id: true, url: true, rank: true },
+      },
+    },
+  });
+
+  if (!property) return null;
+
+  const confidential = canSeePropertyConfidential(user, property);
+
+  if (confidential) {
+    return { ...property, confidential };
+  }
+
+  return {
+    ...property,
+    address: null,
+    addressMore: null,
+    notes: null,
+    priceCommission: null,
+    priceFees: null,
+    priceDeposit: null,
+    owner: null,
+    confidential,
+  };
 }
