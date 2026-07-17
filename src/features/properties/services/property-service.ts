@@ -40,6 +40,7 @@ export async function listProperties() {
     select: {
       id: true,
       reference: true,
+      marketingName: true,
       city: true,
       zipcode: true,
       district: true,

@@ -40,6 +40,7 @@ import {
  */
 const columns: ColumnDef<PropertyListItem>[] = [
   { accessorKey: "reference" },
+  { accessorKey: "marketingName" },
   { accessorKey: "city" },
   { accessorKey: "district" },
   { accessorKey: "zipcode" },
@@ -54,6 +55,11 @@ const columns: ColumnDef<PropertyListItem>[] = [
 ];
 
 const SORT_OPTIONS = [
+  {
+    id: "name",
+    label: "Nom (A–Z)",
+    sorting: [{ id: "marketingName", desc: false }],
+  },
   { id: "city", label: "Ville (A–Z)", sorting: [{ id: "city", desc: false }] },
   {
     id: "price-desc",
@@ -113,13 +119,11 @@ function PropertyRow({ property }: { property: PropertyListItem }) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="truncate font-medium">
-                  {property.city ?? "—"}
+                  {property.marketingName ?? property.city ?? "—"}
                 </span>
-                {property.district ? (
-                  <span className="text-muted-foreground truncate text-sm">
-                    {property.district}
-                  </span>
-                ) : null}
+                <span className="text-muted-foreground truncate text-sm">
+                  {[property.city, property.district].filter(Boolean).join(" · ")}
+                </span>
                 {typeLabel ? (
                   <Badge variant="secondary">{typeLabel}</Badge>
                 ) : null}
@@ -155,7 +159,7 @@ function PropertyRow({ property }: { property: PropertyListItem }) {
 
 export function PropertiesList({ data }: { data: PropertyListItem[] }) {
   const [sortId, setSortId] =
-    React.useState<(typeof SORT_OPTIONS)[number]["id"]>("city");
+    React.useState<(typeof SORT_OPTIONS)[number]["id"]>("name");
   const [globalFilter, setGlobalFilter] = React.useState("");
 
   const sorting = React.useMemo<SortingState>(

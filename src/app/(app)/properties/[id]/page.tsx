@@ -4,6 +4,7 @@ import { ArrowLeft, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { MarketingNameField } from "@/features/properties/components/marketing-name-field";
 import { PropertyGallery } from "@/features/properties/components/property-gallery";
 import { getPropertyDetail } from "@/features/properties/services/property-service";
 import {
@@ -12,6 +13,7 @@ import {
   propertyTypeLabel,
 } from "@/features/properties/utils/apimo-labels";
 import { getCurrentUser } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 
 /**
  * Timezone and locale are pinned rather than left to the runtime: this
@@ -73,6 +75,9 @@ export default async function PropertyDetailPage({
   if (!property) notFound();
 
   const typeLabel = propertyTypeLabel(property.type);
+  // Decided here rather than in the client component: the same check runs
+  // again inside the action, since rendering an input is not permission.
+  const canEditMarketingName = hasPermission(user, "MANAGE_PROPERTIES");
 
   return (
     <div className="space-y-6">
@@ -83,18 +88,17 @@ export default async function PropertyDetailPage({
         </Button>
       </div>
 
-      {/* The town leads, as on the list. The APIMO reference is a lookup
-          key rather than a name, so it sits small and grey in the corner. */}
+      {/* The marketing name leads: it's how clients and staff refer to the
+          property. The town qualifies it, and the APIMO reference is a
+          lookup key, so it sits small and grey in the corner. */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           <h2 className="truncate text-xl font-semibold tracking-tight">
-            {property.city ?? "Ville inconnue"}
+            {property.marketingName ?? property.city ?? "Sans nom"}
           </h2>
-          {property.district ? (
-            <span className="text-muted-foreground text-sm">
-              {property.district}
-            </span>
-          ) : null}
+          <span className="text-muted-foreground text-sm">
+            {[property.city, property.district].filter(Boolean).join(" · ")}
+          </span>
           {typeLabel ? <Badge variant="secondary">{typeLabel}</Badge> : null}
         </div>
         <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
@@ -109,6 +113,20 @@ export default async function PropertyDetailPage({
         />
 
         <div className="space-y-6">
+          <Section title="Nom marketing">
+            <p id="marketing-name-help" className="text-muted-foreground text-sm">
+              Le nom présenté aux clients. Unique, et le seul champ de cette
+              page qui ne vient pas d&apos;APIMO.
+            </p>
+            <MarketingNameField
+              propertyId={property.id}
+              initialValue={property.marketingName}
+              canEdit={canEditMarketingName}
+            />
+          </Section>
+
+          <Separator />
+
           <Section title="Caractéristiques">
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Field label="Pièces">

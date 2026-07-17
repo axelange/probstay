@@ -169,6 +169,13 @@ model Property {
   reference     Int?
   apimoAgencyId Int?
 
+  // BSTAY's own name for the property — the one clients are shown ("Villa
+  // Alba"), as opposed to APIMO's reference. The only field on this model
+  // that doesn't come from APIMO, so the sync must never overwrite it.
+  // Unique: two properties sharing a name would make them
+  // indistinguishable to a client.
+  marketingName String? @unique
+
   // Nullable: real APIMO data commonly has no owner assigned yet
   // (all 52 sampled step=1 properties had owner: null).
   // Must reference a Contact with type = OWNER — enforced by a DB
