@@ -150,15 +150,16 @@ function PropertyRow({ property }: { property: PropertyListItem }) {
         className="hover:bg-accent/50 focus-visible:ring-ring block rounded-lg border transition-colors focus-visible:ring-2 focus-visible:outline-none"
       >
         <article className="flex flex-col gap-4 p-3 sm:flex-row">
-          {/* Full-width above the text on a phone, a square thumbnail
-              alongside it from sm up. */}
-          <div className="bg-muted relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-md sm:aspect-square sm:w-28">
+          {/* 4/3 at every width: property photos are shot landscape, and
+              a square crop cut the sides off. Full-width above the text
+              on a phone, fixed alongside it from sm up. */}
+          <div className="bg-muted relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-md sm:w-40">
             {url ? (
               <Image
                 src={url}
                 alt=""
                 fill
-                sizes="(min-width: 640px) 112px, 100vw"
+                sizes="(min-width: 640px) 160px, 100vw"
                 className="object-cover"
               />
             ) : (
