@@ -121,7 +121,7 @@ export default async function PropertyDetailPage({
               <Field label="À partir de">
                 <span className="tabular-nums">
                   {formatPrice(
-                    property.priceValue ? Number(property.priceValue) : null,
+                    property.priceValue,
                     property.priceCurrency,
                     property.pricePeriod
                   )}
@@ -130,7 +130,7 @@ export default async function PropertyDetailPage({
               <Field label="Jusqu'à">
                 <span className="tabular-nums">
                   {formatPrice(
-                    property.priceMax ? Number(property.priceMax) : null,
+                    property.priceMax,
                     property.priceCurrency,
                     property.pricePeriod
                   )}
@@ -181,35 +181,17 @@ export default async function PropertyDetailPage({
             </Field>
             <Field label="Commission">
               <span className="tabular-nums">
-                {property.priceCommission
-                  ? formatPrice(
-                      Number(property.priceCommission),
-                      property.priceCurrency,
-                      null
-                    )
-                  : "—"}
+                {formatPrice(property.priceCommission, property.priceCurrency, null)}
               </span>
             </Field>
             <Field label="Honoraires">
               <span className="tabular-nums">
-                {property.priceFees
-                  ? formatPrice(
-                      Number(property.priceFees),
-                      property.priceCurrency,
-                      null
-                    )
-                  : "—"}
+                {formatPrice(property.priceFees, property.priceCurrency, null)}
               </span>
             </Field>
             <Field label="Dépôt de garantie">
               <span className="tabular-nums">
-                {property.priceDeposit
-                  ? formatPrice(
-                      Number(property.priceDeposit),
-                      property.priceCurrency,
-                      null
-                    )
-                  : "—"}
+                {formatPrice(property.priceDeposit, property.priceCurrency, null)}
               </span>
             </Field>
             <Field label="Propriétaire">

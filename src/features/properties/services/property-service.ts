@@ -5,20 +5,36 @@ import type { CurrentUser } from "@/lib/auth";
 import { canSeePropertyConfidential } from "@/features/properties/utils/property-access";
 
 /**
+ * Prisma returns DECIMAL columns as Decimal instances, which cannot be
+ * passed from a Server Component to a Client Component — only plain
+ * objects cross that boundary. Converted here, at the edge of the data
+ * layer, so no caller has to remember.
+ *
+ * Number is exact for these: DECIMAL(12,2) tops out around 1e10, well
+ * inside the 2^53 range where integers and 2-decimal values are
+ * represented without loss.
+ */
+type Decimalish = { toNumber(): number };
+
+function toNumber(value: Decimalish | null): number | null {
+  return value === null ? null : value.toNumber();
+}
+
+/**
  * A property as shown in the list.
  *
- * Deliberately a narrow projection rather than the whole row. Confidential
- * fields (internal notes, owner, commission) are not selected at all, so
- * they can't leak into the client bundle by accident — the Agent
- * restriction is a column-level rule, and RLS only works row by row, so
- * this is where it has to be enforced.
+ * Deliberately a narrow projection rather than the whole row.
+ * Confidential fields (exact address, internal notes, owner, commission)
+ * are not selected at all, so they can't leak into the client bundle by
+ * accident — the Agent restriction is a field-level rule, and RLS only
+ * works row by row, so this is where it has to be enforced.
  */
 export type PropertyListItem = Awaited<
   ReturnType<typeof listProperties>
 >[number];
 
 export async function listProperties() {
-  return prisma.property.findMany({
+  const properties = await prisma.property.findMany({
     // Business objects are archived, never deleted.
     where: { archivedAt: null },
     select: {
@@ -50,6 +66,12 @@ export async function listProperties() {
     },
     orderBy: [{ city: "asc" }, { reference: "asc" }],
   });
+
+  return properties.map((property) => ({
+    ...property,
+    priceValue: toNumber(property.priceValue),
+    priceMax: toNumber(property.priceMax),
+  }));
 }
 
 export async function countProperties() {
@@ -96,12 +118,25 @@ export async function getPropertyDetail(id: string, user: CurrentUser) {
 
   const confidential = canSeePropertyConfidential(user, property);
 
+  const prices = {
+    priceValue: toNumber(property.priceValue),
+    priceMax: toNumber(property.priceMax),
+  };
+
   if (confidential) {
-    return { ...property, confidential };
+    return {
+      ...property,
+      ...prices,
+      priceCommission: toNumber(property.priceCommission),
+      priceFees: toNumber(property.priceFees),
+      priceDeposit: toNumber(property.priceDeposit),
+      confidential,
+    };
   }
 
   return {
     ...property,
+    ...prices,
     address: null,
     addressMore: null,
     notes: null,

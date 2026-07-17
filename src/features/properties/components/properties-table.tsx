@@ -165,16 +165,11 @@ const columns: ColumnDef<PropertyListItem>[] = [
       return (
         <div className="flex flex-col">
           <span className="tabular-nums">
-            {formatPrice(
-              priceValue ? Number(priceValue) : null,
-              priceCurrency,
-              pricePeriod
-            )}
+            {formatPrice(priceValue, priceCurrency, pricePeriod)}
           </span>
-          {priceMax && Number(priceMax) !== Number(priceValue) ? (
+          {priceMax !== null && priceMax !== priceValue ? (
             <span className="text-muted-foreground text-xs tabular-nums">
-              jusqu&apos;à{" "}
-              {formatPrice(Number(priceMax), priceCurrency, pricePeriod)}
+              jusqu&apos;à {formatPrice(priceMax, priceCurrency, pricePeriod)}
             </span>
           ) : null}
         </div>
