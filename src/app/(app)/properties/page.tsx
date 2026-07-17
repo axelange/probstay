@@ -1,4 +1,4 @@
-import { PropertiesTable } from "@/features/properties/components/properties-table";
+import { PropertiesList } from "@/features/properties/components/properties-list";
 import { listProperties } from "@/features/properties/services/property-service";
 
 export const metadata = { title: "Biens — BSTAY PRO" };
@@ -15,7 +15,7 @@ export default async function PropertiesPage() {
         </p>
       </div>
 
-      <PropertiesTable data={properties} />
+      <PropertiesList data={properties} />
     </div>
   );
 }
