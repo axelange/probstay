@@ -13,6 +13,21 @@ import {
 } from "@/features/properties/utils/apimo-labels";
 import { getCurrentUser } from "@/lib/auth";
 
+/**
+ * Timezone and locale are pinned rather than left to the runtime: this
+ * renders on the server, and an unpinned format would read differently
+ * depending on where the server happens to run.
+ */
+const SYNCED_AT_FORMAT = new Intl.DateTimeFormat("fr-FR", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: "Europe/Paris",
+});
+
+function formatSyncedAt(date: Date) {
+  return SYNCED_AT_FORMAT.format(date);
+}
+
 function Field({
   label,
   children,
@@ -68,13 +83,22 @@ export default async function PropertyDetailPage({
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold tracking-tight tabular-nums">
+      {/* The town leads, as on the list. The APIMO reference is a lookup
+          key rather than a name, so it sits small and grey in the corner. */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <h2 className="truncate text-xl font-semibold tracking-tight">
+            {property.city ?? "Ville inconnue"}
+          </h2>
+          {property.district ? (
+            <span className="text-muted-foreground text-sm">
+              {property.district}
+            </span>
+          ) : null}
+          {typeLabel ? <Badge variant="secondary">{typeLabel}</Badge> : null}
+        </div>
+        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
           {property.reference ?? "Sans référence"}
-        </h2>
-        {typeLabel ? <Badge variant="secondary">{typeLabel}</Badge> : null}
-        <span className="text-muted-foreground text-sm">
-          {[property.city, property.district].filter(Boolean).join(" · ")}
         </span>
       </div>
 
@@ -161,8 +185,10 @@ export default async function PropertyDetailPage({
                   <span className="text-muted-foreground">Non assigné</span>
                 )}
               </Field>
-              <Field label="Référence APIMO">
-                <span className="tabular-nums">{property.apimoId}</span>
+              <Field label="Dernière synchronisation">
+                <span className="tabular-nums">
+                  {formatSyncedAt(property.updatedAt)}
+                </span>
               </Field>
             </dl>
           </Section>
