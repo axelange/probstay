@@ -53,7 +53,7 @@ export function AppSidebar({ sections }: { sections: NavSection[] }) {
           <div className="bg-sidebar-primary text-sidebar-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold">
             BP
           </div>
-          <span className="truncate font-semibold group-data-[collapsible=icon]:hidden">
+          <span className="font-heading truncate font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
             BSTAY PRO
           </span>
         </Link>
