@@ -14,10 +14,17 @@
  * there.
  */
 
-/** Confirmed with the agency. Only 1 and 2 occur in the synced data. */
+/**
+ * Confirmed with the agency. Only 1 and 2 occur in the synced data.
+ *
+ * Type 2 is "Villa", not APIMO's own word for it ("Maison"): BSTAY calls
+ * these villas, all 36 type-2 marketing names begin "Villa …", and
+ * b-stay.com says villa. The label follows the business, not the
+ * referentiel — staff searching "villa" should find villas.
+ */
 const PROPERTY_TYPES: Record<number, string> = {
   1: "Appartement",
-  2: "Maison",
+  2: "Villa",
 };
 
 /** Confirmed with the agency. Only 2 and 4 occur in the synced data. */

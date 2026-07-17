@@ -19,6 +19,7 @@ import {
   MultiSelectFilter,
   type NumberRange,
   RangeFilter,
+  SegmentedFilter,
   SingleSelectFilter,
   isRangeActive,
 } from "@/features/properties/components/property-filters";
@@ -89,14 +90,14 @@ const columns: ColumnDef<PropertyListItem>[] = [
   },
   {
     id: "typeLabel",
-    // Searching "maison" should match, not the raw code 2.
+    // Searching "villa" should match, not the raw code 2.
     accessorFn: (row) => propertyTypeLabel(row.type) ?? "",
   },
 ];
 
 const TYPE_OPTIONS = [
+  { value: "2", label: "Villa" },
   { value: "1", label: "Appartement" },
-  { value: "2", label: "Maison" },
 ];
 
 // The trigger already says "Couchages", so the menu needn't repeat it.
@@ -349,7 +350,7 @@ export function PropertiesList({ data }: { data: PropertyListItem[] }) {
                 ?.setFilterValue(next.length ? next : undefined)
             }
           />
-          <SingleSelectFilter
+          <SegmentedFilter
             label="Type"
             options={TYPE_OPTIONS}
             value={filterValue("type")}
