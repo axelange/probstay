@@ -82,7 +82,15 @@ export default async function PropertyDetailPage({
   return (
     <div className="space-y-6">
       <div>
-        <Button variant="ghost" size="sm" render={<Link href="/properties" />}>
+        {/* nativeButton={false}: this renders an <a>, not a <button>.
+            Base UI assumes a native button and would otherwise attach
+            button semantics to a link. It is a link — it navigates. */}
+        <Button
+          variant="ghost"
+          size="sm"
+          nativeButton={false}
+          render={<Link href="/properties" />}
+        >
           <ArrowLeft aria-hidden="true" />
           Tous les biens
         </Button>
