@@ -127,4 +127,23 @@
   html {
     @apply font-sans;
   }
+  /* Tailwind v4's preflight sets buttons to `cursor: default`, so every
+     button in the app loses the pointer cursor. Restored once here
+     rather than adding cursor-pointer to each component. Links keep the
+     browser default and don't need this. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* Honour the OS-level setting rather than animating regardless. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
