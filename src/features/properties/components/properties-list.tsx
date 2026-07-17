@@ -19,7 +19,6 @@ import {
   MultiSelectFilter,
   type NumberRange,
   RangeFilter,
-  SegmentedFilter,
   SingleSelectFilter,
   isRangeActive,
 } from "@/features/properties/components/property-filters";
@@ -350,7 +349,7 @@ export function PropertiesList({ data }: { data: PropertyListItem[] }) {
                 ?.setFilterValue(next.length ? next : undefined)
             }
           />
-          <SegmentedFilter
+          <SingleSelectFilter
             label="Type"
             options={TYPE_OPTIONS}
             value={filterValue("type")}

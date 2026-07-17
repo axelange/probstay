@@ -18,10 +18,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group";
 
 /**
  * The trigger Button is written inline in each `render` rather than
@@ -222,59 +218,6 @@ export function RangeFilter({
         ) : null}
       </PopoverContent>
     </Popover>
-  );
-}
-
-const ALL = "all";
-
-/**
- * A segmented control for a filter with few, permanent options — the
- * whole choice is visible without opening anything, and picking a
- * different one is a single click rather than three.
- *
- * Only worth it at this size. Eight towns belong in a dropdown.
- */
-export function SegmentedFilter({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: SingleOption[];
-  /** Empty string means no filter. */
-  value: string;
-  onChange: (next: string) => void;
-}) {
-  return (
-    <ToggleGroup
-      aria-label={label}
-      variant="outline"
-      size="sm"
-      spacing={0}
-      value={[value === "" ? ALL : value]}
-      onValueChange={(next) => {
-        // Pressing the active item deselects it, giving []. That reads
-        // as "no filter", same as choosing Tous — rather than leaving
-        // nothing selected and no filter obviously applied.
-        const picked = next[0];
-        onChange(!picked || picked === ALL ? "" : picked);
-      }}
-      className="w-fit rounded-lg border p-0.5"
-    >
-      <ToggleGroupItem value={ALL} className="rounded-md px-3">
-        Tous
-      </ToggleGroupItem>
-      {options.map((option) => (
-        <ToggleGroupItem
-          key={option.value}
-          value={option.value}
-          className="rounded-md px-3"
-        >
-          {option.label}
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
   );
 }
 
