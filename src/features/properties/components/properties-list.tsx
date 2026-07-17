@@ -80,9 +80,6 @@ const SORT_OPTIONS = [
 function PropertyRow({ property }: { property: PropertyListItem }) {
   const url = property.pictures[0]?.url;
   const typeLabel = propertyTypeLabel(property.type);
-  const location = [property.city, property.district]
-    .filter(Boolean)
-    .join(" · ");
 
   return (
     <li>
@@ -110,20 +107,26 @@ function PropertyRow({ property }: { property: PropertyListItem }) {
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="font-medium tabular-nums">
+            {/* The town leads: it's what anyone recognises a property by.
+                The APIMO reference is a lookup key, so it sits out of the
+                way in the corner. */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="truncate font-medium">
+                  {property.city ?? "—"}
+                </span>
+                {property.district ? (
+                  <span className="text-muted-foreground truncate text-sm">
+                    {property.district}
+                  </span>
+                ) : null}
+                {typeLabel ? (
+                  <Badge variant="secondary">{typeLabel}</Badge>
+                ) : null}
+              </div>
+              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                 {property.reference ?? "—"}
               </span>
-              {location ? (
-                <span className="text-muted-foreground truncate text-sm">
-                  · {location}
-                </span>
-              ) : null}
-              {typeLabel ? (
-                <Badge variant="secondary" className="ml-auto sm:ml-0">
-                  {typeLabel}
-                </Badge>
-              ) : null}
             </div>
 
             <p className="text-muted-foreground text-sm tabular-nums">
