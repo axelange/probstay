@@ -257,9 +257,16 @@ model Property {
   proximities Int[]
   tags        Int[]
 
-  url         String?
+  url String?
+
+  // French only. APIMO has no description field — the text lives in
+  // comments[], one entry per language (en/fr/bg/ru), and the sync takes
+  // the French one. Null rather than another language if French is
+  // missing. If the other languages are ever needed (the public-site API,
+  // an owner or tenant portal), this becomes a one-to-many table.
   description String?
-  notes       String?
+
+  notes String?
 
   pictures PropertyPicture[]
   rentals  Rental[]

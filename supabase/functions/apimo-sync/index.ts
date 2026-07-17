@@ -57,6 +57,28 @@ const WORD_NUMBERS: Record<string, number> = {
   sept: 7, huit: 8, neuf: 9, dix: 10,
 };
 
+/**
+ * The French description.
+ *
+ * APIMO has no `description` field — the text lives in comments[], one
+ * entry per language (en, fr, bg, ru here), under `comment`. Note
+ * `comment_full` is null on every property, despite reading like the
+ * fuller one.
+ *
+ * French only for now, since the interface is French. Returns null
+ * rather than falling back to another language: a Russian description on
+ * a French screen is worse than none, and silently mixing languages in
+ * one column would hide that the choice was ever made. All 52 currently
+ * carry French.
+ */
+function frenchDescription(property: ApimoProperty): string | null {
+  const comments = Array.isArray(property?.comments) ? property.comments : [];
+  const fr = comments.find(
+    (c) => c?.language === "fr" && typeof c?.comment === "string" && c.comment.trim()
+  );
+  return fr ? fr.comment.trim() : null;
+}
+
 /** Descriptions live in comments[], not a description field. */
 function propertyDescriptionText(property: ApimoProperty): string {
   const chunks: string[] = [];
@@ -429,6 +451,7 @@ async function syncProperty(p: ApimoProperty): Promise<void> {
     tags: Array.isArray(p.tags) ? p.tags.map(Number) : [],
 
     url: p.url ?? null,
+    description: frenchDescription(p),
     updatedAt: new Date(),
   };
 

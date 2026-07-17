@@ -224,6 +224,19 @@ export default async function PropertyDetailPage({
         </div>
       </div>
 
+      {property.description ? (
+        <>
+          <Separator />
+          <Section title="Description">
+            {/* APIMO's text carries its own line breaks; whitespace-pre-line
+                keeps them without trusting the source enough to render HTML. */}
+            <p className="text-muted-foreground max-w-prose text-sm leading-relaxed whitespace-pre-line">
+              {property.description}
+            </p>
+          </Section>
+        </>
+      ) : null}
+
       <Separator />
 
       {property.confidential ? (
