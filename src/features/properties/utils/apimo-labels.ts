@@ -3,22 +3,24 @@
  * referentiel (see api3.apimo.com/fr/api/referentiel/...). The sync
  * stores the codes verbatim; labels are resolved here.
  *
- * UNVERIFIED. These mappings are inferred from the synced data, not read
- * from APIMO's referentiel, so an unknown code renders as the raw value
- * rather than a confident guess — mislabelling a price period would be
- * worse than showing nothing.
+ * Only the codes the agency actually uses are mapped, and they were
+ * confirmed with the agency rather than inferred — a wrong price period
+ * would misprice every listing on the page. Any code outside these maps
+ * renders as its raw value rather than a guess.
  *
- * The durable fix is to sync the referentiel into its own table and look
- * up from there, so new codes can't silently appear as "—".
+ * These cover the current data, not the full referentiel: APIMO defines
+ * many more codes, and a new one would show as a raw value. The durable
+ * fix is to sync the referentiel into its own table and look up from
+ * there.
  */
 
-/** `type`: only 1 and 2 occur across the 52 synced properties. */
+/** Confirmed with the agency. Only 1 and 2 occur in the synced data. */
 const PROPERTY_TYPES: Record<number, string> = {
   1: "Appartement",
   2: "Maison",
 };
 
-/** `pricePeriod`: only 2 and 4 occur. */
+/** Confirmed with the agency. Only 2 and 4 occur in the synced data. */
 const PRICE_PERIODS: Record<number, string> = {
   2: "semaine",
   4: "mois",
