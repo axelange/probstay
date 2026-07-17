@@ -5,13 +5,20 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   type ColumnDef,
+  type ColumnFiltersState,
+  type FilterFn,
   type SortingState,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, EyeOff, ImageOff, Search } from "lucide-react";
+import { ArrowUpDown, EyeOff, ImageOff, Search, X } from "lucide-react";
+import {
+  ActiveFilterCount,
+  MultiSelectFilter,
+  SingleSelectFilter,
+} from "@/features/properties/components/property-filters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,21 +45,67 @@ import {
  * Columns are declared purely as a data model. None of them render;
  * they exist so TanStack knows what can be sorted and searched.
  */
+/** Row value ≥ the filter. Used for capacity: "sleeps at least 8". */
+const atLeast: FilterFn<PropertyListItem> = (row, columnId, value) => {
+  const n = row.getValue<number | null>(columnId);
+  return n !== null && n >= Number(value);
+};
+
+/**
+ * Row value ≤ the filter. Used for budget.
+ *
+ * A property with no rate is excluded once a budget is set. It might
+ * well be within budget, but nobody can say so — and quietly listing an
+ * unpriced villa under "≤ 30 000 €" asserts something untrue.
+ */
+const atMost: FilterFn<PropertyListItem> = (row, columnId, value) => {
+  const n = row.getValue<number | null>(columnId);
+  return n !== null && n <= Number(value);
+};
+
 const columns: ColumnDef<PropertyListItem>[] = [
   { accessorKey: "reference" },
   { accessorKey: "marketingName" },
-  { accessorKey: "city" },
+  { accessorKey: "city", filterFn: "arrIncludesSome" },
   { accessorKey: "district" },
   { accessorKey: "zipcode" },
-  { accessorKey: "priceValue" },
+  { accessorKey: "priceValue", filterFn: atMost },
   { accessorKey: "areaValue" },
-  { accessorKey: "sleeps" },
+  { accessorKey: "sleeps", filterFn: atLeast },
+  { accessorKey: "bedrooms", filterFn: atLeast },
+  {
+    // The raw code, for filtering. Distinct from typeLabel below, which
+    // exists so search matches the word rather than the number.
+    id: "type",
+    accessorFn: (row) => String(row.type ?? ""),
+    filterFn: "equals",
+  },
   {
     id: "typeLabel",
     // Searching "maison" should match, not the raw code 2.
     accessorFn: (row) => propertyTypeLabel(row.type) ?? "",
   },
 ];
+
+const TYPE_OPTIONS = [
+  { value: "1", label: "Appartement" },
+  { value: "2", label: "Maison" },
+];
+
+const SLEEPS_OPTIONS = [2, 4, 6, 8, 10, 12].map((n) => ({
+  value: String(n),
+  label: `${n} couchages ou plus`,
+}));
+
+const BEDROOMS_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({
+  value: String(n),
+  label: `${n} chambre${n > 1 ? "s" : ""} ou plus`,
+}));
+
+const BUDGET_OPTIONS = [2000, 5000, 10000, 20000, 50000, 100000].map((n) => ({
+  value: String(n),
+  label: `Jusqu'à ${new Intl.NumberFormat("fr-FR").format(n)} €`,
+}));
 
 const SORT_OPTIONS = [
   {
@@ -179,17 +232,32 @@ export function PropertiesList({ data }: { data: PropertyListItem[] }) {
   const [sortId, setSortId] =
     React.useState<(typeof SORT_OPTIONS)[number]["id"]>("name");
   const [globalFilter, setGlobalFilter] = React.useState("");
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
 
   const sorting = React.useMemo<SortingState>(
     () => [...(SORT_OPTIONS.find((o) => o.id === sortId)?.sorting ?? [])],
     [sortId]
   );
 
+  // Towns come from the data rather than a hardcoded list: the agency's
+  // selection changes, and a stale list would either hide a town or
+  // offer one with nothing in it.
+  const cities = React.useMemo(
+    () =>
+      [...new Set(data.map((p) => p.city).filter((c): c is string => !!c))].sort(
+        (a, b) => a.localeCompare(b, "fr")
+      ),
+    [data]
+  );
+
   const table = useReactTable({
     data,
     columns,
-    state: { sorting, globalFilter },
+    state: { sorting, globalFilter, columnFilters },
     onGlobalFilterChange: setGlobalFilter,
+    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -198,47 +266,116 @@ export function PropertiesList({ data }: { data: PropertyListItem[] }) {
   const rows = table.getRowModel().rows;
   const activeSort = SORT_OPTIONS.find((o) => o.id === sortId);
 
+  function filterValue(columnId: string) {
+    return (table.getColumn(columnId)?.getFilterValue() as string) ?? "";
+  }
+
+  function setFilter(columnId: string, value: string) {
+    table.getColumn(columnId)?.setFilterValue(value === "" ? undefined : value);
+  }
+
+  const selectedCities =
+    (table.getColumn("city")?.getFilterValue() as string[]) ?? [];
+
+  const activeFilterCount = columnFilters.length;
+  const hasAnyFilter = activeFilterCount > 0 || globalFilter !== "";
+
+  function reset() {
+    setColumnFilters([]);
+    setGlobalFilter("");
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative sm:max-w-xs sm:flex-1">
-          <Search
-            aria-hidden="true"
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
-          />
-          <Input
-            value={globalFilter}
-            onChange={(event) => setGlobalFilter(event.target.value)}
-            placeholder="Rechercher un bien…"
-            aria-label="Rechercher un bien"
-            className="pl-8"
-          />
+      <div className="space-y-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative sm:max-w-xs sm:flex-1">
+            <Search
+              aria-hidden="true"
+              className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+            />
+            <Input
+              value={globalFilter}
+              onChange={(event) => setGlobalFilter(event.target.value)}
+              placeholder="Rechercher un bien…"
+              aria-label="Rechercher un bien"
+              className="pl-8"
+            />
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="outline" className="justify-between sm:w-auto">
+                  <ArrowUpDown aria-hidden="true" />
+                  {activeSort?.label}
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end">
+              <DropdownMenuRadioGroup
+                value={sortId}
+                onValueChange={(value) =>
+                  setSortId(value as (typeof SORT_OPTIONS)[number]["id"])
+                }
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <DropdownMenuRadioItem key={option.id} value={option.id}>
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="outline" className="justify-between sm:w-auto">
-                <ArrowUpDown aria-hidden="true" />
-                {activeSort?.label}
-              </Button>
+        {/* Wraps rather than scrolls: on a phone these stack onto as many
+            rows as they need instead of running off the side. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <MultiSelectFilter
+            label="Ville"
+            options={cities}
+            selected={selectedCities}
+            onChange={(next) =>
+              table
+                .getColumn("city")
+                ?.setFilterValue(next.length ? next : undefined)
             }
           />
-          <DropdownMenuContent align="end">
-            <DropdownMenuRadioGroup
-              value={sortId}
-              onValueChange={(value) =>
-                setSortId(value as (typeof SORT_OPTIONS)[number]["id"])
-              }
-            >
-              {SORT_OPTIONS.map((option) => (
-                <DropdownMenuRadioItem key={option.id} value={option.id}>
-                  {option.label}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          <SingleSelectFilter
+            label="Type"
+            options={TYPE_OPTIONS}
+            value={filterValue("type")}
+            onChange={(v) => setFilter("type", v)}
+          />
+          <SingleSelectFilter
+            label="Couchages"
+            options={SLEEPS_OPTIONS}
+            value={filterValue("sleeps")}
+            onChange={(v) => setFilter("sleeps", v)}
+          />
+          <SingleSelectFilter
+            label="Chambres"
+            options={BEDROOMS_OPTIONS}
+            value={filterValue("bedrooms")}
+            onChange={(v) => setFilter("bedrooms", v)}
+          />
+          <SingleSelectFilter
+            label="Budget"
+            options={BUDGET_OPTIONS}
+            value={filterValue("priceValue")}
+            onChange={(v) => setFilter("priceValue", v)}
+          />
+
+          <ActiveFilterCount count={activeFilterCount} />
+
+          {hasAnyFilter ? (
+            <Button variant="ghost" size="sm" onClick={reset}>
+              <X aria-hidden="true" />
+              Réinitialiser
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {rows.length ? (
@@ -248,14 +385,21 @@ export function PropertiesList({ data }: { data: PropertyListItem[] }) {
           ))}
         </ul>
       ) : (
-        <p className="text-muted-foreground rounded-lg border py-12 text-center text-sm">
-          Aucun bien ne correspond à cette recherche.
-        </p>
+        <div className="space-y-3 rounded-lg border py-12 text-center">
+          <p className="text-muted-foreground text-sm">
+            Aucun bien ne correspond à ces critères.
+          </p>
+          <Button variant="outline" size="sm" onClick={reset}>
+            Réinitialiser les filtres
+          </Button>
+        </div>
       )}
 
+      {/* aria-live so the count is announced as filters change — the
+          result of a dropdown selection is otherwise silent. */}
       <p aria-live="polite" className="text-muted-foreground text-sm">
         {rows.length} bien{rows.length > 1 ? "s" : ""}
-        {globalFilter ? ` sur ${data.length}` : ""}
+        {hasAnyFilter ? ` sur ${data.length}` : ""}
       </p>
     </div>
   );
