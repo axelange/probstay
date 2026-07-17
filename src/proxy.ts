@@ -28,9 +28,21 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Refreshes the session if expired. Required for Server Components,
-  // which can't write cookies themselves.
-  await supabase.auth.getClaims();
+  // Refreshes the session if expired, and revalidates it against
+  // Supabase rather than trusting the cookie. Must run before any
+  // response is generated: Server Components can't write cookies, so a
+  // refresh that lands later is lost.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+  const isPublicRoute = pathname === "/login" || pathname.startsWith("/auth/");
+
+  if (!user && !isPublicRoute) {
+    const loginUrl = new URL("/login", request.url);
+    return NextResponse.redirect(loginUrl);
+  }
 
   return response;
 }
