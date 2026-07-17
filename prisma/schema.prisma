@@ -65,17 +65,56 @@ enum ContactType {
 // id matches the corresponding auth.users.id (Supabase Auth) — set
 // explicitly when the profile is created, never auto-generated here.
 model User {
-  id          String           @id @db.Uuid
-  email       String           @unique
-  fullName    String
-  role        Role
-  permissions UserPermission[]
-  properties  Property[]       @relation("PropertyAgent")
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  archivedAt  DateTime?
+  id              String           @id @db.Uuid
+  email           String           @unique
+  fullName        String
+  role            Role
+  permissions     UserPermission[]
+  properties      Property[]       @relation("PropertyAgent")
+  invitationsSent UserInvitation[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  archivedAt      DateTime?
 
   @@map("users")
+}
+
+// Access to the whole application is invite-only: an email with no row
+// here cannot even authenticate (enforced by the before-user-created
+// auth hook). On first Google sign-in a trigger consumes the matching
+// invitation and creates the User profile with the role named here.
+//
+// This is a separate table rather than a pre-created User row because
+// User.id must equal auth.users.id, which doesn't exist until the
+// person actually signs in for the first time.
+//
+// Gating auth on the invitation (rather than on the email domain) is
+// what keeps invite and sign-in correctly ordered: if someone could
+// authenticate first and be invited afterwards, the provisioning
+// trigger would already have run and their invitation would never be
+// consumed, stranding them with no profile.
+model UserInvitation {
+  id    String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email String @unique
+  role  Role
+
+  // Staff invitations must be @b-stay.com (enforced by a CHECK).
+  // isExternal exempts an address from that rule — for the developer,
+  // who is not on the company Workspace. Only SUPER_ADMIN may create
+  // one (enforced by RLS), so a second dev is a row, not a redeploy.
+  isExternal Boolean @default(false)
+
+  invitedBy String? @db.Uuid
+  inviter   User?   @relation(fields: [invitedBy], references: [id])
+
+  // Informational once set: the hook only ever runs on first sign-in,
+  // so a consumed invitation still needs to exist for later logins.
+  acceptedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_invitations")
 }
 
 // Per-user grant/revoke overrides on top of a Role's baseline
