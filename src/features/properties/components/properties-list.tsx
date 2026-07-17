@@ -134,7 +134,8 @@ function PropertyRow({ property }: { property: PropertyListItem }) {
             </div>
 
             <p className="text-muted-foreground text-sm tabular-nums">
-              {property.rooms ?? "—"} pièces · {property.sleeps ?? "—"} couchages
+              {property.rooms ?? "—"} pièces · {property.bathrooms ?? "—"} sdb ·{" "}
+              {property.sleeps ?? "—"} couchages
               {property.areaValue ? ` · ${formatArea(property.areaValue)}` : ""}
             </p>
 

@@ -143,6 +143,9 @@ export default async function PropertyDetailPage({
               <Field label="Chambres">
                 <span className="tabular-nums">{property.bedrooms ?? "—"}</span>
               </Field>
+              <Field label="Salles de bains">
+                <span className="tabular-nums">{property.bathrooms ?? "—"}</span>
+              </Field>
               <Field label="Couchages">
                 <span className="tabular-nums">{property.sleeps ?? "—"}</span>
               </Field>

@@ -47,6 +47,7 @@ export async function listProperties() {
       type: true,
       rooms: true,
       bedrooms: true,
+      bathrooms: true,
       sleeps: true,
       areaValue: true,
       priceValue: true,

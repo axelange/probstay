@@ -224,6 +224,13 @@ model Property {
   bedrooms  Int?
   sleeps    Int?
 
+  // APIMO has no bathroom count. It's derived during the sync from the
+  // property's areas[] and, failing that, from its descriptions — the
+  // same derivation the public site uses, so both agree. Stored rather
+  // than computed on read: it's expensive (regex over long descriptions)
+  // and must not drift between the two systems.
+  bathrooms Int?
+
   // Pricing
   priceValue      Decimal? @db.Decimal(12, 2)
   priceMax        Decimal? @db.Decimal(12, 2)

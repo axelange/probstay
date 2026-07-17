@@ -30,6 +30,252 @@ function toDateOrNull(value: unknown): Date | null {
 // deno-lint-ignore no-explicit-any
 type ApimoProperty = Record<string, any>;
 
+// --- Bathroom derivation ---------------------------------------------
+// APIMO exposes no bathroom count, so it is derived. Ported verbatim
+// from the public site (bstay/app/scripts/lib/apimo.mjs) rather than
+// reinvented: both systems describe the same properties to the same
+// clients, and a villa listed with 5 bathrooms on b-stay.com but 4 here
+// is worse than either number being slightly off.
+//
+// Keep the two in step. If the site's logic changes, change this too.
+
+/**
+ * areas[].type ids for bathrooms (APIMO catalog: GET /catalogs/property_areas).
+ * 8 Bathroom · 13 Shower room · 41 Bathroom/Lavatory · 42 Shower/Lavatory
+ * Excludes 16 Toilettes and 107 Toilette PMR — a standalone WC is not a
+ * bathroom.
+ */
+const BATHROOM_AREA_TYPES = new Set([8, 13, 41, 42]);
+
+/** areas[].type ids for bedrooms. */
+const BEDROOM_AREA_TYPES = new Set([1, 53, 115]);
+
+const WORD_NUMBERS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5,
+  six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5,
+  sept: 7, huit: 8, neuf: 9, dix: 10,
+};
+
+/** Descriptions live in comments[], not a description field. */
+function propertyDescriptionText(property: ApimoProperty): string {
+  const chunks: string[] = [];
+  for (const comment of property?.comments ?? []) {
+    for (const key of ["comment_full", "comment", "title", "subtitle"]) {
+      const value = comment?.[key];
+      if (typeof value === "string" && value.trim()) chunks.push(value);
+    }
+  }
+  if (property?.name) chunks.push(String(property.name));
+  return chunks.join("\n");
+}
+
+function bedroomsFromTitles(property: ApimoProperty): number {
+  const comments = Array.isArray(property?.comments) ? property.comments : [];
+  for (const c of comments) {
+    const title = c.title ?? "";
+    const match = title.match(/(\d+)\s*(?:chambres?|bedrooms?)\b/i);
+    if (match) return Number(match[1]);
+  }
+  return 0;
+}
+
+function countBedroomsFromAreas(property: ApimoProperty): number {
+  const areas = Array.isArray(property?.areas) ? property.areas : [];
+  let fromAreas = 0;
+  for (const area of areas) {
+    if (!BEDROOM_AREA_TYPES.has(Number(area?.type))) continue;
+    const count = Number(area?.number);
+    fromAreas += Number.isFinite(count) && count > 0 ? count : 1;
+  }
+  return fromAreas;
+}
+
+function bedroomsFromDescriptions(property: ApimoProperty): number {
+  const text = propertyDescriptionText(property);
+  if (!text.trim()) return 0;
+
+  let max = 0;
+  const bump = (value: unknown) => {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0 && n <= 24) max = Math.max(max, n);
+  };
+
+  const masterPlusOtherSuitesEn = text.match(
+    /\bmaster\s+bedroom\b[^.\n]{0,160}\b(\d+)\s+other\s+suites?\b/i,
+  );
+  if (masterPlusOtherSuitesEn) bump(Number(masterPlusOtherSuitesEn[1]) + 1);
+
+  const masterPlusOtherSuitesFr = text.match(
+    /\bchambre\s+de\s+ma[iî]tre\b[^.\n]{0,160}\b(?:de\s+)?(\d+)\s+autres?\s+suites?\b/i,
+  );
+  if (masterPlusOtherSuitesFr) bump(Number(masterPlusOtherSuitesFr[1]) + 1);
+
+  for (const match of text.matchAll(/\b(\d+)\s+autres?\s+suites?\b/gi)) {
+    if (/\b(?:master\s+bedroom|chambre\s+de\s+ma[iî]tre)\b/i.test(text)) {
+      bump(Number(match[1]) + 1);
+    }
+  }
+
+  for (const match of text.matchAll(/\b(\d+)\s*(?:chambres?|bedrooms?)\b/gi)) {
+    bump(match[1]);
+  }
+
+  return max;
+}
+
+function countBedrooms(property: ApimoProperty): number {
+  const candidates = [
+    Number(property?.bedrooms ?? 0),
+    countBedroomsFromAreas(property),
+    bedroomsFromTitles(property),
+    bedroomsFromDescriptions(property),
+  ].filter((n) => Number.isFinite(n) && n > 0);
+
+  if (candidates.length > 0) return Math.max(...candidates);
+
+  const sleeps = Number(property?.sleeps ?? 0);
+  if (sleeps > 0) return Math.max(1, Math.floor(sleeps / 2));
+
+  const rooms = Number(property?.rooms ?? 0);
+  if (rooms > 1) return Math.max(1, Math.round(rooms) - 1);
+
+  return 0;
+}
+
+function countBathroomsFromAreas(property: ApimoProperty): number {
+  const areas = Array.isArray(property?.areas) ? property.areas : [];
+  let total = 0;
+  for (const area of areas) {
+    if (!BATHROOM_AREA_TYPES.has(Number(area?.type))) continue;
+    const count = Number(area?.number);
+    total += Number.isFinite(count) && count > 0 ? count : 1;
+  }
+  return total;
+}
+
+function bathroomsFromDescriptions(property: ApimoProperty): number {
+  const text = propertyDescriptionText(property);
+  if (!text.trim()) return 0;
+
+  const bedrooms = countBedrooms(property);
+  let max = 0;
+  const bump = (value: unknown) => {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0 && n <= 24) max = Math.max(max, n);
+  };
+
+  const enSuiteEachEn = text.match(
+    /\b(\d+)\s*bedrooms?\b[^.\n]{0,160}\beach\s+with\s+(?:its\s+own\s+)?en[- ]?suite\b/i,
+  );
+  if (enSuiteEachEn) bump(enSuiteEachEn[1]);
+
+  const enSuiteEachFr = text.match(
+    /\b(\d+)\s*chambres?\b[^.\n]{0,160}\b(?:chacune|chacun)\s+(?:en\s+suite\s+)?(?:avec\s+)?(?:sa\s+)?(?:salle\s+de\s+bains?|salle\s+de\s+douche)\b/i,
+  );
+  if (enSuiteEachFr) bump(enSuiteEachFr[1]);
+
+  const chacuneEnSuiteFr = text.match(/\b(\d+)\s*chambres?\b[^.\n]{0,100}\bchacune\s+en\s+suite\b/i);
+  if (chacuneEnSuiteFr) bump(chacuneEnSuiteFr[1]);
+
+  const eachEnSuiteEn = text.match(/\b(\d+)\s*bedrooms?\b[^.\n]{0,100}\beach\s+en\s+suite\b/i);
+  if (eachEnSuiteEn) bump(eachEnSuiteEn[1]);
+
+  const wordEnSuiteEach = text.match(
+    /\b(one|two|three|four|five|six|seven|eight|nine|ten|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\s+(?:bedrooms?|chambres?)\b[^.\n]{0,120}\b(?:each\s+with|chacune\s+avec)\s+[^.\n]{0,40}en[- ]?suite\b/i,
+  );
+  if (wordEnSuiteEach) bump(WORD_NUMBERS[wordEnSuiteEach[1].toLowerCase()]);
+
+  const bedsWithEnSuite = text.match(
+    /\b(\d+)\s+(?:\w+\s+)*(?:double\s+)?bedrooms?\s+with\s+en[- ]?suite\s+bathrooms?\b/i,
+  );
+  if (bedsWithEnSuite) bump(bedsWithEnSuite[1]);
+
+  const chambresWithEnSuite = text.match(
+    /\b(\d+)\s+(?:\w+\s+)*chambres?\s+(?:avec|dotées)[^.\n]{0,40}en[- ]?suite\b/i,
+  );
+  if (chambresWithEnSuite) bump(chambresWithEnSuite[1]);
+
+  let enSuiteBedroomSum = 0;
+  for (const match of text.matchAll(/\b(\d+)\s+en[- ]?suite\s+bedrooms?\b/gi)) {
+    enSuiteBedroomSum += Number(match[1]);
+  }
+  if (enSuiteBedroomSum > 0) bump(enSuiteBedroomSum);
+
+  if (/\b(?:each|every)\s+bedroom\b[^.\n]{0,120}\ben[- ]?suite\b/i.test(text) && bedrooms > 0) {
+    bump(bedrooms);
+  }
+
+  const masterPlusOtherSuitesEn = text.match(
+    /\bmaster\s+bedroom\b[^.\n]{0,160}\b(\d+)\s+other\s+suites?\b/i,
+  );
+  if (masterPlusOtherSuitesEn) bump(Number(masterPlusOtherSuitesEn[1]) + 1);
+
+  const masterPlusOtherSuitesFr = text.match(
+    /\bchambre\s+de\s+ma[iî]tre\b[^.\n]{0,160}\b(?:de\s+)?(\d+)\s+autres?\s+suites?\b/i,
+  );
+  if (masterPlusOtherSuitesFr) bump(Number(masterPlusOtherSuitesFr[1]) + 1);
+
+  for (const match of text.matchAll(/\b(\d+)\s+autres?\s+suites?\b/gi)) {
+    if (/\b(?:master\s+bedroom|chambre\s+de\s+ma[iî]tre)\b/i.test(text)) {
+      bump(Number(match[1]) + 1);
+    } else {
+      bump(match[1]);
+    }
+  }
+
+  const bedsInTitle = bedroomsFromTitles(property);
+  if (
+    bedsInTitle > 0 &&
+    (/\bsuites?\b/i.test(text) || /\ben[- ]?suite\b/i.test(text) ||
+      /\bchambre\s+de\s+ma[iî]tre\b/i.test(text))
+  ) {
+    bump(bedsInTitle);
+  }
+
+  const patterns = [
+    /\b(\d+)\s*(?:salles?\s+de\s+bains?|sdb)\b/gi,
+    /\b(\d+)\s*(?:modern\s+)?bathrooms?\b/gi,
+    /\b(\d+)\s*(?:salles?\s+d['’]eau|douches?)\b/gi,
+    /\b(\d+)\s*(?:chambres?\s+en\s+suite|suites?\s+en\s+suite)\b/gi,
+    /\b(\d+)\s*suites?\b/gi,
+    /\b(\d+)\s*(?:en[- ]?suite\s+)?bathrooms?\b/gi,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) bump(match[1]);
+  }
+
+  return max;
+}
+
+function countBathrooms(property: ApimoProperty): number {
+  const fromAreas = countBathroomsFromAreas(property);
+  const fromDescriptions = bathroomsFromDescriptions(property);
+
+  if (fromAreas > 0 || fromDescriptions > 0) {
+    return Math.max(fromAreas, fromDescriptions);
+  }
+
+  const bedrooms = countBedrooms(property);
+  const rooms = Number(property?.rooms);
+  // rooms − bedrooms mixes living/dining in with bathrooms — only trust
+  // it for small apartments.
+  if (bedrooms > 0 && bedrooms <= 2 && Number.isFinite(rooms) && rooms > bedrooms) {
+    const nonBedrooms = Math.round(rooms - bedrooms);
+    if (nonBedrooms >= 2 && nonBedrooms <= 3) return nonBedrooms;
+  }
+
+  const text = propertyDescriptionText(property);
+  if (bedrooms >= 2 && (/\bsuites?\b/i.test(text) || /\ben[- ]?suite\b/i.test(text))) {
+    return Math.max(bedrooms, bedroomsFromTitles(property));
+  }
+
+  // Every property has at least one. (The original expression here was
+  // Math.max(1, bedrooms > 0 ? 1 : 1), which is always 1.)
+  return 1;
+}
+
 // APIMO's populated `owner` shape is unconfirmed (null on every sampled
 // property so far). Validate defensively — skip and log rather than
 // crash the batch if it doesn't look like what we expect. `email` is
@@ -159,6 +405,7 @@ async function syncProperty(p: ApimoProperty): Promise<void> {
     rooms: toIntOrNull(p.rooms),
     bedrooms: toIntOrNull(p.bedrooms),
     sleeps: toIntOrNull(p.sleeps),
+    bathrooms: countBathrooms(p),
 
     priceValue: p.price?.value ?? null,
     priceMax: p.price?.max ?? null,
