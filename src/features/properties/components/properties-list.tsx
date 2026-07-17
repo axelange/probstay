@@ -15,7 +15,6 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUpDown, EyeOff, ImageOff, Search, X } from "lucide-react";
 import {
-  ActiveFilterCount,
   MultiSelectFilter,
   SingleSelectFilter,
 } from "@/features/properties/components/property-filters";
@@ -36,15 +35,6 @@ import {
   propertyTypeLabel,
 } from "@/features/properties/utils/apimo-labels";
 
-/**
- * TanStack drives sorting, filtering and search; only the rendering is
- * ours. It's a headless library, so a list of rows is as legitimate a
- * presentation as a <table> — and a table of eight columns can't fit a
- * phone without horizontal scrolling, which is what this replaces.
- *
- * Columns are declared purely as a data model. None of them render;
- * they exist so TanStack knows what can be sorted and searched.
- */
 /** Row value ≥ the filter. Used for capacity: "sleeps at least 8". */
 const atLeast: FilterFn<PropertyListItem> = (row, columnId, value) => {
   const n = row.getValue<number | null>(columnId);
@@ -63,6 +53,15 @@ const atMost: FilterFn<PropertyListItem> = (row, columnId, value) => {
   return n !== null && n <= Number(value);
 };
 
+/**
+ * TanStack drives sorting, filtering and search; only the rendering is
+ * ours. It's a headless library, so a list of rows is as legitimate a
+ * presentation as a <table> — and a table of eight columns can't fit a
+ * phone without horizontal scrolling, which is what this replaces.
+ *
+ * Columns are declared purely as a data model. None of them render; they
+ * exist so TanStack knows what can be sorted, searched and filtered.
+ */
 const columns: ColumnDef<PropertyListItem>[] = [
   { accessorKey: "reference" },
   { accessorKey: "marketingName" },
@@ -95,16 +94,19 @@ const TYPE_OPTIONS = [
 const SLEEPS_OPTIONS = [2, 4, 6, 8, 10, 12].map((n) => ({
   value: String(n),
   label: `${n} couchages ou plus`,
+  badge: `${n}+`,
 }));
 
 const BEDROOMS_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({
   value: String(n),
   label: `${n} chambre${n > 1 ? "s" : ""} ou plus`,
+  badge: `${n}+`,
 }));
 
 const BUDGET_OPTIONS = [2000, 5000, 10000, 20000, 50000, 100000].map((n) => ({
   value: String(n),
   label: `Jusqu'à ${new Intl.NumberFormat("fr-FR").format(n)} €`,
+  badge: `≤ ${new Intl.NumberFormat("fr-FR").format(n)} €`,
 }));
 
 const SORT_OPTIONS = [
@@ -366,8 +368,6 @@ export function PropertiesList({ data }: { data: PropertyListItem[] }) {
             value={filterValue("priceValue")}
             onChange={(v) => setFilter("priceValue", v)}
           />
-
-          <ActiveFilterCount count={activeFilterCount} />
 
           {hasAnyFilter ? (
             <Button variant="ghost" size="sm" onClick={reset}>

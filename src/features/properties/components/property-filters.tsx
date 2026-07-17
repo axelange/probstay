@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { CirclePlus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,29 +11,15 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 
 /**
- * A dropdown that reads as a filter rather than a menu: it says what is
- * currently selected, and highlights itself once it stops being "all",
- * so an active filter can't be missed and mistaken for missing data.
+ * The trigger Button is written inline in each `render` rather than
+ * factored into a shared component. Base UI passes the trigger's own
+ * props — onClick, aria-expanded, ref — through `render`, and a wrapper
+ * that doesn't spread them silently swallows the lot: the button renders
+ * and does nothing.
  */
-function FilterTrigger({
-  label,
-  isActive,
-}: {
-  label: string;
-  isActive: boolean;
-}) {
-  return (
-    <Button
-      variant="outline"
-      className={isActive ? "border-primary/50 bg-primary/5" : undefined}
-    >
-      {label}
-      <ChevronDown aria-hidden="true" className="opacity-50" />
-    </Button>
-  );
-}
 
 export function MultiSelectFilter({
   label,
@@ -46,13 +32,6 @@ export function MultiSelectFilter({
   selected: string[];
   onChange: (next: string[]) => void;
 }) {
-  const isActive = selected.length > 0;
-  const text = !isActive
-    ? label
-    : selected.length === 1
-      ? selected[0]
-      : `${label} (${selected.length})`;
-
   function toggle(option: string) {
     onChange(
       selected.includes(option)
@@ -64,7 +43,37 @@ export function MultiSelectFilter({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<FilterTrigger label={text} isActive={isActive} />}
+        render={
+          <Button variant="outline" size="sm" className="border-dashed">
+            <CirclePlus aria-hidden="true" />
+            {label}
+            {selected.length > 0 ? (
+              <>
+                <Separator orientation="vertical" className="mx-0.5 h-4" />
+                {/* Up to two are named; beyond that a count, since three
+                    town names would push the row off a phone. */}
+                {selected.length > 2 ? (
+                  <Badge
+                    variant="secondary"
+                    className="rounded-sm px-1 font-normal"
+                  >
+                    {selected.length} sélectionnées
+                  </Badge>
+                ) : (
+                  selected.map((value) => (
+                    <Badge
+                      key={value}
+                      variant="secondary"
+                      className="rounded-sm px-1 font-normal"
+                    >
+                      {value}
+                    </Badge>
+                  ))
+                )}
+              </>
+            ) : null}
+          </Button>
+        }
       />
       <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
         {options.map((option) => (
@@ -79,12 +88,30 @@ export function MultiSelectFilter({
             {option}
           </DropdownMenuCheckboxItem>
         ))}
+        {selected.length > 0 ? (
+          <>
+            <Separator className="my-1" />
+            <DropdownMenuCheckboxItem
+              checked={false}
+              onCheckedChange={() => onChange([])}
+              className="justify-center text-xs"
+            >
+              Effacer
+            </DropdownMenuCheckboxItem>
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-export type SingleOption = { value: string; label: string };
+export type SingleOption = {
+  value: string;
+  /** Shown in the menu, where there's room to be explicit. */
+  label: string;
+  /** Shown on the trigger, where "8 couchages ou plus" would not fit. */
+  badge?: string;
+};
 
 export function SingleSelectFilter({
   label,
@@ -98,19 +125,32 @@ export function SingleSelectFilter({
   value: string;
   onChange: (next: string) => void;
 }) {
-  const isActive = value !== "";
   const active = options.find((o) => o.value === value);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <FilterTrigger label={active?.label ?? label} isActive={isActive} />
+          <Button variant="outline" size="sm" className="border-dashed">
+            <CirclePlus aria-hidden="true" />
+            {label}
+            {active ? (
+              <>
+                <Separator orientation="vertical" className="mx-0.5 h-4" />
+                <Badge
+                  variant="secondary"
+                  className="rounded-sm px-1 font-normal"
+                >
+                  {active.badge ?? active.label}
+                </Badge>
+              </>
+            ) : null}
+          </Button>
         }
       />
       <DropdownMenuContent align="start">
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-          <DropdownMenuRadioItem value="">{label} — tous</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="">Tous</DropdownMenuRadioItem>
           {options.map((option) => (
             <DropdownMenuRadioItem key={option.value} value={option.value}>
               {option.label}
@@ -119,15 +159,5 @@ export function SingleSelectFilter({
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-export function ActiveFilterCount({ count }: { count: number }) {
-  if (count === 0) return null;
-  return (
-    <span className="text-muted-foreground flex items-center gap-1 text-xs">
-      <Check aria-hidden="true" className="size-3" />
-      {count} filtre{count > 1 ? "s" : ""}
-    </span>
   );
 }
