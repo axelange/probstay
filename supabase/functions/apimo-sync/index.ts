@@ -433,6 +433,9 @@ async function syncProperty(p: ApimoProperty): Promise<void> {
     priceMax: p.price?.max ?? null,
     priceCurrency: p.price?.currency ?? null,
     pricePeriod: toIntOrNull(p.price?.period),
+    // The agency marked this rate not-to-publish. Distinct from a null
+    // value, which is APIMO's "price on demand" — no rate at all.
+    priceHidden: p.price?.hide === true,
     priceCommission: p.price?.commission ?? null,
     priceDeposit: p.price?.deposit ?? null,
     priceFees: p.price?.fees ?? null,

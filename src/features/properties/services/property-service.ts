@@ -54,6 +54,7 @@ export async function listProperties() {
       priceMax: true,
       priceCurrency: true,
       pricePeriod: true,
+      priceHidden: true,
       agent: { select: { id: true, fullName: true } },
       pictures: {
         // Lowest rank wins, rather than matching rank = 1: three of the

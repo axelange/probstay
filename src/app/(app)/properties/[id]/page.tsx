@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, EyeOff, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -8,6 +8,7 @@ import { MarketingNameField } from "@/features/properties/components/marketing-n
 import { PropertyGallery } from "@/features/properties/components/property-gallery";
 import { getPropertyDetail } from "@/features/properties/services/property-service";
 import {
+  formatAmount,
   formatArea,
   formatPrice,
   propertyTypeLabel,
@@ -182,14 +183,26 @@ export default async function PropertyDetailPage({
               </Field>
               <Field label="Jusqu'à">
                 <span className="tabular-nums">
-                  {formatPrice(
-                    property.priceMax,
-                    property.priceCurrency,
-                    property.pricePeriod
-                  )}
+                  {/* A missing max means there is no upper rate — not
+                      that the rate is on request. */}
+                  {property.priceMax === null
+                    ? "—"
+                    : formatPrice(
+                        property.priceMax,
+                        property.priceCurrency,
+                        property.pricePeriod
+                      )}
                 </span>
               </Field>
             </dl>
+
+            {property.priceHidden ? (
+              <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                <EyeOff aria-hidden="true" className="size-3.5 shrink-0" />
+                Tarif masqué dans APIMO — visible en interne, à ne pas
+                publier.
+              </p>
+            ) : null}
           </Section>
 
           <Separator />
@@ -249,17 +262,17 @@ export default async function PropertyDetailPage({
             </Field>
             <Field label="Commission">
               <span className="tabular-nums">
-                {formatPrice(property.priceCommission, property.priceCurrency, null)}
+                {formatAmount(property.priceCommission, property.priceCurrency)}
               </span>
             </Field>
             <Field label="Honoraires">
               <span className="tabular-nums">
-                {formatPrice(property.priceFees, property.priceCurrency, null)}
+                {formatAmount(property.priceFees, property.priceCurrency)}
               </span>
             </Field>
             <Field label="Dépôt de garantie">
               <span className="tabular-nums">
-                {formatPrice(property.priceDeposit, property.priceCurrency, null)}
+                {formatAmount(property.priceDeposit, property.priceCurrency)}
               </span>
             </Field>
             <Field label="Propriétaire">

@@ -232,10 +232,17 @@ model Property {
   bathrooms Int?
 
   // Pricing
+  //
+  // A null priceValue is not missing data: APIMO shows those as "price on
+  // demand", and the agency means it. Distinct from priceHidden, which is
+  // APIMO's `price.hide` — a rate that exists but must not be published.
+  // Staff see it in the ERP; anything public (the planned website API)
+  // must honour the flag.
   priceValue      Decimal? @db.Decimal(12, 2)
   priceMax        Decimal? @db.Decimal(12, 2)
   priceCurrency   String?
   pricePeriod     Int?
+  priceHidden     Boolean  @default(false)
   priceCommission Decimal? @db.Decimal(12, 2)
   priceDeposit    Decimal? @db.Decimal(12, 2)
   priceFees       Decimal? @db.Decimal(12, 2)

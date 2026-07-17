@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ImageOff, Search } from "lucide-react";
+import { ArrowUpDown, EyeOff, ImageOff, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -140,12 +140,29 @@ function PropertyRow({ property }: { property: PropertyListItem }) {
             </p>
 
             <div className="mt-auto flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pt-1">
-              <span className="font-medium tabular-nums">
-                {formatPrice(
-                  property.priceValue,
-                  property.priceCurrency,
-                  property.pricePeriod
-                )}
+              <span className="flex items-center gap-1.5">
+                <span
+                  className={
+                    property.priceValue === null
+                      ? "text-muted-foreground text-sm italic"
+                      : "font-medium tabular-nums"
+                  }
+                >
+                  {formatPrice(
+                    property.priceValue,
+                    property.priceCurrency,
+                    property.pricePeriod
+                  )}
+                </span>
+                {property.priceHidden ? (
+                  <EyeOff
+                    aria-hidden="true"
+                    className="text-muted-foreground size-3.5 shrink-0"
+                  />
+                ) : null}
+                {property.priceHidden ? (
+                  <span className="sr-only">Tarif masqué, à ne pas publier</span>
+                ) : null}
               </span>
               <span className="text-muted-foreground text-xs">
                 {property.agent?.fullName ?? "Non assigné"}

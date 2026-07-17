@@ -40,13 +40,18 @@ export function pricePeriodLabel(period: number | null): string | null {
  * A price is meaningless without its period — "109 999 €" reads very
  * differently per night than per month. When the period is unknown the
  * suffix is omitted rather than assumed.
+ *
+ * A null value is not missing data. APIMO renders those as "price on
+ * demand" and the agency means it, so it's said plainly rather than
+ * shown as an em dash, which reads like the app failed to load
+ * something.
  */
 export function formatPrice(
   value: number | null,
   currency: string | null,
   period: number | null
 ): string {
-  if (value === null) return "—";
+  if (value === null) return "Prix sur demande";
 
   const amount = new Intl.NumberFormat("fr-FR", {
     style: "currency",
@@ -56,6 +61,24 @@ export function formatPrice(
 
   const suffix = pricePeriodLabel(period);
   return suffix ? `${amount} / ${suffix}` : amount;
+}
+
+/**
+ * For amounts that aren't a headline rate — commission, fees, deposit.
+ * These genuinely can be absent, so an em dash is right; "Prix sur
+ * demande" would be nonsense on a deposit.
+ */
+export function formatAmount(
+  value: number | null,
+  currency: string | null
+): string {
+  if (value === null) return "—";
+
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: currency ?? "EUR",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 export function formatArea(area: number | null): string {
