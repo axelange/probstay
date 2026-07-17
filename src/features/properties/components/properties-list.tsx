@@ -15,8 +15,12 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUpDown, EyeOff, ImageOff, Search, X } from "lucide-react";
 import {
+  EMPTY_RANGE,
   MultiSelectFilter,
+  type NumberRange,
+  RangeFilter,
   SingleSelectFilter,
+  isRangeActive,
 } from "@/features/properties/components/property-filters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,15 +46,19 @@ const atLeast: FilterFn<PropertyListItem> = (row, columnId, value) => {
 };
 
 /**
- * Row value ≤ the filter. Used for budget.
+ * Within a min/max range, either bound optional. Used for budget.
  *
  * A property with no rate is excluded once a budget is set. It might
  * well be within budget, but nobody can say so — and quietly listing an
  * unpriced villa under "≤ 30 000 €" asserts something untrue.
  */
-const atMost: FilterFn<PropertyListItem> = (row, columnId, value) => {
+const inRange: FilterFn<PropertyListItem> = (row, columnId, value) => {
   const n = row.getValue<number | null>(columnId);
-  return n !== null && n <= Number(value);
+  if (n === null) return false;
+  const { min, max } = value as NumberRange;
+  if (min !== null && n < min) return false;
+  if (max !== null && n > max) return false;
+  return true;
 };
 
 /**
@@ -68,7 +76,7 @@ const columns: ColumnDef<PropertyListItem>[] = [
   { accessorKey: "city", filterFn: "arrIncludesSome" },
   { accessorKey: "district" },
   { accessorKey: "zipcode" },
-  { accessorKey: "priceValue", filterFn: atMost },
+  { accessorKey: "priceValue", filterFn: inRange },
   { accessorKey: "areaValue" },
   { accessorKey: "sleeps", filterFn: atLeast },
   { accessorKey: "bedrooms", filterFn: atLeast },
@@ -91,22 +99,15 @@ const TYPE_OPTIONS = [
   { value: "2", label: "Maison" },
 ];
 
+// The trigger already says "Couchages", so the menu needn't repeat it.
 const SLEEPS_OPTIONS = [2, 4, 6, 8, 10, 12].map((n) => ({
   value: String(n),
-  label: `${n} couchages ou plus`,
-  badge: `${n}+`,
+  label: `${n}+`,
 }));
 
 const BEDROOMS_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({
   value: String(n),
-  label: `${n} chambre${n > 1 ? "s" : ""} ou plus`,
-  badge: `${n}+`,
-}));
-
-const BUDGET_OPTIONS = [2000, 5000, 10000, 20000, 50000, 100000].map((n) => ({
-  value: String(n),
-  label: `Jusqu'à ${new Intl.NumberFormat("fr-FR").format(n)} €`,
-  badge: `≤ ${new Intl.NumberFormat("fr-FR").format(n)} €`,
+  label: `${n}+`,
 }));
 
 const SORT_OPTIONS = [
@@ -279,6 +280,10 @@ export function PropertiesList({ data }: { data: PropertyListItem[] }) {
   const selectedCities =
     (table.getColumn("city")?.getFilterValue() as string[]) ?? [];
 
+  const budget =
+    (table.getColumn("priceValue")?.getFilterValue() as NumberRange) ??
+    EMPTY_RANGE;
+
   const activeFilterCount = columnFilters.length;
   const hasAnyFilter = activeFilterCount > 0 || globalFilter !== "";
 
@@ -362,11 +367,17 @@ export function PropertiesList({ data }: { data: PropertyListItem[] }) {
             value={filterValue("bedrooms")}
             onChange={(v) => setFilter("bedrooms", v)}
           />
-          <SingleSelectFilter
+          <RangeFilter
             label="Budget"
-            options={BUDGET_OPTIONS}
-            value={filterValue("priceValue")}
-            onChange={(v) => setFilter("priceValue", v)}
+            unit="€"
+            placeholderMin="1 000"
+            placeholderMax="50 000"
+            value={budget}
+            onChange={(next) =>
+              table
+                .getColumn("priceValue")
+                ?.setFilterValue(isRangeActive(next) ? next : undefined)
+            }
           />
 
           {hasAnyFilter ? (
