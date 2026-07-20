@@ -116,11 +116,20 @@ const columns: ColumnDef<ContactListItem>[] = [
         ...specialtyLabels(row.specialties, row.otherSpecialty),
       ].join(" "),
   },
+  {
+    // An owner is often looked up from the villa rather than by name,
+    // so both the marketing name and the APIMO reference find them.
+    id: "properties",
+    accessorFn: (row) =>
+      row.properties
+        .map((p) => [p.marketingName, p.reference].filter(Boolean).join(" "))
+        .join(" "),
+  },
   // Sort-only: searching "3" should not surface everyone with 3
   // properties, nor everyone created in 2026.
   {
     id: "propertyCount",
-    accessorFn: (row) => row._count.properties,
+    accessorFn: (row) => row.properties.length,
     enableGlobalFilter: false,
   },
   { accessorKey: "createdAt", enableGlobalFilter: false },
@@ -356,11 +365,16 @@ export function ContactsList({ contacts }: { contacts: ContactListItem[] }) {
                     </span>
                   </div>
 
-                  {contact._count.properties > 0 ? (
-                    <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                      {contact._count.properties === 1
-                        ? "1 bien"
-                        : `${contact._count.properties} biens`}
+                  {/* Named rather than counted up to two, so a search on
+                      a villa shows why this row matched. Beyond that the
+                      count stays scannable. */}
+                  {contact.properties.length > 0 ? (
+                    <span className="text-muted-foreground max-w-[14rem] shrink-0 truncate text-xs">
+                      {contact.properties.length <= 2
+                        ? contact.properties
+                            .map((p) => p.marketingName ?? p.reference)
+                            .join(" · ")
+                        : `${contact.properties.length} biens`}
                     </span>
                   ) : null}
 

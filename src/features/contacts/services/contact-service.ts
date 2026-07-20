@@ -93,7 +93,14 @@ export async function listContacts(user: CurrentUser) {
       otherSpecialty: true,
       apimoId: true,
       createdAt: true,
-      _count: { select: { properties: true } },
+      // Carried so the list can be searched by property: an owner is
+      // often looked up from the villa rather than by name. Cheap at
+      // this scale — 52 properties across 48 contacts.
+      properties: {
+        where: { archivedAt: null },
+        select: { id: true, marketingName: true, reference: true },
+        orderBy: { marketingName: "asc" },
+      },
     },
     // A stable default; the list re-sorts client-side from here.
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
