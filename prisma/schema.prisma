@@ -366,12 +366,14 @@ model Rental {
   propertyId String   @db.Uuid
   property   Property @relation(fields: [propertyId], references: [id])
 
-  // Owner of record for this rental, snapshotted from the property's
-  // owner when the rental is created. Deliberately not read through
-  // property.ownerId: if a property later changes hands, past rentals
-  // must stay attributed to the owner they actually belonged to, or
+  // Owner of record for this rental, snapshotted from the property when
+  // the lease is signed (bookingStatus reaches CONTRACT) — at that
+  // moment it matches the real signed document. Null before then: the
+  // booking is still an enquiry or awaiting the owner, and the property
+  // may yet be reassigned. Deliberately not read through property.ownerId
+  // afterwards: if a property later changes hands, past rentals must
+  // stay attributed to the owner they actually belonged to, or
   // historical Owner Statements silently rewrite themselves.
-  // Nullable because APIMO-synced properties often have no owner yet.
   // onDelete: Restrict — a snapshot that can be nulled is not a
   // snapshot. Business rules are soft-delete-only so this should never
   // fire, but a stray hard DELETE would otherwise blank the owner on
@@ -380,20 +382,19 @@ model Rental {
   ownerId String?  @db.Uuid
   owner   Contact? @relation(fields: [ownerId], references: [id], onDelete: Restrict)
 
-  // Agent of record, snapshotted from the property's agent when the
-  // rental is created — same reasoning as ownerId above. Reassigning a
-  // property must not rewrite who handled every past rental of it,
-  // which is what commission is attributed against.
+  // Agent of record, snapshotted from the property alongside ownerId
+  // when the lease is signed (CONTRACT) — same moment, same reasoning.
+  // Reassigning a property must not rewrite who handled every past
+  // rental of it, which is what commission is attributed against.
   //
   // This is attribution, not authorisation: who may still *edit* a
   // rental follows the property's current agent (see the rentals RLS
   // policies), because an agent taking over a property has to be able
   // to manage its in-flight bookings.
   //
-  // Nullable because a property may have no agent assigned yet.
-  // MUST be populated at rental creation by the rentals service —
-  // there is no trigger doing it, so a rental created without it stays
-  // unattributed forever.
+  // Nullable: null until CONTRACT, and a property may have no agent even
+  // then. Captured by the rentals service (see utils/rental-snapshot) —
+  // there is no trigger doing it.
   agentId String? @db.Uuid
   agent   User?   @relation("RentalAgent", fields: [agentId], references: [id], onDelete: Restrict)
 

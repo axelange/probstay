@@ -225,7 +225,8 @@ export default async function RentalDetailPage({
           <section className="space-y-3">
             <h3 className="text-sm font-medium">Suivi</h3>
             <dl className="grid grid-cols-2 gap-4">
-              {/* Snapshots, not live lookups: reassigning the property
+              {/* Snapshots taken when the lease was signed, not live
+                  lookups — empty before that. Reassigning the property
                   must not rewrite who this booking belonged to. */}
               <Field label="Propriétaire">
                 {rental.owner ? (
@@ -243,8 +244,9 @@ export default async function RentalDetailPage({
               <Field label="Créée le">{formatDate(rental.createdAt)}</Field>
             </dl>
             <p className="text-muted-foreground text-xs">
-              Propriétaire et agent sont figés à la création : réassigner le
-              bien ne réécrit pas l&apos;historique de cette location.
+              Propriétaire et agent sont figés à la signature du contrat :
+              réassigner le bien ensuite ne réécrit pas l&apos;historique de
+              cette location.
             </p>
           </section>
         </div>

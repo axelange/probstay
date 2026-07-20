@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createRentalSchema } from "@/features/rentals/schemas/rental-schema";
 import { canBookProperty } from "@/features/rentals/services/rental-service";
+import { ownerAgentSnapshot } from "@/features/rentals/utils/rental-snapshot";
 
 export type CreateRentalResult =
   | { status: "success"; id: string }
@@ -58,16 +59,20 @@ export async function createRental(
     };
   }
 
+  // Owner and agent are frozen only once the lease is signed, so that
+  // the snapshot matches the real signed document. A booking created as
+  // an enquiry or an owner request carries neither yet; both are
+  // captured when it reaches CONTRACT (here if it is created there
+  // directly, otherwise by the status-change action). Reading the live
+  // property is correct until then.
+  const snapshot = ownerAgentSnapshot(data.bookingStatus, property);
+
   try {
     const rental = await prisma.rental.create({
       data: {
         propertyId: property.id,
-        // Snapshotted at creation, never read through the property
-        // afterwards: reassigning a property or changing its owner must
-        // not rewrite who this booking belonged to. Nothing else
-        // populates these — there is no trigger.
-        ownerId: property.ownerId,
-        agentId: property.agentId,
+        ownerId: snapshot.ownerId,
+        agentId: snapshot.agentId,
         checkIn: new Date(data.checkIn),
         checkOut: new Date(data.checkOut),
         bookingStatus: data.bookingStatus,
