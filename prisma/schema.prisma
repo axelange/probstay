@@ -62,6 +62,36 @@ enum ContactType {
   PROVIDER
 }
 
+// What a contact actually does. `types` says how they relate to BSTAY;
+// this says their trade, which "Prestataire" alone cannot distinguish —
+// a cleaner and a bailiff are not interchangeable.
+//
+// Identifiers are English, labels French, per the coding guidelines
+// (see contact-specialty-labels.ts).
+//
+// Deliberately not restricted to PROVIDER: BUSINESS_INTRODUCER
+// describes a Partner, not a supplier.
+//
+// OTHER is paired with `otherSpecialty` free text. It exists so an
+// unlisted trade is recorded rather than lost in a notes field, without
+// a migration for every new one.
+enum ContactSpecialty {
+  CLEANING
+  BAILIFF
+  DESIGN
+  ARCHITECT
+  PLUMBING
+  ELECTRICAL
+  HVAC
+  CONSTRUCTION
+  BUSINESS_INTRODUCER
+  ACCOUNTING
+  EVENTS
+  CATERING
+  TRANSPORT
+  OTHER
+}
+
 // id matches the corresponding auth.users.id (Supabase Auth) — set
 // explicitly when the profile is created, never auto-generated here.
 model User {
@@ -141,6 +171,14 @@ model Contact {
   // join table so reading a Contact's types never needs a second query.
   types ContactType[]
 
+  // Trade(s). Multi-valued because one contact routinely does more than
+  // one thing — the first real record created was "Graphiste /
+  // Développeur web". Same array-over-join-table reasoning as `types`.
+  specialties ContactSpecialty[]
+
+  // Free text, only meaningful when `specialties` contains OTHER.
+  otherSpecialty String?
+
   // `apimoId` is the identity for anything synced from APIMO; contacts
   // created in BSTAY simply have none.
   apimoId Int? @unique
@@ -176,6 +214,8 @@ model Contact {
   // Supports the 'CLIENT' = any(types) lookup used by the Agent
   // contact-visibility RLS policy.
   @@index([types], map: "contacts_types_gin_idx", type: Gin)
+  // Same shape of lookup: "every plumber" is an = ANY(specialties) scan.
+  @@index([specialties], map: "contacts_specialties_gin_idx", type: Gin)
   @@map("contacts")
 }
 

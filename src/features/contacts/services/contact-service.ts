@@ -62,6 +62,8 @@ export async function listContacts(user: CurrentUser) {
       email: true,
       phone: true,
       types: true,
+      specialties: true,
+      otherSpecialty: true,
       apimoId: true,
       _count: { select: { properties: true } },
     },

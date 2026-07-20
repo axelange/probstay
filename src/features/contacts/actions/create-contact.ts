@@ -48,7 +48,16 @@ export async function createContact(
     };
   }
 
-  const { firstName, lastName, email, phone, types, notes } = parsed.data;
+  const {
+    firstName,
+    lastName,
+    email,
+    phone,
+    types,
+    specialties,
+    otherSpecialty,
+    notes,
+  } = parsed.data;
 
   // A shared number is legitimate — households and couples share a line —
   // so this warns once and lets the user proceed, rather than refusing.
@@ -74,6 +83,8 @@ export async function createContact(
         phone: phone || null,
         notes: notes || null,
         types,
+        specialties,
+        otherSpecialty: otherSpecialty || null,
       },
       select: { id: true, firstName: true, lastName: true },
     });

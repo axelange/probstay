@@ -5,6 +5,7 @@ import {
   CONTACT_TYPES,
   contactTypeLabel,
 } from "@/features/contacts/components/contact-type-labels";
+import { specialtyLabels } from "@/features/contacts/components/contact-specialty-labels";
 
 /**
  * Rows rather than a `<table>`, matching the properties and users lists.
@@ -30,11 +31,26 @@ export function ContactsList({ contacts }: { contacts: ContactListItem[] }) {
 
         // Kept in enum order so the badges don't reshuffle between rows.
         const types = CONTACT_TYPES.filter((t) => contact.types.includes(t));
+        const trades = specialtyLabels(
+          contact.specialties,
+          contact.otherSpecialty
+        );
 
         return (
           <li key={contact.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm">
             <div className="min-w-0 flex-1">
-              <span className="block truncate font-medium">{name}</span>
+              <span className="flex flex-wrap items-baseline gap-x-2">
+                <span className="truncate font-medium">{name}</span>
+                {/* The trade sits with the name, not among the type
+                    badges: "Plombier" is what you scan for when you need
+                    one, while "Prestataire" only says how they relate
+                    to us. */}
+                {trades.length > 0 ? (
+                  <span className="text-muted-foreground truncate text-xs">
+                    {trades.join(" · ")}
+                  </span>
+                ) : null}
+              </span>
 
               <span className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
                 {contact.email ? (

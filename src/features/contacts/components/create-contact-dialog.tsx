@@ -3,7 +3,7 @@
 import * as React from "react";
 import { UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import type { ContactType } from "@/generated/prisma/enums";
+import type { ContactSpecialty, ContactType } from "@/generated/prisma/enums";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +21,10 @@ import {
   CONTACT_TYPES,
   contactTypeLabel,
 } from "@/features/contacts/components/contact-type-labels";
+import {
+  CONTACT_SPECIALTIES,
+  contactSpecialtyLabel,
+} from "@/features/contacts/components/contact-specialty-labels";
 
 const EMPTY = {
   firstName: "",
@@ -28,17 +32,30 @@ const EMPTY = {
   email: "",
   phone: "",
   notes: "",
+  otherSpecialty: "",
 };
 
 export function CreateContactDialog() {
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState(EMPTY);
   const [types, setTypes] = React.useState<ContactType[]>(["OWNER"]);
+  const [specialties, setSpecialties] = React.useState<ContactSpecialty[]>([]);
   const [isPending, startTransition] = React.useTransition();
+
+  const wantsOther = specialties.includes("OTHER");
 
   function reset() {
     setForm(EMPTY);
     setTypes(["OWNER"]);
+    setSpecialties([]);
+  }
+
+  function toggleSpecialty(specialty: ContactSpecialty) {
+    setSpecialties((current) =>
+      current.includes(specialty)
+        ? current.filter((s) => s !== specialty)
+        : [...current, specialty]
+    );
   }
 
   function set(field: keyof typeof EMPTY, value: string) {
@@ -57,7 +74,12 @@ export function CreateContactDialog() {
     event.preventDefault();
 
     startTransition(async () => {
-      const result = await createContact({ ...form, types, acceptDuplicatePhone });
+      const result = await createContact({
+        ...form,
+        types,
+        specialties,
+        acceptDuplicatePhone,
+      });
 
       if (result.status === "duplicate-phone") {
         // A shared line is legitimate, so this asks rather than refuses.
@@ -66,6 +88,7 @@ export function CreateContactDialog() {
           const retry = await createContact({
             ...form,
             types,
+            specialties,
             acceptDuplicatePhone: true,
           });
           if (retry.status === "error") {
@@ -189,6 +212,46 @@ export function CreateContactDialog() {
               </div>
             </fieldset>
 
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">Spécialités</legend>
+              <p className="text-muted-foreground text-xs">
+                Le métier du contact. Facultatif — un propriétaire ou un
+                client n&apos;en a pas.
+              </p>
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                {CONTACT_SPECIALTIES.map((specialty) => (
+                  <label
+                    key={specialty}
+                    className="flex cursor-pointer items-center gap-1.5 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      className="size-4 cursor-pointer"
+                      checked={specialties.includes(specialty)}
+                      onChange={() => toggleSpecialty(specialty)}
+                      disabled={isPending}
+                    />
+                    {contactSpecialtyLabel(specialty)}
+                  </label>
+                ))}
+              </div>
+
+              {/* Only once "Autre" is ticked: an always-visible free
+                  field invites people to type a trade that already has
+                  a checkbox. */}
+              {wantsOther ? (
+                <Input
+                  aria-label="Préciser la spécialité"
+                  placeholder="Préciser (ex. Jardinier)"
+                  value={form.otherSpecialty}
+                  onChange={(e) => set("otherSpecialty", e.target.value)}
+                  disabled={isPending}
+                  autoComplete="off"
+                  className="mt-1"
+                />
+              ) : null}
+            </fieldset>
+
             <div className="space-y-2">
               <Label htmlFor="contact-notes">Notes internes</Label>
               <Input
@@ -212,7 +275,14 @@ export function CreateContactDialog() {
             </Button>
             <Button
               type="submit"
-              disabled={isPending || !form.lastName.trim() || types.length === 0}
+              disabled={
+                isPending ||
+                !form.lastName.trim() ||
+                types.length === 0 ||
+                // Matches the schema's refine, so the button explains
+                // itself rather than the form failing on submit.
+                (wantsOther && !form.otherSpecialty.trim())
+              }
             >
               {isPending ? "Enregistrement…" : "Créer"}
             </Button>
