@@ -344,18 +344,6 @@ async function resolveOwnerId(ownerData: unknown): Promise<string | null> {
   return row.id;
 }
 
-// APIMO's `user.id` is a different ID space than our own User UUIDs, so
-// resolve the actual FK by matching email. Left null if no match — the
-// agent likely isn't provisioned as a User yet.
-async function resolveAgentId(userData: unknown): Promise<string | null> {
-  if (!userData || typeof userData !== "object") return null;
-  const user = userData as ApimoProperty;
-  if (!user.email) return null;
-
-  const [row] = await sql`select id from users where email = ${user.email}`;
-  return row?.id ?? null;
-}
-
 async function upsertPictures(propertyId: string, pictures: unknown) {
   if (!Array.isArray(pictures)) return;
 
@@ -383,18 +371,19 @@ async function upsertPictures(propertyId: string, pictures: unknown) {
   }
 }
 
+// `agentId` is deliberately NOT synced from APIMO: this agency shares a single
+// APIMO login, so `p.user` (the API caller) is always the same account holder
+// on every property, not the property's real agent. Real assignment lives only
+// in `properties.agentId`, set by hand in the app, and this sync must never
+// overwrite it. `apimoAgentId` is kept as a raw diagnostic value only.
 async function syncProperty(p: ApimoProperty): Promise<void> {
-  const [ownerId, agentId] = await Promise.all([
-    resolveOwnerId(p.owner),
-    resolveAgentId(p.user),
-  ]);
+  const ownerId = await resolveOwnerId(p.owner);
 
   const record = {
     apimoId: p.id,
     reference: toIntOrNull(p.reference),
     apimoAgencyId: toIntOrNull(p.agency),
     ownerId,
-    agentId,
     apimoAgentId: toIntOrNull(p.user?.id),
 
     category: toIntOrNull(p.category),
