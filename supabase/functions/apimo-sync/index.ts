@@ -298,36 +298,92 @@ function countBathrooms(property: ApimoProperty): number {
   return 1;
 }
 
-// APIMO's populated `owner` shape is unconfirmed (null on every sampled
-// property so far). Validate defensively — skip and log rather than
-// crash the batch if it doesn't look like what we expect. `email` is
-// required (NOT NULL + unique in the DB), so it's validated here too.
-async function resolveOwnerId(ownerData: unknown): Promise<string | null> {
-  if (!ownerData || typeof ownerData !== "object") return null;
-  const owner = ownerData as ApimoProperty;
+/** Trimmed value, or null when APIMO sent "" / null / undefined. */
+function text(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim();
+  return s === "" ? null : s;
+}
 
-  const apimoId = toIntOrNull(owner.id);
-  const firstName = owner.firstname ?? owner.first_name ?? null;
-  const lastName = owner.lastname ?? owner.last_name ?? null;
-  const email = owner.email ?? null;
+/**
+ * Every contact the agency holds, keyed by APIMO id.
+ *
+ * `property.owner` is only a bare id — the owner's details live behind a
+ * second endpoint, gated by its own `contacts` scope. Fetched in one
+ * request and indexed rather than looked up per property: the agency has
+ * 5052 contacts against 46 distinct owners, so per-owner requests would
+ * be 46 round trips against an API whose rate limits APIMO has already
+ * asked us to be careful with.
+ */
+async function fetchContactsById(
+  agencyId: string,
+  credentials: string
+): Promise<Map<string, ApimoProperty>> {
+  const response = await fetch(
+    `https://api.apimo.pro/agencies/${agencyId}/contacts?limit=10000&offset=0`,
+    { headers: { Authorization: `Basic ${credentials}` } }
+  );
 
-  if (apimoId === null || !firstName || !lastName || !email) {
+  const bodyText = await response.text();
+  if (!response.ok) {
+    // Thrown, not swallowed: without contacts every property would sync
+    // with a null owner, which looks like success.
+    throw new Error(
+      `apimo contacts request failed: ${response.status} ${bodyText.slice(0, 300)}`
+    );
+  }
+
+  const body = JSON.parse(bodyText);
+  const rows: ApimoProperty[] = Array.isArray(body.contacts) ? body.contacts : [];
+
+  if (typeof body.total_items === "number" && body.total_items > rows.length) {
     console.warn(
-      "apimo-sync: unexpected owner shape, skipping contact link",
-      JSON.stringify(owner)
+      `apimo-sync: contacts total_items (${body.total_items}) exceeds returned (${rows.length}) — pagination needed above 10000.`
+    );
+  }
+
+  return new Map(rows.map((c) => [String(c.id), c]));
+}
+
+/**
+ * Upserts one APIMO contact as an Owner, returning our own uuid.
+ *
+ * Only the columns built from APIMO are written. `iban` and `notes` are
+ * BSTAY's own and must survive every sync, the same rule that protects
+ * `marketingName` on a property.
+ *
+ * APIMO's contact payload also carries a plaintext `password` for its
+ * extranet, along with spouse details, tax codes and nationalities.
+ * None of it is mapped. Do not add it without a reason that outlives
+ * this comment.
+ */
+async function upsertOwner(c: ApimoProperty): Promise<string | null> {
+  const apimoId = toIntOrNull(c.id);
+  const lastName = text(c.lastname);
+
+  // lastName is the one name the DB still requires, and it is present on
+  // 5026 of 5052 real contacts. A record without one is unidentifiable,
+  // so it is skipped loudly rather than invented.
+  if (apimoId === null || !lastName) {
+    console.warn(
+      `apimo-sync: contact ${c?.id} has no usable lastName, skipping owner link`
     );
     return null;
   }
 
-  const phone = owner.phone ?? owner.mobile ?? null;
-  const updatedAt = new Date();
+  const firstName = text(c.firstname);
+  // Lowercased so casing variants cannot become two people under the
+  // unique index. Verified to introduce no collisions among the owners.
+  const email = text(c.email)?.toLowerCase() ?? null;
+  // `phone` is set on only 2 of 46 owners while `mobile` covers 30 —
+  // the fallback is doing the real work here, not the primary field.
+  const phone = text(c.phone) ?? text(c.mobile);
 
-  // `types` is unioned with whatever's already there (rather than
-  // overwritten) so re-syncing an Owner never erases a CLIENT (or
-  // other) type membership added through a different flow later.
+  // `types` is unioned rather than overwritten, so re-syncing an Owner
+  // never erases a CLIENT (or other) membership added elsewhere.
   const [row] = await sql`
     insert into contacts ("apimoId", "firstName", "lastName", "email", "phone", "types", "updatedAt")
-    values (${apimoId}, ${firstName}, ${lastName}, ${email}, ${phone}, ${["OWNER"]}, ${updatedAt})
+    values (${apimoId}, ${firstName}, ${lastName}, ${email}, ${phone}, ${["OWNER"]}, ${new Date()})
     on conflict ("apimoId") do update set
       "firstName" = excluded."firstName",
       "lastName" = excluded."lastName",
@@ -396,9 +452,13 @@ function isBroadcastToUs(p: ApimoProperty, providerId: string): boolean {
 // on every property, not the property's real agent. Real assignment lives only
 // in `properties.agentId`, set by hand in the app, and this sync must never
 // overwrite it. `apimoAgentId` is kept as a raw diagnostic value only.
-async function syncProperty(p: ApimoProperty): Promise<void> {
-  const ownerId = await resolveOwnerId(p.owner);
-
+// `ownerId` is passed in rather than resolved here: owners are upserted
+// once up front, since 46 distinct owners span 52 properties and several
+// hold more than one.
+async function syncProperty(
+  p: ApimoProperty,
+  ownerId: string | null
+): Promise<void> {
   const record = {
     apimoId: p.id,
     reference: toIntOrNull(p.reference),
@@ -544,9 +604,59 @@ Deno.serve(async (req) => {
       warnings.push(message);
     }
 
+    // --- Owners -----------------------------------------------------
+    // Resolved before any property is written, so a property is never
+    // stored with a null owner merely because the contact had not been
+    // fetched yet.
+    const ownerApimoIds = [
+      ...new Set(ours.map((p) => text(p.owner)).filter((v): v is string => v !== null)),
+    ];
+
+    const ownerUuidByApimoId = new Map<string, string>();
+    let ownersSynced = 0;
+
+    if (ownerApimoIds.length > 0) {
+      const contactsById = await fetchContactsById(agencyId, credentials);
+
+      for (const apimoOwnerId of ownerApimoIds) {
+        const contact = contactsById.get(apimoOwnerId);
+
+        if (!contact) {
+          const message = `owner ${apimoOwnerId} not present in the contacts feed`;
+          console.warn(`apimo-sync: ${message}`);
+          warnings.push(message);
+          continue;
+        }
+
+        try {
+          const uuid = await upsertOwner(contact);
+          if (uuid) {
+            ownerUuidByApimoId.set(apimoOwnerId, uuid);
+            ownersSynced++;
+          } else {
+            warnings.push(`owner ${apimoOwnerId}: no lastName, not linked`);
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`apimo-sync: failed to sync owner ${apimoOwnerId}`, message);
+          warnings.push(`owner ${apimoOwnerId}: ${message}`);
+        }
+      }
+    }
+
+    // --- Properties -------------------------------------------------
+    let ownerless = 0;
+
     for (const p of ours) {
+      const apimoOwnerId = text(p.owner);
+      const ownerId = apimoOwnerId
+        ? ownerUuidByApimoId.get(apimoOwnerId) ?? null
+        : null;
+
+      if (ownerId === null) ownerless++;
+
       try {
-        await syncProperty(p);
+        await syncProperty(p, ownerId);
         synced++;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -558,12 +668,20 @@ Deno.serve(async (req) => {
     // `skipped` is reported rather than silently dropped: it is the
     // number the agency controls, so a sudden change in it is the first
     // sign that something moved on their side.
+    // `ownerless` is reported because it is the number that silently
+    // used to be all of them: a property syncing fine with no owner is
+    // the failure this rewrite exists to make visible.
     return new Response(
       JSON.stringify({
         total: properties.length,
         broadcastToUs: ours.length,
         skipped,
         synced,
+        owners: {
+          referenced: ownerApimoIds.length,
+          synced: ownersSynced,
+          propertiesLeftOwnerless: ownerless,
+        },
         warnings,
       }),
       { status: 200, headers: { "content-type": "application/json" } }
