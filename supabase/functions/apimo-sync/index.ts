@@ -371,6 +371,26 @@ async function upsertPictures(propertyId: string, pictures: unknown) {
   }
 }
 
+/**
+ * Whether the agency has broadcast this property to us.
+ *
+ * `exchanges` is APIMO's diffusion list — one entry per partner feed a
+ * property is published to. An entry naming our own provider id is the
+ * agency saying "this one is for BSTAY".
+ *
+ * This is not decoration. `step=1` returns every in-progress property
+ * the agency has, including ones bound for other portals: at the time of
+ * writing, 102 properties of which 52 carry our provider. Without this
+ * filter the other 50 would be created here as though they were ours.
+ *
+ * The correspondence was verified against the 52 already synced: every
+ * one carries our provider, and no property outside that set does.
+ */
+function isBroadcastToUs(p: ApimoProperty, providerId: string): boolean {
+  const exchanges = Array.isArray(p.exchanges) ? p.exchanges : [];
+  return exchanges.some((e) => String(e?.provider) === String(providerId));
+}
+
 // `agentId` is deliberately NOT synced from APIMO: this agency shares a single
 // APIMO login, so `p.user` (the API caller) is always the same account holder
 // on every property, not the property's real agent. Real assignment lives only
@@ -508,7 +528,23 @@ Deno.serve(async (req) => {
     let synced = 0;
     const warnings: string[] = [];
 
-    for (const p of properties) {
+    const ours = properties.filter((p) => isBroadcastToUs(p, providerId));
+    const skipped = properties.length - ours.length;
+
+    // Nothing carrying our provider, out of a non-empty feed, is far
+    // more likely to be a changed provider id or a shape change at
+    // APIMO than the agency genuinely un-broadcasting everything.
+    // Surfaced in the response body rather than only the logs, since
+    // that is what a human or a cron job actually reads.
+    if (properties.length > 0 && ours.length === 0) {
+      const message =
+        `no property carries provider ${providerId} — refusing to ` +
+        `treat ${properties.length} properties as an empty feed`;
+      console.error(`apimo-sync: ${message}`);
+      warnings.push(message);
+    }
+
+    for (const p of ours) {
       try {
         await syncProperty(p);
         synced++;
@@ -519,8 +555,17 @@ Deno.serve(async (req) => {
       }
     }
 
+    // `skipped` is reported rather than silently dropped: it is the
+    // number the agency controls, so a sudden change in it is the first
+    // sign that something moved on their side.
     return new Response(
-      JSON.stringify({ total: properties.length, synced, warnings }),
+      JSON.stringify({
+        total: properties.length,
+        broadcastToUs: ours.length,
+        skipped,
+        synced,
+        warnings,
+      }),
       { status: 200, headers: { "content-type": "application/json" } }
     );
   } catch (error) {
