@@ -4,6 +4,7 @@ import { ArrowLeft, CircleCheck, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { EditRentalForm } from "@/features/rentals/components/edit-rental-form";
 import {
   bookingStatusLabel,
   formatAmount,
@@ -125,65 +126,82 @@ export default async function RentalDetailPage({
 
           <Separator />
 
-          <section className="space-y-3">
-            <h3 className="text-sm font-medium">Montants</h3>
-            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Field label="Séjour">
-                <span className="tabular-nums">
-                  {formatAmount(rental.grossAmount)}
-                </span>
-              </Field>
-              <Field label="Acompte">
-                <span className="tabular-nums">
-                  {formatAmount(rental.depositAmount)}
-                </span>
-              </Field>
-              <Field label="Solde">
-                <span className="tabular-nums">{formatAmount(balance)}</span>
-              </Field>
-              <Field label="Dépôt de garantie">
-                <span className="tabular-nums">
-                  {formatAmount(rental.securityDepositAmount)}
-                </span>
-              </Field>
-            </dl>
-            <p className="text-muted-foreground text-xs">
-              Le solde est calculé (séjour moins acompte), jamais saisi. Le
-              dépôt de garantie est restitué et n&apos;est pas un revenu.
-            </p>
-          </section>
-
-          <Separator />
-
-          <section className="space-y-3">
-            <h3 className="text-sm font-medium">Paiements</h3>
-            {/* Three independent axes: a deposit can be settled while the
-                booking is still an enquiry, so they are never merged into
-                the pipeline. */}
-            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <Field label="Acompte">
-                {paymentStatusLabel(rental.depositStatus)}
-              </Field>
-              <Field label="Solde">
-                {paymentStatusLabel(rental.balanceStatus)}
-              </Field>
-              <Field label="Dépôt de garantie">
-                {paymentStatusLabel(rental.securityDepositStatus)}
-              </Field>
-            </dl>
-          </section>
-
-          {rental.notes ? (
+          {/* Progress, money and payments are editable for whoever
+              manages this booking, and read-only otherwise. Dates and
+              property stay fixed here: changing them interacts with the
+              overlap constraint and the snapshot, and belongs elsewhere. */}
+          {canManage ? (
+            <EditRentalForm
+              rental={{
+                id: rental.id,
+                bookingStatus: rental.bookingStatus,
+                grossAmount: rental.grossAmount,
+                depositAmount: rental.depositAmount,
+                securityDepositAmount: rental.securityDepositAmount,
+                depositStatus: rental.depositStatus,
+                balanceStatus: rental.balanceStatus,
+                securityDepositStatus: rental.securityDepositStatus,
+                ownerConfirmedAt: rental.ownerConfirmedAt,
+                ownerConfirmedByName: rental.ownerConfirmedBy?.fullName ?? null,
+                notes: rental.notes,
+              }}
+            />
+          ) : (
             <>
-              <Separator />
-              <section className="space-y-2">
-                <h3 className="text-sm font-medium">Notes internes</h3>
-                <p className="text-muted-foreground max-w-prose text-sm whitespace-pre-line">
-                  {rental.notes}
-                </p>
+              <section className="space-y-3">
+                <h3 className="text-sm font-medium">Montants</h3>
+                <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <Field label="Séjour">
+                    <span className="tabular-nums">
+                      {formatAmount(rental.grossAmount)}
+                    </span>
+                  </Field>
+                  <Field label="Acompte">
+                    <span className="tabular-nums">
+                      {formatAmount(rental.depositAmount)}
+                    </span>
+                  </Field>
+                  <Field label="Solde">
+                    <span className="tabular-nums">{formatAmount(balance)}</span>
+                  </Field>
+                  <Field label="Dépôt de garantie">
+                    <span className="tabular-nums">
+                      {formatAmount(rental.securityDepositAmount)}
+                    </span>
+                  </Field>
+                </dl>
               </section>
+
+              <Separator />
+
+              <section className="space-y-3">
+                <h3 className="text-sm font-medium">Paiements</h3>
+                <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  <Field label="Acompte">
+                    {paymentStatusLabel(rental.depositStatus)}
+                  </Field>
+                  <Field label="Solde">
+                    {paymentStatusLabel(rental.balanceStatus)}
+                  </Field>
+                  <Field label="Dépôt de garantie">
+                    {paymentStatusLabel(rental.securityDepositStatus)}
+                  </Field>
+                </dl>
+              </section>
+
+              {rental.notes ? (
+                <>
+                  <Separator />
+                  <section className="space-y-2">
+                    <h3 className="text-sm font-medium">Notes internes</h3>
+                    <p className="text-muted-foreground max-w-prose text-sm whitespace-pre-line">
+                      {rental.notes}
+                    </p>
+                  </section>
+                </>
+              ) : null}
             </>
-          ) : null}
+          )}
         </div>
 
         <div className="space-y-6">
