@@ -100,9 +100,10 @@ model User {
   fullName        String
   role            Role
   permissions     UserPermission[]
-  properties      Property[]       @relation("PropertyAgent")
-  rentalsHandled  Rental[]         @relation("RentalAgent")
-  invitationsSent UserInvitation[]
+  properties            Property[]       @relation("PropertyAgent")
+  rentalsHandled        Rental[]         @relation("RentalAgent")
+  rentalsOwnerConfirmed Rental[]         @relation("RentalOwnerConfirmedBy")
+  invitationsSent       UserInvitation[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   archivedAt      DateTime?
@@ -400,6 +401,22 @@ model Rental {
 
   bookingStatus RentalBookingStatus @default(INQUIRY)
 
+  // When the owner confirmed these dates, and who obtained it.
+  //
+  // Recorded separately from bookingStatus because BOOKING_CONFIRMATION
+  // covers two different situations — "asked the owner" and "the owner
+  // said yes" — and only the second is exclusive. Mandates are not
+  // exclusive, so several agents may legitimately be waiting on the same
+  // owner for the same week; what may not happen twice is the answer.
+  //
+  // This is what the no-overlap constraint keys on, not the deposit:
+  // waiting for payment would lock the villa long after promises have
+  // been made. It is also the agency's evidence if an owner later
+  // disputes having agreed — a date and a name, not an inferred status.
+  ownerConfirmedAt   DateTime?
+  ownerConfirmedById String?   @db.Uuid
+  ownerConfirmedBy   User?     @relation("RentalOwnerConfirmedBy", fields: [ownerConfirmedById], references: [id], onDelete: Restrict)
+
   // Deposit, security deposit and balance settle independently of each
   // other and of the booking's stage, so each carries its own status.
   depositStatus         RentalPaymentStatus @default(UNPAID)
@@ -413,7 +430,12 @@ model Rental {
   // separately and is never agency revenue — the two must never be
   // conflated. The outstanding balance is derived (gross - deposit),
   // never stored; balanceStatus tracks whether it's been settled.
-  grossAmount           Decimal  @db.Decimal(12, 2)
+  //
+  // Nullable only while the booking is an enquiry: a client asking about
+  // dates has no agreed price yet. A CHECK constraint requires it from
+  // BOOKING_CONFIRMATION onwards, with CANCELLED exempt so an enquiry
+  // that goes nowhere can still be closed.
+  grossAmount           Decimal? @db.Decimal(12, 2)
   depositAmount         Decimal? @db.Decimal(12, 2)
   securityDepositAmount Decimal? @db.Decimal(12, 2)
 
@@ -435,6 +457,7 @@ model Rental {
   @@index([agentId])
   @@index([checkIn, checkOut])
   @@index([bookingStatus])
+  @@index([ownerConfirmedAt])
   @@map("rentals")
 }
 
