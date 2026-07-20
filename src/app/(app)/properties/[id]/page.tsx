@@ -4,9 +4,13 @@ import { ArrowLeft, EyeOff, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { AgentAssignField } from "@/features/properties/components/agent-assign-field";
 import { MarketingNameField } from "@/features/properties/components/marketing-name-field";
 import { PropertyGallery } from "@/features/properties/components/property-gallery";
-import { getPropertyDetail } from "@/features/properties/services/property-service";
+import {
+  getPropertyDetail,
+  listAssignableAgents,
+} from "@/features/properties/services/property-service";
 import {
   formatAmount,
   formatArea,
@@ -79,6 +83,8 @@ export default async function PropertyDetailPage({
   // Decided here rather than in the client component: the same check runs
   // again inside the action, since rendering an input is not permission.
   const canEditMarketingName = hasPermission(user, "MANAGE_PROPERTIES");
+  const canAssignAgent = canEditMarketingName;
+  const assignableAgents = canAssignAgent ? await listAssignableAgents() : [];
 
   return (
     <div className="space-y-6">
@@ -223,9 +229,19 @@ export default async function PropertyDetailPage({
           <Section title="Suivi">
             <dl className="grid grid-cols-2 gap-4">
               <Field label="Agent">
-                {property.agent?.fullName ?? (
-                  <span className="text-muted-foreground">Non assigné</span>
-                )}
+                <AgentAssignField
+                  propertyId={property.id}
+                  initialAgentId={property.agent?.id ?? null}
+                  agents={assignableAgents}
+                  canEdit={canAssignAgent}
+                  fallback={
+                    property.agent?.fullName ?? (
+                      <span className="text-muted-foreground">
+                        Non assigné
+                      </span>
+                    )
+                  }
+                />
               </Field>
               <Field label="Dernière synchronisation">
                 <span className="tabular-nums">

@@ -81,6 +81,15 @@ export async function countProperties() {
   return prisma.property.count({ where: { archivedAt: null } });
 }
 
+/** Users eligible to be assigned as a property's agent. */
+export async function listAssignableAgents() {
+  return prisma.user.findMany({
+    where: { role: "AGENT", archivedAt: null },
+    select: { id: true, fullName: true },
+    orderBy: { fullName: "asc" },
+  });
+}
+
 export type PropertyDetail = NonNullable<
   Awaited<ReturnType<typeof getPropertyDetail>>
 >;
