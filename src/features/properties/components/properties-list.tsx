@@ -21,7 +21,7 @@ import {
   RangeFilter,
   SingleSelectFilter,
   isRangeActive,
-} from "@/features/properties/components/property-filters";
+} from "@/components/filters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

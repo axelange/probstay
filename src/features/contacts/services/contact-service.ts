@@ -92,8 +92,10 @@ export async function listContacts(user: CurrentUser) {
       specialties: true,
       otherSpecialty: true,
       apimoId: true,
+      createdAt: true,
       _count: { select: { properties: true } },
     },
+    // A stable default; the list re-sorts client-side from here.
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
 }

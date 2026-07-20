@@ -20,6 +20,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 /**
+ * Presentational filter controls, shared across features — they encode
+ * no business meaning, only the dashed-outline faceted-filter look and
+ * its keyboard behaviour. Used by the properties and contacts lists.
+ *
  * The trigger Button is written inline in each `render` rather than
  * factored into a shared component. Base UI passes the trigger's own
  * props — onClick, aria-expanded, ref — through `render`, and a wrapper

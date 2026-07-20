@@ -26,17 +26,17 @@ export default async function ContactsPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold tracking-tight">Contacts</h2>
+          {/* The running total lives with the list, which re-counts as
+              you filter. What belongs here is what a count cannot say:
+              how many are owners, and how many nobody can reach —
+              a gap someone has to close, invisible in a list of 48. */}
           <p className="text-muted-foreground text-sm">
-            {contacts.length === 1
-              ? "1 contact"
-              : `${contacts.length} contacts`}
-            {owners > 0 ? `, dont ${owners} propriétaires` : ""}.
-            {/* Surfaced rather than buried: an owner with no way to reach
-                them is a gap someone has to close, and it is invisible
-                in a list of 46. */}
+            {owners > 0
+              ? `${owners} propriétaires`
+              : "Propriétaires, clients, partenaires et prestataires"}
             {missingDetails > 0
-              ? ` ${missingDetails} sans aucune coordonnée.`
-              : ""}
+              ? `, dont ${missingDetails} sans aucune coordonnée.`
+              : "."}
           </p>
         </div>
 
