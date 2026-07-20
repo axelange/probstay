@@ -68,7 +68,11 @@ export default async function ContactDetailPage({
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <EditContactForm contact={contact} canEdit={canEdit} />
+        <EditContactForm
+          contact={contact}
+          canEdit={canEdit}
+          canSeeBankingDetails={contact.canSeeBankingDetails}
+        />
 
         <div className="space-y-3">
           <h3 className="text-sm font-medium">

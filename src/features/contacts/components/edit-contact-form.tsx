@@ -37,9 +37,13 @@ export type EditableContact = {
 export function EditContactForm({
   contact,
   canEdit,
+  canSeeBankingDetails,
 }: {
   contact: EditableContact;
   canEdit: boolean;
+  /** Narrower than canEdit: an Owner also tagged Prestataire is visible
+   *  to everyone, but their IBAN is not. */
+  canSeeBankingDetails: boolean;
 }) {
   const [form, setForm] = React.useState({
     firstName: contact.firstName ?? "",
@@ -225,21 +229,27 @@ export function EditContactForm({
 
       <section className="space-y-3">
         <h3 className="text-sm font-medium">Interne</h3>
-        <div className="space-y-2">
-          <Label htmlFor="iban">IBAN</Label>
-          <Input
-            id="iban"
-            value={form.iban}
-            onChange={(e) => set("iban", e.target.value)}
-            disabled={disabled}
-            autoComplete="off"
-            className="font-mono text-xs sm:max-w-md"
-          />
-          <p className="text-muted-foreground text-xs">
-            Coordonnées bancaires du propriétaire. Ne vient jamais d&apos;APIMO
-            et n&apos;est jamais écrasé par une synchronisation.
-          </p>
-        </div>
+        {/* Omitted rather than disabled when not permitted: an empty
+            field reads as "no IBAN recorded", which is a different
+            statement from "you may not see it". */}
+        {canSeeBankingDetails ? (
+          <div className="space-y-2">
+            <Label htmlFor="iban">IBAN</Label>
+            <Input
+              id="iban"
+              value={form.iban}
+              onChange={(e) => set("iban", e.target.value)}
+              disabled={disabled}
+              autoComplete="off"
+              className="font-mono text-xs sm:max-w-md"
+            />
+            <p className="text-muted-foreground text-xs">
+              Coordonnées bancaires du propriétaire. Ne vient jamais
+              d&apos;APIMO et n&apos;est jamais écrasé par une
+              synchronisation.
+            </p>
+          </div>
+        ) : null}
 
         <div className="space-y-2">
           <Label htmlFor="notes">Notes internes</Label>

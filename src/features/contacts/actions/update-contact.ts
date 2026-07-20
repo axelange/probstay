@@ -47,6 +47,11 @@ export async function updateContact(
     return { status: "error", message: "Ce contact n'existe plus." };
   }
 
+  // Only MANAGE_CONTACTS reaches this action at all, so the IBAN is
+  // always writable here. Stated rather than assumed: if creation or
+  // editing is ever opened to Agents, this is the line that has to grow
+  // the same narrowing getContactDetail already applies on read.
+
   if (data.phone && !data.acceptDuplicatePhone) {
     const other = await findContactByPhone(data.phone, data.id);
     if (other) {
