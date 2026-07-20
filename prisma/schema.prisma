@@ -71,6 +71,7 @@ model User {
   role            Role
   permissions     UserPermission[]
   properties      Property[]       @relation("PropertyAgent")
+  rentalsHandled  Rental[]         @relation("RentalAgent")
   invitationsSent UserInvitation[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -315,8 +316,30 @@ model Rental {
   // must stay attributed to the owner they actually belonged to, or
   // historical Owner Statements silently rewrite themselves.
   // Nullable because APIMO-synced properties often have no owner yet.
+  // onDelete: Restrict — a snapshot that can be nulled is not a
+  // snapshot. Business rules are soft-delete-only so this should never
+  // fire, but a stray hard DELETE would otherwise blank the owner on
+  // every past rental at once. rentals.propertyId already restricts for
+  // the same reason.
   ownerId String?  @db.Uuid
-  owner   Contact? @relation(fields: [ownerId], references: [id])
+  owner   Contact? @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+
+  // Agent of record, snapshotted from the property's agent when the
+  // rental is created — same reasoning as ownerId above. Reassigning a
+  // property must not rewrite who handled every past rental of it,
+  // which is what commission is attributed against.
+  //
+  // This is attribution, not authorisation: who may still *edit* a
+  // rental follows the property's current agent (see the rentals RLS
+  // policies), because an agent taking over a property has to be able
+  // to manage its in-flight bookings.
+  //
+  // Nullable because a property may have no agent assigned yet.
+  // MUST be populated at rental creation by the rentals service —
+  // there is no trigger doing it, so a rental created without it stays
+  // unattributed forever.
+  agentId String? @db.Uuid
+  agent   User?   @relation("RentalAgent", fields: [agentId], references: [id], onDelete: Restrict)
 
   tenants RentalTenant[]
 
@@ -354,6 +377,7 @@ model Rental {
 
   @@index([propertyId])
   @@index([ownerId])
+  @@index([agentId])
   @@index([checkIn, checkOut])
   @@index([bookingStatus])
   @@map("rentals")
