@@ -71,6 +71,49 @@ export async function listContacts(user: CurrentUser) {
   });
 }
 
+export type ContactDetail = NonNullable<
+  Awaited<ReturnType<typeof getContactDetail>>
+>;
+
+/**
+ * One contact in full, or null if this user may not see it.
+ *
+ * Reuses the same visibility filter as the list rather than restating
+ * it: a detail page reachable by typing an id is exactly where a second,
+ * looser copy of the rule would leak.
+ *
+ * `iban` is selected here — unlike the list — because the edit form
+ * needs it. It never travels for 47 contacts at once, only for the one
+ * being opened.
+ */
+export async function getContactDetail(id: string, user: CurrentUser) {
+  const where = visibilityFilter(user);
+  if (where === null) return null;
+
+  return prisma.contact.findFirst({
+    where: { ...where, id, archivedAt: null },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+      iban: true,
+      notes: true,
+      types: true,
+      specialties: true,
+      otherSpecialty: true,
+      apimoId: true,
+      createdAt: true,
+      properties: {
+        where: { archivedAt: null },
+        select: { id: true, marketingName: true, city: true, reference: true },
+        orderBy: { marketingName: "asc" },
+      },
+    },
+  });
+}
+
 /**
  * An existing contact sharing this phone number, if any.
  *
@@ -80,9 +123,14 @@ export async function listContacts(user: CurrentUser) {
  * duplicate check belongs here instead, as a warning the user can
  * overrule.
  */
-export async function findContactByPhone(phone: string) {
+export async function findContactByPhone(phone: string, exceptId?: string) {
   return prisma.contact.findFirst({
-    where: { phone, archivedAt: null },
+    where: {
+      phone,
+      archivedAt: null,
+      // On edit, the contact's own number is not a duplicate of itself.
+      ...(exceptId ? { id: { not: exceptId } } : {}),
+    },
     select: { id: true, firstName: true, lastName: true },
   });
 }

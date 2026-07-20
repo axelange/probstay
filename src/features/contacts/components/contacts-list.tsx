@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Mail, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { ContactListItem } from "@/features/contacts/services/contact-service";
@@ -37,7 +38,11 @@ export function ContactsList({ contacts }: { contacts: ContactListItem[] }) {
         );
 
         return (
-          <li key={contact.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm">
+          <li key={contact.id}>
+            <Link
+              href={`/contacts/${contact.id}`}
+              className="hover:bg-accent flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm transition-colors"
+            >
             <div className="min-w-0 flex-1">
               <span className="flex flex-wrap items-baseline gap-x-2">
                 <span className="truncate font-medium">{name}</span>
@@ -97,7 +102,8 @@ export function ContactsList({ contacts }: { contacts: ContactListItem[] }) {
                   BSTAY
                 </Badge>
               ) : null}
-            </div>
+              </div>
+            </Link>
           </li>
         );
       })}
