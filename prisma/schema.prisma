@@ -141,14 +141,29 @@ model Contact {
   // join table so reading a Contact's types never needs a second query.
   types ContactType[]
 
-  // APIMO's owner shape isn't confirmed yet — none of the sampled
-  // properties (step=1) had a populated `owner` field. Revisit once a
-  // populated example or the contacts endpoint is available.
-  apimoId       Int?           @unique
-  firstName     String
-  lastName      String
-  email         String         @unique
-  phone         String?
+  // `apimoId` is the identity for anything synced from APIMO; contacts
+  // created in BSTAY simply have none.
+  apimoId Int? @unique
+
+  // lastName is the only name guaranteed present: it is set on all 5052
+  // APIMO contacts, whereas 730 carry no first name — surname-only and
+  // company records are normal here, not corruption.
+  firstName String?
+  lastName  String
+
+  // Nullable because the agency's records are genuinely incomplete: 14
+  // of the 46 owners of our properties have no email, and 16 have no
+  // number. Requiring either would silently leave those properties
+  // owner-less, which is worse than holding a partial contact. The
+  // agency is filling the gaps at source; this stops the schema being
+  // the thing that blocks import meanwhile.
+  //
+  // email keeps its unique index — no two owners share an address, and
+  // Postgres does not treat NULLs as conflicting, so the incomplete
+  // records coexist happily. Revisit if the sync ever widens past
+  // owners to the full CRM, where 201 addresses are shared.
+  email String? @unique
+  phone String?
   iban          String?
   notes         String?
   properties    Property[]
