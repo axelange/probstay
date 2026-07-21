@@ -32,14 +32,15 @@ export async function createDemande(
   }
   const data = parsed.data;
 
-  // The demande's contact must hold PROSPECT. Re-checked here rather than
-  // trusted from a list rendered minutes ago.
+  // Any existing contact may be the prospect: a new one is created as a
+  // PROSPECT, but a returning client reused by email keeps their type.
+  // Only existence is required here.
   const prospect = await prisma.contact.findFirst({
-    where: { id: data.contactId, archivedAt: null, types: { has: "PROSPECT" } },
+    where: { id: data.contactId, archivedAt: null },
     select: { id: true },
   });
   if (!prospect) {
-    return { status: "error", message: "Ce contact n'est pas un prospect." };
+    return { status: "error", message: "Ce contact n'existe plus." };
   }
 
   try {

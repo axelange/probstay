@@ -61,6 +61,7 @@ export async function convertDemande(
       contactId: true,
       convertedAt: true,
       lostAt: true,
+      contact: { select: { types: true } },
       properties: { select: { propertyId: true } },
     },
   });
@@ -83,15 +84,22 @@ export async function convertDemande(
     };
   }
 
+  // The contact becomes a client on conversion — a rental tenant must
+  // hold CLIENT (a DB trigger enforces it). PROSPECT is dropped, since it
+  // cannot coexist, but any other type (e.g. an owner who is also renting)
+  // is kept: add CLIENT, remove PROSPECT.
+  const newTypes = Array.from(
+    new Set([
+      ...demande.contact.types.filter((t) => t !== "PROSPECT"),
+      "CLIENT" as const,
+    ])
+  );
+
   try {
     const rental = await prisma.$transaction(async (tx) => {
-      // The prospect becomes a client on conversion: a rental tenant must
-      // hold CLIENT (a DB trigger enforces it), and PROSPECT is exclusive
-      // so it is replaced, not added to. This is the prospect → client
-      // promotion that the whole "prospect" status exists to lead up to.
       await tx.contact.update({
         where: { id: demande.contactId },
-        data: { types: ["CLIENT"] },
+        data: { types: newTypes },
       });
 
       const created = await tx.rental.create({

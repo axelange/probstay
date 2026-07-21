@@ -15,8 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createContact } from "@/features/contacts/actions/create-contact";
 import { createDemande } from "@/features/demandes/actions/create-demande";
+import { findOrCreateProspect } from "@/features/demandes/actions/find-or-create-prospect";
 
 type PropertyOption = {
   id: string;
@@ -75,27 +75,25 @@ export function CreateDemandeForm({
   function saveNewClient() {
     if (!newClient?.lastName.trim()) return;
     startTransition(async () => {
-      const result = await createContact({
-        ...newClient,
-        // A new person making a request is a prospect, nothing else yet.
-        types: ["PROSPECT"],
-        specialties: [],
-        acceptDuplicatePhone: true,
-      });
-      if (result.status !== "success") {
-        toast.error(result.status === "error" ? result.message : "Doublon de téléphone.");
+      // New person → a prospect; email already on file → that contact is
+      // reused, no duplicate.
+      const result = await findOrCreateProspect(newClient);
+      if (result.status === "error") {
+        toast.error(result.message);
         return;
       }
-      const created: ClientOption = {
-        id: result.id,
-        firstName: newClient.firstName || null,
-        lastName: newClient.lastName,
-        email: newClient.email || null,
-      };
-      setClients((list) => [...list, created]);
-      setClientId(created.id);
+      const c = result.contact;
+      const name = [c.firstName, c.lastName].filter(Boolean).join(" ");
+      // The reused contact may already be in the list (a known prospect);
+      // add it only if new to it.
+      setClients((list) =>
+        list.some((x) => x.id === c.id) ? list : [...list, c]
+      );
+      setClientId(c.id);
       setNewClient(null);
-      toast.success(`${result.name} ajouté.`);
+      toast.success(
+        result.reused ? `Contact existant réutilisé : ${name}.` : `${name} ajouté.`
+      );
     });
   }
 
