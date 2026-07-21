@@ -43,6 +43,21 @@ export async function createDemande(
     return { status: "error", message: "Ce contact n'existe plus." };
   }
 
+  // Auto-assign when a single agent manages every property — the same
+  // condition that lets an agent see a demande. A precise demande on a
+  // property they manage, or a wide one entirely theirs, lands on that
+  // agent without a manual step. A demande spanning several agents (or
+  // any unassigned property) stays unassigned for an admin to hand out.
+  const props = await prisma.property.findMany({
+    where: { id: { in: data.propertyIds } },
+    select: { agentId: true },
+  });
+  const agentIds = new Set(props.map((p) => p.agentId));
+  const soleAgent =
+    agentIds.size === 1 && !agentIds.has(null)
+      ? ([...agentIds][0] as string)
+      : null;
+
   try {
     const demande = await prisma.demande.create({
       data: {
@@ -51,6 +66,7 @@ export async function createDemande(
         // channel (WEBSITE) will set its own on the V2 endpoint.
         source: "DIRECT",
         contactId: prospect.id,
+        assignedAgentId: soleAgent,
         checkIn: data.checkIn ? new Date(data.checkIn) : null,
         checkOut: data.checkOut ? new Date(data.checkOut) : null,
         guests: data.guests ?? null,
