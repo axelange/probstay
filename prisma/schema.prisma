@@ -355,6 +355,12 @@ model Property {
   // APIMO reference-code arrays (resolved to labels via the
   // referentiel lookup when needed, not stored as text here)
   services    Int[]
+
+  // Services included with a stay, shown on the rental as "services
+  // inclus". BSTAY's own field — plain labels typed by the agency, not
+  // APIMO's `services` codes above (pool, aircon…). The sync never
+  // writes this, so it survives every re-sync, like `marketingName`.
+  includedServices String[]
   proximities Int[]
   tags        Int[]
 

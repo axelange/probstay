@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AgentAssignField } from "@/features/properties/components/agent-assign-field";
+import { IncludedServicesField } from "@/features/properties/components/included-services-field";
 import { MarketingNameField } from "@/features/properties/components/marketing-name-field";
 import { PropertyGallery } from "@/features/properties/components/property-gallery";
 import {
@@ -136,6 +137,20 @@ export default async function PropertyDetailPage({
             <MarketingNameField
               propertyId={property.id}
               initialValue={property.marketingName}
+              canEdit={canEditMarketingName}
+            />
+          </Section>
+
+          <Separator />
+
+          <Section title="Services inclus">
+            <p className="text-muted-foreground text-sm">
+              Ce qui est compris dans le séjour. Affiché sur chaque location de
+              ce bien.
+            </p>
+            <IncludedServicesField
+              propertyId={property.id}
+              initial={property.includedServices}
               canEdit={canEditMarketingName}
             />
           </Section>

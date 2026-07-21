@@ -113,6 +113,9 @@ export default async function RentalDetailPage({
                   {nights(rental.checkIn, rental.checkOut)}
                 </span>
               </Field>
+              <Field label="Personnes">
+                <span className="tabular-nums">{rental.guests ?? "—"}</span>
+              </Field>
               <Field label="Bien">
                 <Link
                   href={`/properties/${rental.property.id}`}
@@ -122,6 +125,20 @@ export default async function RentalDetailPage({
                 </Link>
               </Field>
             </dl>
+
+            {/* Set on the property, shown here — what the stay includes. */}
+            {rental.property.includedServices.length > 0 ? (
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs">Services inclus</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {rental.property.includedServices.map((s) => (
+                    <Badge key={s} variant="secondary" className="font-normal">
+                      {s}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <Separator />

@@ -1,9 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { TouristTaxSettings } from "@/features/settings/components/tourist-tax-settings";
-import {
-  listCitiesWithoutTax,
-  listTouristTaxes,
-} from "@/features/settings/services/tourist-tax-service";
+import { listCityTaxRates } from "@/features/settings/services/tourist-tax-service";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
@@ -19,10 +16,7 @@ export default async function SettingsPage() {
   const canEdit = hasPermission(user, "MANAGE_USERS");
   if (!canEdit) notFound();
 
-  const [taxes, citiesWithoutTax] = await Promise.all([
-    listTouristTaxes(),
-    listCitiesWithoutTax(),
-  ]);
+  const cities = await listCityTaxRates();
 
   return (
     <div className="space-y-8">
@@ -37,16 +31,13 @@ export default async function SettingsPage() {
         <div className="space-y-1">
           <h3 className="text-sm font-medium">Taxes de séjour</h3>
           <p className="text-muted-foreground text-sm">
-            Montant par personne et par nuit, selon la commune du bien. Révisé
-            en général une fois par an.
+            Montant par personne et par nuit, selon la commune du bien. La
+            liste des villes vient des biens. Révisé en général une fois par
+            an.
           </p>
         </div>
 
-        <TouristTaxSettings
-          taxes={taxes}
-          citiesWithoutTax={citiesWithoutTax}
-          canEdit={canEdit}
-        />
+        <TouristTaxSettings cities={cities} canEdit={canEdit} />
       </section>
     </div>
   );
