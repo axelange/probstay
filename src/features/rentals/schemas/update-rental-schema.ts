@@ -20,6 +20,10 @@ const optionalAmount = z
 export const updateRentalSchema = z.object({
   id: z.uuid(),
   bookingStatus: z.enum(RentalBookingStatus),
+  guests: z
+    .union([z.literal(""), z.coerce.number().int().min(1).max(50)])
+    .transform((v) => (v === "" ? undefined : Number(v)))
+    .optional(),
   grossAmount: optionalAmount,
   depositAmount: optionalAmount,
   securityDepositAmount: optionalAmount,

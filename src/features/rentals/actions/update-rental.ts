@@ -77,6 +77,7 @@ export async function updateRental(
 
   const update: Prisma.RentalUncheckedUpdateInput = {
     bookingStatus: data.bookingStatus,
+    guests: data.guests ?? null,
     grossAmount: data.grossAmount ?? null,
     depositAmount: data.depositAmount ?? null,
     securityDepositAmount: data.securityDepositAmount ?? null,

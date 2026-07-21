@@ -1,17 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, CircleCheck, Lock } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { EditRentalForm } from "@/features/rentals/components/edit-rental-form";
+import { RentalFunnel } from "@/features/rentals/components/rental-funnel";
 import {
-  bookingStatusLabel,
-  formatAmount,
   formatDate,
   formatStay,
   nights,
-  paymentStatusLabel,
 } from "@/features/rentals/components/rental-labels";
 import {
   canManageRental,
@@ -52,12 +49,6 @@ export default async function RentalDetailPage({
 
   const canManage = canManageRental(user, rental);
 
-  // Derived, never stored: a stored balance drifts from its parts.
-  const balance =
-    rental.grossAmount === null
-      ? null
-      : rental.grossAmount - (rental.depositAmount ?? 0);
-
   return (
     <div className="space-y-6">
       <div>
@@ -72,32 +63,15 @@ export default async function RentalDetailPage({
         </Button>
       </div>
 
+      {/* Status now lives in the funnel's stepper, so the header just
+          names the booking. */}
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-xl font-semibold tracking-tight">
           {rental.property.marketingName ?? rental.property.city ?? "Sans nom"}
         </h2>
-        <Badge
-          variant={rental.bookingStatus === "CANCELLED" ? "outline" : "secondary"}
-          className="font-normal"
-        >
-          {bookingStatusLabel(rental.bookingStatus)}
-        </Badge>
-        {rental.ownerConfirmedAt ? (
-          <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-            <CircleCheck aria-hidden="true" className="size-3.5" />
-            Confirmée par le propriétaire le{" "}
-            {formatDate(rental.ownerConfirmedAt)}
-            {rental.ownerConfirmedBy
-              ? ` (${rental.ownerConfirmedBy.fullName})`
-              : ""}
-          </span>
-        ) : null}
-        {!canManage ? (
-          <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-            <Lock aria-hidden="true" className="size-3" />
-            Lecture seule — vous ne gérez pas ce bien
-          </span>
-        ) : null}
+        <span className="text-muted-foreground text-sm">
+          {formatStay(rental.checkIn, rental.checkOut)}
+        </span>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -143,85 +117,30 @@ export default async function RentalDetailPage({
 
           <Separator />
 
-          {/* Progress, money and payments are editable for whoever
-              manages this booking, and read-only otherwise. Dates and
-              property stay fixed here: changing them interacts with the
-              overlap constraint and the snapshot, and belongs elsewhere. */}
-          {canManage ? (
-            <EditRentalForm
-              rental={{
-                id: rental.id,
-                bookingStatus: rental.bookingStatus,
-                grossAmount: rental.grossAmount,
-                depositAmount: rental.depositAmount,
-                securityDepositAmount: rental.securityDepositAmount,
-                depositStatus: rental.depositStatus,
-                balanceStatus: rental.balanceStatus,
-                securityDepositStatus: rental.securityDepositStatus,
-                ownerConfirmedAt: rental.ownerConfirmedAt,
-                ownerConfirmedByName: rental.ownerConfirmedBy?.fullName ?? null,
-                contractSignedAt: rental.contractSignedAt,
-                contractSignedByName: rental.contractSignedBy?.fullName ?? null,
-                securityDepositReturnedAt: rental.securityDepositReturnedAt,
-                notes: rental.notes,
-              }}
-            />
-          ) : (
-            <>
-              <section className="space-y-3">
-                <h3 className="text-sm font-medium">Montants</h3>
-                <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <Field label="Séjour">
-                    <span className="tabular-nums">
-                      {formatAmount(rental.grossAmount)}
-                    </span>
-                  </Field>
-                  <Field label="Acompte">
-                    <span className="tabular-nums">
-                      {formatAmount(rental.depositAmount)}
-                    </span>
-                  </Field>
-                  <Field label="Solde">
-                    <span className="tabular-nums">{formatAmount(balance)}</span>
-                  </Field>
-                  <Field label="Dépôt de garantie">
-                    <span className="tabular-nums">
-                      {formatAmount(rental.securityDepositAmount)}
-                    </span>
-                  </Field>
-                </dl>
-              </section>
-
-              <Separator />
-
-              <section className="space-y-3">
-                <h3 className="text-sm font-medium">Paiements</h3>
-                <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  <Field label="Acompte">
-                    {paymentStatusLabel(rental.depositStatus)}
-                  </Field>
-                  <Field label="Solde">
-                    {paymentStatusLabel(rental.balanceStatus)}
-                  </Field>
-                  <Field label="Dépôt de garantie">
-                    {paymentStatusLabel(rental.securityDepositStatus)}
-                  </Field>
-                </dl>
-              </section>
-
-              {rental.notes ? (
-                <>
-                  <Separator />
-                  <section className="space-y-2">
-                    <h3 className="text-sm font-medium">Notes internes</h3>
-                    <p className="text-muted-foreground max-w-prose text-sm whitespace-pre-line">
-                      {rental.notes}
-                    </p>
-                  </section>
-                </>
-              ) : null}
-            </>
-          )}
+          {/* The pipeline as a funnel: a stepper, and the current stage's
+              own panel with its fields and the condition to advance.
+              Read-only inside for anyone who doesn't manage the booking. */}
+          <RentalFunnel
+            canManage={canManage}
+            rental={{
+              id: rental.id,
+              bookingStatus: rental.bookingStatus,
+              guests: rental.guests,
+              grossAmount: rental.grossAmount,
+              depositAmount: rental.depositAmount,
+              securityDepositAmount: rental.securityDepositAmount,
+              depositStatus: rental.depositStatus,
+              balanceStatus: rental.balanceStatus,
+              securityDepositStatus: rental.securityDepositStatus,
+              ownerConfirmedAt: rental.ownerConfirmedAt,
+              ownerConfirmedByName: rental.ownerConfirmedBy?.fullName ?? null,
+              contractSignedAt: rental.contractSignedAt,
+              contractSignedByName: rental.contractSignedBy?.fullName ?? null,
+              securityDepositReturnedAt: rental.securityDepositReturnedAt,
+              identityDocumentCount: rental.identityDocuments.length,
+              notes: rental.notes,
+            }}
+          />
         </div>
 
         <div className="space-y-6">
