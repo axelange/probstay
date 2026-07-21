@@ -648,14 +648,18 @@ export function RentalFunnel({
                 <ArrowRight aria-hidden="true" />
               </Button>
             ) : null}
-            <button
-              type="button"
-              onClick={() => run("CANCELLED")}
-              disabled={isPending}
-              className="text-muted-foreground hover:text-destructive ml-auto cursor-pointer text-xs"
-            >
-              Annuler la location
-            </button>
+            {/* A finished rental with its deposit returned is closed for
+                good — no cancelling after that. */}
+            {returned ? null : (
+              <button
+                type="button"
+                onClick={() => run("CANCELLED")}
+                disabled={isPending}
+                className="text-muted-foreground hover:text-destructive ml-auto cursor-pointer text-xs"
+              >
+                Annuler la location
+              </button>
+            )}
           </div>
 
           {next && missing.length > 0 ? (

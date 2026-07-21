@@ -52,6 +52,7 @@ export async function updateRental(
       agentId: true,
       ownerConfirmedAt: true,
       contractSignedAt: true,
+      securityDepositReturnedAt: true,
       property: { select: { id: true, ownerId: true, agentId: true } },
     },
   });
@@ -59,6 +60,20 @@ export async function updateRental(
 
   if (!canManageRental(user, rental)) {
     return { status: "error", message: "Vous ne gérez pas ce bien." };
+  }
+
+  // A finished rental whose deposit has been returned is closed for good:
+  // it can no longer be cancelled. Everything is settled and the money is
+  // back with the client.
+  if (
+    data.bookingStatus === "CANCELLED" &&
+    rental.securityDepositReturnedAt !== null
+  ) {
+    return {
+      status: "error",
+      message:
+        "Cette location est terminée et sa caution rendue : elle ne peut plus être annulée.",
+    };
   }
 
   // Property, dates and guests may be changed only while the booking is an
