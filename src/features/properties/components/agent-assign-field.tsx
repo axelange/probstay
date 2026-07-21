@@ -58,7 +58,15 @@ export function AgentAssignField({
   }
 
   return (
-    <Select value={value} onValueChange={handleChange} disabled={isPending}>
+    <Select
+      value={value}
+      onValueChange={handleChange}
+      items={[
+        { value: UNASSIGNED, label: "Non assigné" },
+        ...agents.map((agent) => ({ value: agent.id, label: agent.fullName })),
+      ]}
+      disabled={isPending}
+    >
       <SelectTrigger size="sm" className="w-full">
         <SelectValue />
       </SelectTrigger>

@@ -44,6 +44,15 @@ import { missingToReach } from "@/features/rentals/utils/rental-gates";
 
 type ServiceDraft = { label: string; amount: string };
 
+function villaLabel(p: {
+  marketingName: string | null;
+  city: string | null;
+}): string {
+  return [p.marketingName ?? p.city ?? "Sans nom", p.city]
+    .filter(Boolean)
+    .join(" — ");
+}
+
 export type FunnelProperty = {
   id: string;
   marketingName: string | null;
@@ -196,12 +205,11 @@ export function RentalFunnel({
       ? taxRate * guestCount * nights
       : null;
 
-  const extrasTotal = extras.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
   const stay = Number(grossAmount) || 0;
-  const total =
-    grossAmount.trim() === ""
-      ? null
-      : stay + extrasTotal + (touristTax ?? 0);
+  // The stay amount is the agent's figure and IS the total the client
+  // pays — the tourist tax and the services are already inside it, not
+  // added on top. The breakdown below is informational.
+  const total = grossAmount.trim() === "" ? null : stay;
 
   // Overlap warning at enquiry, when the villa or dates change.
   const [overlaps, setOverlaps] = React.useState<{
@@ -304,9 +312,16 @@ export function RentalFunnel({
 
               <div className="space-y-2">
                 <Label htmlFor="villa">Villa</Label>
+                {/* items lets Base UI resolve the selected label without
+                    opening the popup — otherwise the trigger shows the
+                    raw id until first interaction. */}
                 <Select
                   value={propertyId}
                   onValueChange={(v) => v !== null && setPropertyId(v)}
+                  items={properties.map((p) => ({
+                    value: p.id,
+                    label: villaLabel(p),
+                  }))}
                   disabled={isPending}
                 >
                   <SelectTrigger id="villa" className="w-full">
@@ -315,9 +330,7 @@ export function RentalFunnel({
                   <SelectContent>
                     {properties.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {[p.marketingName ?? p.city ?? "Sans nom", p.city]
-                          .filter(Boolean)
-                          .join(" — ")}
+                        {villaLabel(p)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -475,7 +488,12 @@ export function RentalFunnel({
 
                 {total !== null ? (
                   <div className="flex items-center justify-between border-t pt-2 font-medium">
-                    <span>Total client</span>
+                    <span>
+                      Total client
+                      <span className="text-muted-foreground ml-1 text-xs font-normal">
+                        = montant du séjour, taxe et services compris
+                      </span>
+                    </span>
                     <span className="tabular-nums">{formatAmount(total)}</span>
                   </div>
                 ) : null}
@@ -833,6 +851,10 @@ function PaymentBlock(props: {
             <Select
               value={value}
               onValueChange={(v) => v !== null && setter(v)}
+              items={PAYMENT_STATUSES.map((s) => ({
+                value: s,
+                label: paymentStatusLabel(s),
+              }))}
               disabled={props.disabled}
             >
               <SelectTrigger className="w-full">

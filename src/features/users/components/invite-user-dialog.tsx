@@ -117,6 +117,10 @@ export function InviteUserDialog({
               <Select
                 value={role}
                 onValueChange={(next) => next !== null && setRole(next)}
+                items={assignableRoles.map((r) => ({
+                  value: r,
+                  label: roleLabel(r),
+                }))}
                 disabled={isPending}
               >
                 <SelectTrigger id="invite-role" className="w-full">

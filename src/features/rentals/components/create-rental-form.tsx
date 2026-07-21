@@ -177,6 +177,10 @@ export function CreateRentalForm({
           <Select
             value={propertyId}
             onValueChange={(v) => v !== null && setPropertyId(v)}
+            items={properties.map((p) => ({
+              value: p.id,
+              label: propertyLabel(p),
+            }))}
             disabled={isPending}
           >
             <SelectTrigger id="property" className="w-full">
@@ -284,6 +288,10 @@ export function CreateRentalForm({
           <Select
             value={tenantId}
             onValueChange={(v) => v !== null && setTenantId(v)}
+            items={tenants.map((t) => ({
+              value: t.id,
+              label: tenantLabel(t) + (t.email ? ` — ${t.email}` : ""),
+            }))}
             disabled={isPending || tenants.length === 0}
           >
             <SelectTrigger className="w-full">
