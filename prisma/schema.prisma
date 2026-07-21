@@ -473,6 +473,9 @@ model Rental {
   securityDepositReturnedAt DateTime?
 
   identityDocuments IdentityDocument[]
+  // Extra services the agent adds and prices for this booking, on top of
+  // the stay amount and the property's own included services.
+  services          RentalService[]
 
   // Deposit, security deposit and balance settle independently of each
   // other and of the booking's stage, so each carries its own status.
@@ -570,4 +573,21 @@ model IdentityDocument {
   @@index([rentalId])
   @@index([contactId])
   @@map("identity_documents")
+}
+
+// An extra service on a rental, priced by the agent — distinct from the
+// property's own included services (which cost nothing extra). Its amount
+// adds to what the client pays, alongside the stay and the tourist tax;
+// the stay amount itself is the agent's figure and is never recomputed.
+model RentalService {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rentalId String  @db.Uuid
+  rental   Rental  @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  label    String
+  amount   Decimal @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([rentalId])
+  @@map("rental_services")
 }

@@ -13,8 +13,18 @@ import {
 import {
   canManageRental,
   getRentalDetail,
+  listBookableProperties,
+  listTaxRatesByCity,
 } from "@/features/rentals/services/rental-service";
 import { getCurrentUser } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
+
+/** yyyy-mm-dd for a date input, in the pinned Paris zone. */
+function toDateInput(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Paris",
+  }).format(date);
+}
 
 export const metadata = { title: "Location — BSTAY PRO" };
 
@@ -48,6 +58,16 @@ export default async function RentalDetailPage({
   if (!rental) notFound();
 
   const canManage = canManageRental(user, rental);
+
+  // The villa can be changed while the booking is an enquiry, so the
+  // funnel needs the choices — filtered to what an agent may book.
+  const [allProperties, taxRatesByCity] = canManage
+    ? await Promise.all([listBookableProperties(), listTaxRatesByCity()])
+    : [[], {} as Record<string, number>];
+  const canManageAll = hasPermission(user, "MANAGE_RENTALS");
+  const properties = canManageAll
+    ? allProperties
+    : allProperties.filter((p) => p.agentId === user.id);
 
   return (
     <div className="space-y-6">
@@ -122,9 +142,14 @@ export default async function RentalDetailPage({
               Read-only inside for anyone who doesn't manage the booking. */}
           <RentalFunnel
             canManage={canManage}
+            properties={properties}
+            taxRatesByCity={taxRatesByCity}
             rental={{
               id: rental.id,
               bookingStatus: rental.bookingStatus,
+              propertyId: rental.property.id,
+              checkIn: toDateInput(rental.checkIn),
+              checkOut: toDateInput(rental.checkOut),
               guests: rental.guests,
               grossAmount: rental.grossAmount,
               depositAmount: rental.depositAmount,
@@ -132,6 +157,7 @@ export default async function RentalDetailPage({
               depositStatus: rental.depositStatus,
               balanceStatus: rental.balanceStatus,
               securityDepositStatus: rental.securityDepositStatus,
+              additionalServices: rental.services,
               ownerConfirmedAt: rental.ownerConfirmedAt,
               ownerConfirmedByName: rental.ownerConfirmedBy?.fullName ?? null,
               contractSignedAt: rental.contractSignedAt,

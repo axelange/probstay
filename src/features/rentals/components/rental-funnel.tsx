@@ -2,7 +2,17 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Ban, Check, CircleCheck, IdCard, Lock } from "lucide-react";
+import {
+  ArrowRight,
+  Ban,
+  Check,
+  CircleCheck,
+  IdCard,
+  Lock,
+  Plus,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { RentalBookingStatus } from "@/generated/prisma/enums";
 import { Badge } from "@/components/ui/badge";
@@ -18,18 +28,36 @@ import {
 } from "@/components/ui/select";
 import { updateRental } from "@/features/rentals/actions/update-rental";
 import {
+  checkOverlaps,
+  type OverlapSummary,
+} from "@/features/rentals/actions/check-overlaps";
+import {
   BOOKING_PIPELINE,
   PAYMENT_STATUSES,
   bookingStatusLabel,
   formatAmount,
   formatDate,
+  nights as countNights,
   paymentStatusLabel,
 } from "@/features/rentals/components/rental-labels";
 import { missingToReach } from "@/features/rentals/utils/rental-gates";
 
+type ServiceDraft = { label: string; amount: string };
+
+export type FunnelProperty = {
+  id: string;
+  marketingName: string | null;
+  city: string | null;
+  reference: number | null;
+  includedServices: string[];
+};
+
 export type FunnelRental = {
   id: string;
   bookingStatus: RentalBookingStatus;
+  propertyId: string;
+  checkIn: string;
+  checkOut: string;
   guests: number | null;
   grossAmount: number | null;
   depositAmount: number | null;
@@ -37,6 +65,7 @@ export type FunnelRental = {
   depositStatus: string;
   balanceStatus: string;
   securityDepositStatus: string;
+  additionalServices: { label: string; amount: number }[];
   ownerConfirmedAt: Date | null;
   ownerConfirmedByName: string | null;
   contractSignedAt: Date | null;
@@ -63,7 +92,6 @@ const ADVANCE_LABEL: Partial<Record<RentalBookingStatus, string>> = {
 function Stepper({ current }: { current: RentalBookingStatus }) {
   const cancelled = current === "CANCELLED";
   const currentIdx = BOOKING_PIPELINE.indexOf(current);
-
   return (
     <ol className="flex flex-wrap items-center gap-x-1 gap-y-2 text-xs">
       {BOOKING_PIPELINE.map((stage, i) => {
@@ -101,12 +129,19 @@ function Stepper({ current }: { current: RentalBookingStatus }) {
 export function RentalFunnel({
   rental,
   canManage,
+  properties,
+  taxRatesByCity,
 }: {
   rental: FunnelRental;
   canManage: boolean;
+  properties: FunnelProperty[];
+  taxRatesByCity: Record<string, number>;
 }) {
   const router = useRouter();
 
+  const [propertyId, setPropertyId] = React.useState(rental.propertyId);
+  const [checkIn, setCheckIn] = React.useState(rental.checkIn);
+  const [checkOut, setCheckOut] = React.useState(rental.checkOut);
   const [guests, setGuests] = React.useState(rental.guests?.toString() ?? "");
   const [grossAmount, setGrossAmount] = React.useState(
     rental.grossAmount?.toString() ?? ""
@@ -119,6 +154,12 @@ export function RentalFunnel({
   );
   const [securityDepositAmount, setSecurityDepositAmount] = React.useState(
     rental.securityDepositAmount?.toString() ?? ""
+  );
+  const [extras, setExtras] = React.useState<ServiceDraft[]>(
+    rental.additionalServices.map((s) => ({
+      label: s.label,
+      amount: s.amount.toString(),
+    }))
   );
   const [notes, setNotes] = React.useState(rental.notes ?? "");
   const [depositStatus, setDepositStatus] = React.useState(rental.depositStatus);
@@ -137,15 +178,64 @@ export function RentalFunnel({
   const contractSigned = rental.contractSignedAt !== null;
   const returned = rental.securityDepositReturnedAt !== null;
 
+  const selectedProperty =
+    properties.find((p) => p.id === propertyId) ?? null;
+
+  // Live tourist tax for the chosen villa, so changing it updates the
+  // breakdown before saving.
+  const nights =
+    checkIn && checkOut
+      ? countNights(new Date(checkIn), new Date(checkOut))
+      : 0;
+  const guestCount = Number(guests) || 0;
+  const taxRate = selectedProperty?.city
+    ? (taxRatesByCity[selectedProperty.city.toLowerCase()] ?? null)
+    : null;
+  const touristTax =
+    taxRate !== null && guestCount > 0 && nights > 0
+      ? taxRate * guestCount * nights
+      : null;
+
+  const extrasTotal = extras.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+  const stay = Number(grossAmount) || 0;
+  const total =
+    grossAmount.trim() === ""
+      ? null
+      : stay + extrasTotal + (touristTax ?? 0);
+
+  // Overlap warning at enquiry, when the villa or dates change.
+  const [overlaps, setOverlaps] = React.useState<{
+    key: string;
+    data: OverlapSummary;
+  } | null>(null);
+  const stayKey = `${propertyId}|${checkIn}|${checkOut}`;
+  React.useEffect(() => {
+    if (stage !== "INQUIRY" || !propertyId || !checkIn || !checkOut) return;
+    let cancelled = false;
+    checkOverlaps(propertyId, checkIn, checkOut, rental.id).then((data) => {
+      if (!cancelled) setOverlaps({ key: stayKey, data });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [stage, stayKey, propertyId, checkIn, checkOut, rental.id]);
+  const overlap = overlaps?.key === stayKey ? overlaps.data : null;
+
   function run(target: RentalBookingStatus) {
     startTransition(async () => {
       const result = await updateRental({
         id: rental.id,
         bookingStatus: target,
+        propertyId,
+        checkIn,
+        checkOut,
         guests,
         grossAmount,
         depositAmount: showDeposit ? depositAmount : "",
         securityDepositAmount,
+        additionalServices: extras
+          .filter((s) => s.label.trim() !== "")
+          .map((s) => ({ label: s.label, amount: Number(s.amount) || 0 })),
         depositStatus,
         balanceStatus,
         securityDepositStatus,
@@ -177,11 +267,9 @@ export function RentalFunnel({
       })
     : [];
 
-  const gross = Number(grossAmount) || 0;
   const deposit = showDeposit ? Number(depositAmount) || 0 : 0;
-  const balance = grossAmount.trim() === "" ? null : gross - deposit;
+  const balance = grossAmount.trim() === "" ? null : stay - deposit;
 
-  // The read-only view for anyone who doesn't manage this booking.
   if (!canManage) {
     return (
       <div className="space-y-4">
@@ -207,21 +295,192 @@ export function RentalFunnel({
         </div>
       ) : (
         <div className="space-y-5 rounded-lg border p-4">
-          {/* ---- DEMANDE ---- */}
           {stage === "INQUIRY" ? (
             <>
               <StagePanelHeader
                 title="Demande"
-                hint="L'agent affine la demande : dates, montant, puis obtient l'accord des trois parties."
+                hint="L'agent ajuste la villa, les dates et le nombre de personnes, puis obtient l'accord des trois parties."
               />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Montant du séjour">
-                  <NumberInput value={grossAmount} onChange={setGrossAmount} disabled={isPending} />
+
+              <div className="space-y-2">
+                <Label htmlFor="villa">Villa</Label>
+                <Select
+                  value={propertyId}
+                  onValueChange={(v) => v !== null && setPropertyId(v)}
+                  disabled={isPending}
+                >
+                  <SelectTrigger id="villa" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {properties.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {[p.marketingName ?? p.city ?? "Sans nom", p.city]
+                          .filter(Boolean)
+                          .join(" — ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Field label="Arrivée">
+                  <Input
+                    type="date"
+                    value={checkIn}
+                    onChange={(e) => setCheckIn(e.target.value)}
+                    disabled={isPending}
+                  />
                 </Field>
-                <Field label="Nombre de personnes">
+                <Field label="Départ">
+                  <Input
+                    type="date"
+                    value={checkOut}
+                    onChange={(e) => setCheckOut(e.target.value)}
+                    disabled={isPending}
+                  />
+                </Field>
+                <Field label="Personnes">
                   <NumberInput value={guests} onChange={setGuests} disabled={isPending} />
                 </Field>
               </div>
+
+              {overlap && overlap.total > 0 ? (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2.5 text-sm">
+                  <p className="flex items-center gap-2 font-medium">
+                    <TriangleAlert
+                      aria-hidden="true"
+                      className="size-4 shrink-0 text-amber-600"
+                    />
+                    {overlap.total === 1
+                      ? "1 autre réservation sur ces dates"
+                      : `${overlap.total} autres réservations sur ces dates`}
+                    {overlap.confirmed > 0 ? (
+                      <Badge variant="outline" className="font-normal">
+                        dont {overlap.confirmed} confirmée
+                        {overlap.confirmed > 1 ? "s" : ""}
+                      </Badge>
+                    ) : null}
+                  </p>
+                  <ul className="text-muted-foreground mt-1.5 space-y-0.5 text-xs">
+                    {overlap.lines.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {/* The agent's figure — authoritative, never recomputed. */}
+              <Field label="Montant du séjour (fait foi)">
+                <NumberInput value={grossAmount} onChange={setGrossAmount} disabled={isPending} />
+              </Field>
+
+              {/* Composition shown below the stay amount. */}
+              <div className="space-y-3 rounded-md bg-muted/40 p-3 text-sm">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-xs">Services inclus</p>
+                  {selectedProperty && selectedProperty.includedServices.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedProperty.includedServices.map((s) => (
+                        <Badge key={s} variant="secondary" className="font-normal">
+                          {s}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">
+                      Aucun — à renseigner sur la fiche du bien.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-muted-foreground text-xs">
+                    Services supplémentaires
+                  </p>
+                  {extras.map((s, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Input
+                        value={s.label}
+                        onChange={(e) =>
+                          setExtras((list) =>
+                            list.map((x, j) =>
+                              j === i ? { ...x, label: e.target.value } : x
+                            )
+                          )
+                        }
+                        placeholder="Ménage supplémentaire, transfert…"
+                        disabled={isPending}
+                        className="flex-1"
+                      />
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={s.amount}
+                        onChange={(e) =>
+                          setExtras((list) =>
+                            list.map((x, j) =>
+                              j === i ? { ...x, amount: e.target.value } : x
+                            )
+                          )
+                        }
+                        placeholder="€"
+                        disabled={isPending}
+                        className="w-28 text-right tabular-nums"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Retirer"
+                        onClick={() =>
+                          setExtras((list) => list.filter((_, j) => j !== i))
+                        }
+                        disabled={isPending}
+                        className="text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        <X aria-hidden="true" className="size-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setExtras((list) => [...list, { label: "", amount: "" }])
+                    }
+                    disabled={isPending}
+                  >
+                    <Plus aria-hidden="true" />
+                    Ajouter un service
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between border-t pt-2 text-xs">
+                  <span className="text-muted-foreground">
+                    Taxe de séjour
+                    {taxRate !== null
+                      ? ` (${taxRate.toFixed(2)} € × ${guestCount || "?"} pers. × ${nights || "?"} nuits)`
+                      : ""}
+                  </span>
+                  <span className="tabular-nums">
+                    {touristTax !== null
+                      ? formatAmount(touristTax)
+                      : taxRate === null
+                        ? "taux manquant"
+                        : "—"}
+                  </span>
+                </div>
+
+                {total !== null ? (
+                  <div className="flex items-center justify-between border-t pt-2 font-medium">
+                    <span>Total client</span>
+                    <span className="tabular-nums">{formatAmount(total)}</span>
+                  </div>
+                ) : null}
+              </div>
+
               <GateCheckbox
                 checked={confirmOwner}
                 onChange={setConfirmOwner}
@@ -232,7 +491,6 @@ export function RentalFunnel({
             </>
           ) : null}
 
-          {/* ---- CONTRAT ---- */}
           {stage === "CONTRACT" ? (
             <>
               <StagePanelHeader
@@ -254,7 +512,6 @@ export function RentalFunnel({
             </>
           ) : null}
 
-          {/* ---- FINALISATION ---- */}
           {stage === "FINALISATION" ? (
             <>
               <StagePanelHeader
@@ -266,7 +523,6 @@ export function RentalFunnel({
                 who={rental.contractSignedByName}
                 label="Contrat signé"
               />
-
               <div className="rounded-md border border-dashed px-3 py-2.5 text-sm">
                 <p className="flex items-center gap-1.5 font-medium">
                   <IdCard aria-hidden="true" className="size-4" />
@@ -279,7 +535,6 @@ export function RentalFunnel({
                   Import des pièces (passeport, CNI, permis) — à venir.
                 </p>
               </div>
-
               <MoneyBlock
                 grossAmount={grossAmount}
                 setGrossAmount={setGrossAmount}
@@ -304,7 +559,6 @@ export function RentalFunnel({
             </>
           ) : null}
 
-          {/* ---- SÉJOUR ---- */}
           {stage === "CHECK_IN" ? (
             <>
               <StagePanelHeader
@@ -323,7 +577,6 @@ export function RentalFunnel({
             </>
           ) : null}
 
-          {/* ---- DÉPART ---- */}
           {stage === "CHECK_OUT" ? (
             <>
               <StagePanelHeader
@@ -358,7 +611,6 @@ export function RentalFunnel({
             />
           </div>
 
-          {/* Actions: save this stage, advance to the next, or cancel. */}
           <div className="flex flex-wrap items-center gap-3 border-t pt-4">
             <Button
               type="button"
@@ -368,7 +620,6 @@ export function RentalFunnel({
             >
               Enregistrer
             </Button>
-
             {next ? (
               <Button
                 type="button"
@@ -379,7 +630,6 @@ export function RentalFunnel({
                 <ArrowRight aria-hidden="true" />
               </Button>
             ) : null}
-
             <button
               type="button"
               onClick={() => run("CANCELLED")}
@@ -574,7 +824,6 @@ function PaymentBlock(props: {
       props.setSecurityDepositStatus,
     ],
   ] as const;
-
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">Paiements</p>

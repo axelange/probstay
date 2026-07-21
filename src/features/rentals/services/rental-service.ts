@@ -124,6 +124,10 @@ export async function getRentalDetail(id: string) {
           includedServices: true,
         },
       },
+      services: {
+        select: { id: true, label: true, amount: true },
+        orderBy: { createdAt: "asc" },
+      },
       owner: { select: { id: true, firstName: true, lastName: true } },
       agent: { select: { id: true, fullName: true } },
       tenants: {
@@ -156,6 +160,18 @@ export async function getRentalDetail(id: string) {
 
   if (!rental) return null;
 
+  // The tourist-tax rate for the property's commune, matched
+  // case-insensitively like the settings screen. Null when the city has
+  // no rate yet — the funnel then shows the tax as unavailable rather
+  // than as zero.
+  const taxRow = rental.property.city
+    ? await prisma.$queryRaw<{ amount: number }[]>`
+        SELECT amount::float8 AS amount FROM tourist_taxes
+        WHERE lower(city) = lower(${rental.property.city})
+        LIMIT 1
+      `
+    : [];
+
   return {
     ...rental,
     grossAmount: toNumber(rental.grossAmount),
@@ -163,6 +179,9 @@ export async function getRentalDetail(id: string) {
     securityDepositAmount: toNumber(rental.securityDepositAmount),
     commissionAmount: toNumber(rental.commissionAmount),
     commissionRate: toNumber(rental.commissionRate),
+    // amount is a non-null Decimal on this table, so convert directly.
+    services: rental.services.map((s) => ({ ...s, amount: s.amount.toNumber() })),
+    touristTaxRate: taxRow[0]?.amount ?? null,
   };
 }
 
@@ -204,7 +223,12 @@ export async function findOverlappingRentals(
   });
 }
 
-/** Properties a rental can be booked against, for the creation form. */
+/**
+ * Properties a rental can be booked against — for the creation form and
+ * for changing the villa while a booking is still an enquiry. Carries the
+ * included services so the funnel can preview them the moment the agent
+ * picks a different property, before saving.
+ */
 export async function listBookableProperties() {
   return prisma.property.findMany({
     where: { archivedAt: null },
@@ -215,9 +239,18 @@ export async function listBookableProperties() {
       reference: true,
       agentId: true,
       ownerId: true,
+      includedServices: true,
     },
     orderBy: [{ marketingName: "asc" }],
   });
+}
+
+/** Tourist-tax rate per city (lowercased key), for the funnel's live tax. */
+export async function listTaxRatesByCity(): Promise<Record<string, number>> {
+  const rows = await prisma.$queryRaw<{ city: string; amount: number }[]>`
+    SELECT lower(city) AS city, amount::float8 AS amount FROM tourist_taxes
+  `;
+  return Object.fromEntries(rows.map((r) => [r.city, r.amount]));
 }
 
 /** Contacts that may be a tenant: the CLIENT type is trigger-enforced. */

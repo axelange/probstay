@@ -5,7 +5,10 @@ import { Prisma } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateRentalSchema } from "@/features/rentals/schemas/update-rental-schema";
-import { canManageRental } from "@/features/rentals/services/rental-service";
+import {
+  canBookProperty,
+  canManageRental,
+} from "@/features/rentals/services/rental-service";
 import { missingToReach } from "@/features/rentals/utils/rental-gates";
 
 export type UpdateRentalResult =
@@ -58,6 +61,38 @@ export async function updateRental(
     return { status: "error", message: "Vous ne gérez pas ce bien." };
   }
 
+  // Property, dates and guests may be changed only while the booking is an
+  // enquiry — that is the stage the agent reshapes a request against, and
+  // it is safe there because no owner is confirmed (no date lock) and no
+  // snapshot is frozen yet. Silently ignored past then rather than errored,
+  // since the funnel simply stops offering them.
+  const isEnquiry = rental.bookingStatus === "INQUIRY";
+  let targetPropertyId = rental.property.id;
+
+  if (isEnquiry && data.propertyId && data.propertyId !== rental.property.id) {
+    const property = await prisma.property.findFirst({
+      where: { id: data.propertyId, archivedAt: null },
+      select: { id: true, agentId: true },
+    });
+    if (!property) {
+      return { status: "error", message: "Ce bien n'existe plus." };
+    }
+    // An agent may only move the booking onto a property they manage.
+    if (!canBookProperty(user, property)) {
+      return { status: "error", message: "Vous ne gérez pas ce bien." };
+    }
+    targetPropertyId = property.id;
+  }
+
+  if (isEnquiry && data.checkIn && data.checkOut) {
+    if (new Date(data.checkOut) <= new Date(data.checkIn)) {
+      return {
+        status: "error",
+        message: "Le départ doit être postérieur à l'arrivée.",
+      };
+    }
+  }
+
   // The gate checkboxes may be satisfied in this same save, so the gate
   // is evaluated against the would-be state, not only the stored one.
   const willConfirmOwner = data.confirmOwner || rental.ownerConfirmedAt !== null;
@@ -87,6 +122,12 @@ export async function updateRental(
     notes: data.notes || null,
   };
 
+  if (isEnquiry) {
+    update.propertyId = targetPropertyId;
+    if (data.checkIn) update.checkIn = new Date(data.checkIn);
+    if (data.checkOut) update.checkOut = new Date(data.checkOut);
+  }
+
   // Gate 1: the owner's agreement. Sets the exclusivity lock the
   // exclusion constraint keys on. One-way — never cleared here.
   if (data.confirmOwner && rental.ownerConfirmedAt === null) {
@@ -113,7 +154,20 @@ export async function updateRental(
   }
 
   try {
-    await prisma.rental.update({ where: { id: rental.id }, data: update });
+    // The rental and its extra services move together: reconciled by
+    // replacing the whole set, which a small hand-edited list makes simple
+    // and keeps consistent even if a label was renamed.
+    await prisma.$transaction([
+      prisma.rental.update({ where: { id: rental.id }, data: update }),
+      prisma.rentalService.deleteMany({ where: { rentalId: rental.id } }),
+      prisma.rentalService.createMany({
+        data: data.additionalServices.map((s) => ({
+          rentalId: rental.id,
+          label: s.label,
+          amount: s.amount,
+        })),
+      }),
+    ]);
     revalidatePath("/rentals");
     revalidatePath(`/rentals/${rental.id}`);
     return { status: "success" };
