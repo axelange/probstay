@@ -3,10 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateDemandeForm } from "@/features/demandes/components/create-demande-form";
-import {
-  listBookableProperties,
-  listTenantCandidates,
-} from "@/features/rentals/services/rental-service";
+import { listProspectCandidates } from "@/features/demandes/services/demande-service";
+import { listBookableProperties } from "@/features/rentals/services/rental-service";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
@@ -19,10 +17,11 @@ export default async function NewDemandePage() {
   if (!hasPermission(user, "MANAGE_RENTALS")) notFound();
 
   // A demande can span several villas across the whole portfolio, so it
-  // is not scoped to an agent's own — all properties are offered.
+  // is not scoped to an agent's own — all properties are offered. The
+  // prospect list holds contacts that are only prospects.
   const [properties, clients] = await Promise.all([
     listBookableProperties(),
-    listTenantCandidates(),
+    listProspectCandidates(),
   ]);
 
   return (

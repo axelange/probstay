@@ -85,6 +85,15 @@ export async function convertDemande(
 
   try {
     const rental = await prisma.$transaction(async (tx) => {
+      // The prospect becomes a client on conversion: a rental tenant must
+      // hold CLIENT (a DB trigger enforces it), and PROSPECT is exclusive
+      // so it is replaced, not added to. This is the prospect → client
+      // promotion that the whole "prospect" status exists to lead up to.
+      await tx.contact.update({
+        where: { id: demande.contactId },
+        data: { types: ["CLIENT"] },
+      });
+
       const created = await tx.rental.create({
         data: {
           propertyId: data.propertyId,

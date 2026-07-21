@@ -98,3 +98,16 @@ export async function getDemandeDetail(id: string) {
   if (!demande) return null;
   return { ...demande, budget: toNumber(demande.budget) };
 }
+
+/**
+ * Contacts that can be a demande's prospect: those holding PROSPECT. A
+ * prospect is exclusively a prospect until their demande converts, when
+ * they become a client — so a converted one no longer appears here.
+ */
+export async function listProspectCandidates() {
+  return prisma.contact.findMany({
+    where: { archivedAt: null, types: { has: "PROSPECT" } },
+    select: { id: true, firstName: true, lastName: true, email: true },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+  });
+}

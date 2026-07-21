@@ -6,6 +6,7 @@ export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {
   CLIENT: "Client",
   PARTNER: "Partenaire",
   PROVIDER: "Prestataire",
+  PROSPECT: "Prospect",
 };
 
 /** Declaration order, used to keep badges in a stable sequence. */
@@ -14,6 +15,7 @@ export const CONTACT_TYPES: ContactType[] = [
   "CLIENT",
   "PARTNER",
   "PROVIDER",
+  "PROSPECT",
 ];
 
 export function contactTypeLabel(type: string): string {

@@ -63,11 +63,13 @@ export function CreateContactDialog() {
   }
 
   function toggleType(type: ContactType) {
-    setTypes((current) =>
-      current.includes(type)
-        ? current.filter((t) => t !== type)
-        : [...current, type]
-    );
+    setTypes((current) => {
+      if (current.includes(type)) return current.filter((t) => t !== type);
+      // Prospect is exclusive: picking it clears the rest, and picking
+      // any other clears prospect. The database enforces this too.
+      if (type === "PROSPECT") return ["PROSPECT"];
+      return [...current.filter((t) => t !== "PROSPECT"), type];
+    });
   }
 
   function submit(event: React.FormEvent, acceptDuplicatePhone = false) {

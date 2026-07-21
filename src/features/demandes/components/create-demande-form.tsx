@@ -77,7 +77,8 @@ export function CreateDemandeForm({
     startTransition(async () => {
       const result = await createContact({
         ...newClient,
-        types: ["CLIENT"],
+        // A new person making a request is a prospect, nothing else yet.
+        types: ["PROSPECT"],
         specialties: [],
         acceptDuplicatePhone: true,
       });
@@ -183,7 +184,9 @@ export function CreateDemandeForm({
             <SelectTrigger className="w-full">
               <SelectValue
                 placeholder={
-                  clients.length === 0 ? "Aucun client — créez-en un" : "Choisir un prospect"
+                  clients.length === 0
+                    ? "Aucun prospect — créez-en un"
+                    : "Choisir un prospect"
                 }
               />
             </SelectTrigger>

@@ -32,14 +32,14 @@ export async function createDemande(
   }
   const data = parsed.data;
 
-  // The prospect must be a client contact. Re-checked here rather than
+  // The demande's contact must hold PROSPECT. Re-checked here rather than
   // trusted from a list rendered minutes ago.
   const prospect = await prisma.contact.findFirst({
-    where: { id: data.contactId, archivedAt: null, types: { has: "CLIENT" } },
+    where: { id: data.contactId, archivedAt: null, types: { has: "PROSPECT" } },
     select: { id: true },
   });
   if (!prospect) {
-    return { status: "error", message: "Ce prospect n'est plus un client valide." };
+    return { status: "error", message: "Ce contact n'est pas un prospect." };
   }
 
   try {

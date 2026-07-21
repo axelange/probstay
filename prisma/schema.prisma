@@ -110,6 +110,11 @@ enum ContactType {
   CLIENT
   PARTNER
   PROVIDER
+  // A prospect is someone who has only made a request and is nothing
+  // else yet — not an owner, client, partner or provider. It is therefore
+  // exclusive: a contact holding PROSPECT holds no other type (enforced
+  // by a CHECK). On conversion of their demande they become a CLIENT.
+  PROSPECT
 }
 
 // What a contact actually does. `types` says how they relate to BSTAY;

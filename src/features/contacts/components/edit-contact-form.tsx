@@ -75,6 +75,16 @@ export function EditContactForm({
     );
   }
 
+  // Prospect is exclusive: picking it clears the rest, any other clears
+  // it. Matches the database CHECK.
+  function toggleType(type: ContactType) {
+    setTypes((current) => {
+      if (current.includes(type)) return current.filter((t) => t !== type);
+      if (type === "PROSPECT") return ["PROSPECT"];
+      return [...current.filter((t) => t !== "PROSPECT"), type];
+    });
+  }
+
   function save(event: React.FormEvent, acceptDuplicatePhone = false) {
     event.preventDefault();
 
@@ -185,7 +195,7 @@ export function EditContactForm({
                 type="checkbox"
                 className="size-4 cursor-pointer"
                 checked={types.includes(type)}
-                onChange={() => toggle(types, type, setTypes)}
+                onChange={() => toggleType(type)}
                 disabled={disabled}
               />
               {contactTypeLabel(type)}
