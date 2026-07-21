@@ -23,8 +23,9 @@ export default async function RentalsPage() {
     hasPermission(user, "MANAGE_RENTALS") || user.role === "AGENT";
 
   const confirmed = rentals.filter((r) => r.ownerConfirmedAt !== null).length;
+  // Enquiries the agent still has to work: no owner agreement yet.
   const awaiting = rentals.filter(
-    (r) => r.bookingStatus === "BOOKING_CONFIRMATION" && !r.ownerConfirmedAt
+    (r) => r.bookingStatus === "INQUIRY" && !r.ownerConfirmedAt
   ).length;
 
   return (
@@ -38,7 +39,7 @@ export default async function RentalsPage() {
               the step that actually blocks the pipeline. */}
           <p className="text-muted-foreground text-sm">
             {confirmed > 0 ? `${confirmed} confirmées par le propriétaire` : "Aucune confirmation propriétaire"}
-            {awaiting > 0 ? `, ${awaiting} en attente de réponse.` : "."}
+            {awaiting > 0 ? `, ${awaiting} demandes à traiter.` : "."}
           </p>
         </div>
 

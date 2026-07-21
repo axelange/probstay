@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { CircleCheck } from "lucide-react";
 import { toast } from "sonner";
+import type { RentalBookingStatus } from "@/generated/prisma/enums";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,10 +25,11 @@ import {
   formatDate,
   paymentStatusLabel,
 } from "@/features/rentals/components/rental-labels";
+import { missingToReach } from "@/features/rentals/utils/rental-gates";
 
 export type EditableRental = {
   id: string;
-  bookingStatus: string;
+  bookingStatus: RentalBookingStatus;
   grossAmount: number | null;
   depositAmount: number | null;
   securityDepositAmount: number | null;
@@ -36,18 +38,25 @@ export type EditableRental = {
   securityDepositStatus: string;
   ownerConfirmedAt: Date | null;
   ownerConfirmedByName: string | null;
+  contractSignedAt: Date | null;
+  contractSignedByName: string | null;
+  securityDepositReturnedAt: Date | null;
   notes: string | null;
 };
-
-const CONTRACT_STAGES = ["CONTRACT", "KYC", "CHECK_IN", "CHECK_OUT"];
 
 export function EditRentalForm({ rental }: { rental: EditableRental }) {
   const router = useRouter();
 
-  const [bookingStatus, setBookingStatus] = React.useState(
+  const [bookingStatus, setBookingStatus] = React.useState<RentalBookingStatus>(
     rental.bookingStatus
   );
   const [confirmOwner, setConfirmOwner] = React.useState(false);
+  const [signContract, setSignContract] = React.useState(false);
+  const [returnSecurityDeposit, setReturnSecurityDeposit] =
+    React.useState(false);
+  const [showDeposit, setShowDeposit] = React.useState(
+    rental.depositAmount !== null
+  );
   const [form, setForm] = React.useState({
     grossAmount: rental.grossAmount?.toString() ?? "",
     depositAmount: rental.depositAmount?.toString() ?? "",
@@ -61,11 +70,17 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
   );
   const [isPending, startTransition] = React.useTransition();
 
-  const alreadyConfirmed = rental.ownerConfirmedAt !== null;
-  const willBeConfirmed = alreadyConfirmed || confirmOwner;
-  const wantsContract = CONTRACT_STAGES.includes(bookingStatus);
-  const leavingEnquiry =
-    bookingStatus !== "INQUIRY" && bookingStatus !== "CANCELLED";
+  const ownerConfirmed = rental.ownerConfirmedAt !== null;
+  const contractSigned = rental.contractSignedAt !== null;
+  const returned = rental.securityDepositReturnedAt !== null;
+
+  // What the target stage still needs, given what this save would also
+  // set. Empty means the move is allowed — the gate explains itself.
+  const missing = missingToReach(bookingStatus, {
+    ownerConfirmed: ownerConfirmed || confirmOwner,
+    contractSigned: contractSigned || signContract,
+    hasAmount: form.grossAmount.trim() !== "",
+  });
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -78,10 +93,13 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
         id: rental.id,
         bookingStatus,
         ...form,
+        depositAmount: showDeposit ? form.depositAmount : "",
         depositStatus,
         balanceStatus,
         securityDepositStatus,
         confirmOwner,
+        signContract,
+        returnSecurityDeposit,
       });
       if (result.status === "error") {
         toast.error(result.message);
@@ -89,25 +107,27 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
       }
       toast.success("Location enregistrée.");
       setConfirmOwner(false);
+      setSignContract(false);
+      setReturnSecurityDeposit(false);
       router.refresh();
     });
   }
 
-  // The button explains the block before the server has to: contract
-  // needs an amount and a confirmed owner.
-  const blocked =
-    (leavingEnquiry && form.grossAmount.trim() === "") ||
-    (wantsContract && !willBeConfirmed);
+  const gross = Number(form.grossAmount) || 0;
+  const deposit = showDeposit ? Number(form.depositAmount) || 0 : 0;
+  const balance = form.grossAmount.trim() === "" ? null : gross - deposit;
 
   return (
     <form onSubmit={save} className="space-y-6">
       <section className="space-y-3">
         <h3 className="text-sm font-medium">Avancement</h3>
         <div className="space-y-2">
-          <Label htmlFor="status">Statut</Label>
+          <Label htmlFor="status">Étape</Label>
           <Select
             value={bookingStatus}
-            onValueChange={(v) => v !== null && setBookingStatus(v)}
+            onValueChange={(v) =>
+              v !== null && setBookingStatus(v as RentalBookingStatus)
+            }
             disabled={isPending}
           >
             <SelectTrigger id="status" className="w-full sm:max-w-xs">
@@ -124,16 +144,20 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
               </SelectItem>
             </SelectContent>
           </Select>
+          {missing.length > 0 ? (
+            <p className="text-xs text-amber-600">
+              Pour cette étape, il manque {missing.join(", ")}.
+            </p>
+          ) : null}
         </div>
 
-        {/* Owner confirmation is the exclusivity lock and the agency's
-            evidence, so it is a deliberate act with its own control —
-            not a side-effect of moving a dropdown. Once recorded it is a
-            fact with a date, not a toggle. */}
-        {alreadyConfirmed ? (
+        {/* Gate 1 — the tri-party agreement. Locks the dates against
+            other agents. A dated fact once recorded, not a toggle. */}
+        {ownerConfirmed ? (
           <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
             <CircleCheck aria-hidden="true" className="size-3.5" />
-            Propriétaire confirmé le {formatDate(rental.ownerConfirmedAt!)}
+            Accord du propriétaire enregistré le{" "}
+            {formatDate(rental.ownerConfirmedAt!)}
             {rental.ownerConfirmedByName
               ? ` par ${rental.ownerConfirmedByName}`
               : ""}
@@ -148,7 +172,7 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
               disabled={isPending}
             />
             <span>
-              Enregistrer l&apos;accord du propriétaire
+              Accord trouvé (agent + client + propriétaire)
               <span className="text-muted-foreground block text-xs">
                 Réserve ces dates : aucune autre location ne pourra être
                 confirmée sur ce bien pour cette période.
@@ -156,6 +180,34 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
             </span>
           </label>
         )}
+
+        {/* Gate 2 — the signed contract. Freezes the owner/agent
+            snapshot. Only offered once the owner has agreed. */}
+        {contractSigned ? (
+          <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+            <CircleCheck aria-hidden="true" className="size-3.5" />
+            Contrat signé le {formatDate(rental.contractSignedAt!)}
+            {rental.contractSignedByName
+              ? ` par ${rental.contractSignedByName}`
+              : ""}
+          </p>
+        ) : ownerConfirmed || confirmOwner ? (
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 cursor-pointer"
+              checked={signContract}
+              onChange={(e) => setSignContract(e.target.checked)}
+              disabled={isPending}
+            />
+            <span>
+              Contrat signé par toutes les parties
+              <span className="text-muted-foreground block text-xs">
+                Fige le propriétaire et l&apos;agent de cette location.
+              </span>
+            </span>
+          </label>
+        ) : null}
       </section>
 
       <Separator />
@@ -164,9 +216,7 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
         <h3 className="text-sm font-medium">Montants</h3>
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="grossAmount">
-              Séjour {leavingEnquiry ? "*" : ""}
-            </Label>
+            <Label htmlFor="grossAmount">Séjour</Label>
             <Input
               id="grossAmount"
               type="number"
@@ -175,21 +225,39 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
               value={form.grossAmount}
               onChange={(e) => set("grossAmount", e.target.value)}
               disabled={isPending}
-              placeholder={leavingEnquiry ? "" : "Facultatif"}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="depositAmount">Acompte</Label>
-            <Input
-              id="depositAmount"
-              type="number"
-              min={0}
-              step="0.01"
-              value={form.depositAmount}
-              onChange={(e) => set("depositAmount", e.target.value)}
-              disabled={isPending}
-            />
-          </div>
+
+          {/* No deposit by default — the balance is the whole stay. The
+              button reveals the field, and entering an amount lowers the
+              derived balance. */}
+          {showDeposit ? (
+            <div className="space-y-2">
+              <Label htmlFor="depositAmount">Acompte</Label>
+              <Input
+                id="depositAmount"
+                type="number"
+                min={0}
+                step="0.01"
+                value={form.depositAmount}
+                onChange={(e) => set("depositAmount", e.target.value)}
+                disabled={isPending}
+              />
+            </div>
+          ) : (
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDeposit(true)}
+                disabled={isPending}
+              >
+                Ajouter un acompte
+              </Button>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="securityDepositAmount">Dépôt de garantie</Label>
             <Input
@@ -203,13 +271,10 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
             />
           </div>
         </div>
-        {form.grossAmount.trim() !== "" ? (
+        {balance !== null ? (
           <p className="text-muted-foreground text-xs">
-            Solde calculé :{" "}
-            {formatAmount(
-              Number(form.grossAmount) - (Number(form.depositAmount) || 0)
-            )}
-            . Le dépôt de garantie est restitué, jamais un revenu.
+            Solde calculé : {formatAmount(balance)}. Le dépôt de garantie est
+            restitué, jamais un revenu.
           </p>
         ) : null}
       </section>
@@ -218,8 +283,6 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
 
       <section className="space-y-3">
         <h3 className="text-sm font-medium">Paiements</h3>
-        {/* Three independent axes: deposit, balance and security deposit
-            settle separately from each other and from the pipeline. */}
         <div className="grid gap-3 sm:grid-cols-3">
           {(
             [
@@ -253,6 +316,27 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
             </div>
           ))}
         </div>
+
+        {/* After check-out, the one thing left. */}
+        {bookingStatus === "CHECK_OUT" ? (
+          returned ? (
+            <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              <CircleCheck aria-hidden="true" className="size-3.5" />
+              Caution rendue le {formatDate(rental.securityDepositReturnedAt!)}
+            </p>
+          ) : (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="size-4 cursor-pointer"
+                checked={returnSecurityDeposit}
+                onChange={(e) => setReturnSecurityDeposit(e.target.checked)}
+                disabled={isPending}
+              />
+              Caution rendue au client
+            </label>
+          )
+        ) : null}
       </section>
 
       <Separator />
@@ -267,16 +351,9 @@ export function EditRentalForm({ rental }: { rental: EditableRental }) {
         />
       </section>
 
-      <div className="flex items-center gap-3">
-        <Button type="submit" disabled={isPending || blocked}>
-          {isPending ? "Enregistrement…" : "Enregistrer"}
-        </Button>
-        {wantsContract && !willBeConfirmed ? (
-          <span className="text-muted-foreground text-xs">
-            Confirmez d&apos;abord le propriétaire.
-          </span>
-        ) : null}
-      </div>
+      <Button type="submit" disabled={isPending || missing.length > 0}>
+        {isPending ? "Enregistrement…" : "Enregistrer"}
+      </Button>
     </form>
   );
 }

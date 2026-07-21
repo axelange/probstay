@@ -31,14 +31,32 @@ enum Permission {
 // The deposit / security deposit / balance stage isn't here — those
 // three settle independently of the booking's progress, so they're
 // tracked as separate payment statuses on Rental.
+// The booking pipeline. Two hard gates, both an explicit checkbox: the
+// tri-party agreement lets INQUIRY become CONTRACT (and locks the
+// dates), and the signed contract lets CONTRACT become FINALISATION (and
+// freezes the owner/agent snapshot). Everything past that is guided, not
+// walled — the UI shows what is missing without blocking.
+//
+// FINALISATION holds the identity documents and the payments. CHECK_IN
+// is the stay itself, where services are billed and documents attached
+// (later phases). After CHECK_OUT one thing remains: the security
+// deposit returned. CANCELLED is reachable from any stage.
+//
+// Replaces the earlier BOOKING_CONFIRMATION stage (now the gate
+// checkbox) and KYC stage (now identity capture inside FINALISATION).
 enum RentalBookingStatus {
   INQUIRY
-  BOOKING_CONFIRMATION
   CONTRACT
-  KYC
+  FINALISATION
   CHECK_IN
   CHECK_OUT
   CANCELLED
+}
+
+enum IdentityDocumentType {
+  PASSPORT
+  ID_CARD
+  DRIVING_LICENSE
 }
 
 enum RentalPaymentStatus {
@@ -100,9 +118,11 @@ model User {
   fullName        String
   role            Role
   permissions     UserPermission[]
-  properties            Property[]       @relation("PropertyAgent")
-  rentalsHandled        Rental[]         @relation("RentalAgent")
-  rentalsOwnerConfirmed Rental[]         @relation("RentalOwnerConfirmedBy")
+  properties            Property[]         @relation("PropertyAgent")
+  rentalsHandled        Rental[]           @relation("RentalAgent")
+  rentalsOwnerConfirmed Rental[]           @relation("RentalOwnerConfirmedBy")
+  rentalsContractSigned Rental[]           @relation("RentalContractSignedBy")
+  identityDocuments     IdentityDocument[] @relation("IdentityDocumentUploader")
   invitationsSent       UserInvitation[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -205,9 +225,10 @@ model Contact {
   phone String?
   iban          String?
   notes         String?
-  properties    Property[]
-  rentalsOwned  Rental[]
-  rentalTenants RentalTenant[]
+  properties        Property[]
+  rentalsOwned      Rental[]
+  rentalTenants     RentalTenant[]
+  identityDocuments IdentityDocument[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   archivedAt    DateTime?
@@ -418,6 +439,19 @@ model Rental {
   ownerConfirmedById String?   @db.Uuid
   ownerConfirmedBy   User?     @relation("RentalOwnerConfirmedBy", fields: [ownerConfirmedById], references: [id], onDelete: Restrict)
 
+  // The "contract signed by all parties" gate. This is the moment the
+  // booking matches a real signed document, so it — not entry into the
+  // CONTRACT stage — is when the owner/agent snapshot is frozen.
+  contractSignedAt   DateTime?
+  contractSignedById String?   @db.Uuid
+  contractSignedBy   User?     @relation("RentalContractSignedBy", fields: [contractSignedById], references: [id], onDelete: Restrict)
+
+  // The one thing left after check-out: the security deposit handed back.
+  // Sets securityDepositStatus to REFUNDED in the same action.
+  securityDepositReturnedAt DateTime?
+
+  identityDocuments IdentityDocument[]
+
   // Deposit, security deposit and balance settle independently of each
   // other and of the booking's stage, so each carries its own status.
   depositStatus         RentalPaymentStatus @default(UNPAID)
@@ -477,4 +511,35 @@ model RentalTenant {
   @@unique([rentalId, contactId])
   @@index([contactId])
   @@map("rental_tenants")
+}
+
+// An identity document captured during a rental's finalisation. At least
+// one per rental, potentially several — a booking may carry four guests
+// or more. Linked to the rental, and optionally to which tenant it
+// belongs to.
+//
+// The file itself lives in a private Supabase Storage bucket; only its
+// path is stored here. `number` is the document number, not the file.
+model IdentityDocument {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rentalId String @db.Uuid
+  rental   Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  // Which guest this belongs to. Nullable and SET NULL on delete: the
+  // document is evidence tied to the rental, and must survive a tenant
+  // contact being removed from the booking.
+  contactId String?  @db.Uuid
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  type        IdentityDocumentType
+  number      String
+  storagePath String
+
+  uploadedAt   DateTime @default(now())
+  uploadedById String?  @db.Uuid
+  uploadedBy   User?    @relation("IdentityDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([rentalId])
+  @@index([contactId])
+  @@map("identity_documents")
 }

@@ -12,13 +12,10 @@ const optionalAmount = z
 /**
  * Editing a rental's progress and money.
  *
- * Dates, property and tenants are not here: changing the property would
- * strand the owner/agent snapshot, and changing dates interacts with the
- * overlap constraint — both are deliberately out of scope for now.
- *
- * The cross-field rules (an amount is required past enquiry, the owner
- * must be confirmed before contract) are checked in the action, where
- * the rental's current state is known, not here.
+ * The two gate checkboxes are one-way flags: ticking `confirmOwner` or
+ * `signContract` records that event now. They never clear an existing
+ * one — the action ignores them once set. Dates, property and tenants
+ * are edited elsewhere.
  */
 export const updateRentalSchema = z.object({
   id: z.uuid(),
@@ -29,9 +26,9 @@ export const updateRentalSchema = z.object({
   depositStatus: z.enum(RentalPaymentStatus),
   balanceStatus: z.enum(RentalPaymentStatus),
   securityDepositStatus: z.enum(RentalPaymentStatus),
-  // A one-way flag: ticking it records the owner's confirmation now.
-  // Never clears an existing one — the action ignores it once set.
   confirmOwner: z.boolean().default(false),
+  signContract: z.boolean().default(false),
+  returnSecurityDeposit: z.boolean().default(false),
   notes: z.string().trim().max(2000).optional(),
 });
 

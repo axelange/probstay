@@ -143,6 +143,9 @@ export default async function RentalDetailPage({
                 securityDepositStatus: rental.securityDepositStatus,
                 ownerConfirmedAt: rental.ownerConfirmedAt,
                 ownerConfirmedByName: rental.ownerConfirmedBy?.fullName ?? null,
+                contractSignedAt: rental.contractSignedAt,
+                contractSignedByName: rental.contractSignedBy?.fullName ?? null,
+                securityDepositReturnedAt: rental.securityDepositReturnedAt,
                 notes: rental.notes,
               }}
             />

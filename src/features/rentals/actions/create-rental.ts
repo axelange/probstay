@@ -6,7 +6,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createRentalSchema } from "@/features/rentals/schemas/rental-schema";
 import { canBookProperty } from "@/features/rentals/services/rental-service";
-import { ownerAgentSnapshot } from "@/features/rentals/utils/rental-snapshot";
 
 export type CreateRentalResult =
   | { status: "success"; id: string }
@@ -59,26 +58,17 @@ export async function createRental(
     };
   }
 
-  // Owner and agent are frozen only once the lease is signed, so that
-  // the snapshot matches the real signed document. A booking created as
-  // an enquiry or an owner request carries neither yet; both are
-  // captured when it reaches CONTRACT (here if it is created there
-  // directly, otherwise by the status-change action). Reading the live
-  // property is correct until then.
-  const snapshot = ownerAgentSnapshot(data.bookingStatus, property);
-
   try {
     const rental = await prisma.rental.create({
       data: {
         propertyId: property.id,
-        ownerId: snapshot.ownerId,
-        agentId: snapshot.agentId,
+        // Owner and agent are left null: they are frozen only when the
+        // contract is signed, so that the snapshot matches the real
+        // document. A new booking is always an enquiry, where the live
+        // property is read instead.
         checkIn: new Date(data.checkIn),
         checkOut: new Date(data.checkOut),
-        bookingStatus: data.bookingStatus,
         grossAmount: data.grossAmount ?? null,
-        depositAmount: data.depositAmount ?? null,
-        securityDepositAmount: data.securityDepositAmount ?? null,
         notes: data.notes || null,
         tenants: {
           create: data.tenantIds.map((contactId, index) => ({

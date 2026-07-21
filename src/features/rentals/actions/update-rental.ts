@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateRentalSchema } from "@/features/rentals/schemas/update-rental-schema";
 import { canManageRental } from "@/features/rentals/services/rental-service";
-import { isContractSigned } from "@/features/rentals/utils/rental-snapshot";
+import { missingToReach } from "@/features/rentals/utils/rental-gates";
 
 export type UpdateRentalResult =
   | { status: "success" }
@@ -14,12 +14,8 @@ export type UpdateRentalResult =
 
 /**
  * Whether this error is the no-overlapping-confirmed exclusion firing.
- *
- * Matched on the constraint name across the whole error, not on a Prisma
- * error code: verified against the live database, the exclusion surfaces
- * as a DriverAdapterError, not a PrismaClientKnownRequestError, so a
- * code check would miss it and the user would get the generic failure
- * message instead of the real reason.
+ * Matched on the constraint name across the whole error: verified live,
+ * it surfaces as a DriverAdapterError, not a Prisma error code.
  */
 function isOverlapViolation(error: unknown): boolean {
   const text =
@@ -33,9 +29,7 @@ export async function updateRental(
   input: unknown
 ): Promise<UpdateRentalResult> {
   const user = await getCurrentUser();
-  if (!user) {
-    return { status: "error", message: "Session expirée." };
-  }
+  if (!user) return { status: "error", message: "Session expirée." };
 
   const parsed = updateRentalSchema.safeParse(input);
   if (!parsed.success) {
@@ -44,7 +38,6 @@ export async function updateRental(
       message: parsed.error.issues[0]?.message ?? "Données invalides.",
     };
   }
-
   const data = parsed.data;
 
   const rental = await prisma.rental.findFirst({
@@ -55,44 +48,30 @@ export async function updateRental(
       ownerId: true,
       agentId: true,
       ownerConfirmedAt: true,
-      property: {
-        select: { id: true, ownerId: true, agentId: true },
-      },
+      contractSignedAt: true,
+      property: { select: { id: true, ownerId: true, agentId: true } },
     },
   });
-  if (!rental) {
-    return { status: "error", message: "Cette location n'existe plus." };
-  }
+  if (!rental) return { status: "error", message: "Cette location n'existe plus." };
 
-  // Write access follows the property's current agent, not the rental's
-  // snapshot — the RLS rule, restated because Prisma bypasses RLS.
   if (!canManageRental(user, rental)) {
     return { status: "error", message: "Vous ne gérez pas ce bien." };
   }
 
-  const leavingEnquiry =
-    data.bookingStatus !== "INQUIRY" && data.bookingStatus !== "CANCELLED";
+  // The gate checkboxes may be satisfied in this same save, so the gate
+  // is evaluated against the would-be state, not only the stored one.
+  const willConfirmOwner = data.confirmOwner || rental.ownerConfirmedAt !== null;
+  const willSignContract = data.signContract || rental.contractSignedAt !== null;
 
-  // The database enforces this too; caught here for a sentence rather
-  // than a constraint error.
-  if (leavingEnquiry && data.grossAmount === undefined) {
+  const missing = missingToReach(data.bookingStatus, {
+    ownerConfirmed: willConfirmOwner,
+    contractSigned: willSignContract,
+    hasAmount: data.grossAmount !== undefined,
+  });
+  if (missing.length > 0) {
     return {
       status: "error",
-      message: "Le montant du séjour est obligatoire au-delà de la demande.",
-    };
-  }
-
-  const confirmingOwner = data.confirmOwner && rental.ownerConfirmedAt === null;
-  const willBeConfirmed = rental.ownerConfirmedAt !== null || confirmingOwner;
-
-  // The agency's rule: the owner is always confirmed before a contract.
-  // The confirmation is what locks the dates against other agents, so a
-  // contract without it would mean a signed lease nothing protects.
-  if (isContractSigned(data.bookingStatus) && !willBeConfirmed) {
-    return {
-      status: "error",
-      message:
-        "Confirmez d'abord l'accord du propriétaire : c'est lui qui réserve les dates.",
+      message: `Il manque ${missing.join(", ")} pour atteindre cette étape.`,
     };
   }
 
@@ -107,29 +86,35 @@ export async function updateRental(
     notes: data.notes || null,
   };
 
-  if (confirmingOwner) {
+  // Gate 1: the owner's agreement. Sets the exclusivity lock the
+  // exclusion constraint keys on. One-way — never cleared here.
+  if (data.confirmOwner && rental.ownerConfirmedAt === null) {
     update.ownerConfirmedAt = new Date();
     update.ownerConfirmedById = user.id;
   }
 
-  // Snapshot owner and agent on the transition *into* a signed contract,
-  // and only then. Never on the way back out, so cancelling a signed
-  // rental keeps who it belonged to. Captured from the property's
-  // current values, which at signing match the document.
-  const enteringSigned =
-    isContractSigned(data.bookingStatus) &&
-    !isContractSigned(rental.bookingStatus);
-  if (enteringSigned) {
+  // Gate 2: the signed contract. This is the moment the booking matches
+  // a real document, so the owner/agent snapshot is frozen here — not on
+  // entering the CONTRACT stage. Captured from the property's current
+  // values and never touched again.
+  if (data.signContract && rental.contractSignedAt === null) {
+    update.contractSignedAt = new Date();
+    update.contractSignedById = user.id;
     update.ownerId = rental.property.ownerId;
     update.agentId = rental.property.agentId;
   }
 
+  // The one thing left after check-out. Ticking it settles the security
+  // deposit as refunded in the same stroke.
+  if (data.returnSecurityDeposit) {
+    update.securityDepositReturnedAt = new Date();
+    update.securityDepositStatus = "REFUNDED";
+  }
+
   try {
     await prisma.rental.update({ where: { id: rental.id }, data: update });
-
     revalidatePath("/rentals");
     revalidatePath(`/rentals/${rental.id}`);
-
     return { status: "success" };
   } catch (error) {
     if (isOverlapViolation(error)) {

@@ -108,6 +108,9 @@ export async function getRentalDetail(id: string) {
       notes: true,
       ownerConfirmedAt: true,
       ownerConfirmedBy: { select: { fullName: true } },
+      contractSignedAt: true,
+      contractSignedBy: { select: { fullName: true } },
+      securityDepositReturnedAt: true,
       createdAt: true,
       property: {
         select: {
@@ -134,6 +137,16 @@ export async function getRentalDetail(id: string) {
           },
         },
         orderBy: { isPrimary: "desc" },
+      },
+      identityDocuments: {
+        select: {
+          id: true,
+          type: true,
+          number: true,
+          contact: { select: { firstName: true, lastName: true } },
+          uploadedAt: true,
+        },
+        orderBy: { uploadedAt: "asc" },
       },
     },
   });

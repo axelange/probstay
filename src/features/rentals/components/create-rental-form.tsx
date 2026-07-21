@@ -21,10 +21,6 @@ import {
   checkOverlaps,
   type OverlapSummary,
 } from "@/features/rentals/actions/check-overlaps";
-import {
-  BOOKING_PIPELINE,
-  bookingStatusLabel,
-} from "@/features/rentals/components/rental-labels";
 
 type PropertyOption = {
   id: string;
@@ -54,10 +50,7 @@ export function CreateRentalForm({
   const [propertyId, setPropertyId] = React.useState("");
   const [checkIn, setCheckIn] = React.useState("");
   const [checkOut, setCheckOut] = React.useState("");
-  const [bookingStatus, setBookingStatus] = React.useState("INQUIRY");
   const [grossAmount, setGrossAmount] = React.useState("");
-  const [depositAmount, setDepositAmount] = React.useState("");
-  const [securityDepositAmount, setSecurityDepositAmount] = React.useState("");
   const [notes, setNotes] = React.useState("");
 
   const [tenants, setTenants] = React.useState(initialTenants);
@@ -78,11 +71,6 @@ export function CreateRentalForm({
     data: OverlapSummary;
   } | null>(null);
   const [isPending, startTransition] = React.useTransition();
-
-  // The amount is only optional while this is still an enquiry — the
-  // database says the same thing with a CHECK.
-  const amountRequired =
-    bookingStatus !== "INQUIRY" && bookingStatus !== "CANCELLED";
 
   const stayKey = `${propertyId}|${checkIn}|${checkOut}`;
   const stayIsComplete = Boolean(propertyId && checkIn && checkOut);
@@ -156,10 +144,7 @@ export function CreateRentalForm({
         propertyId,
         checkIn,
         checkOut,
-        bookingStatus,
         grossAmount,
-        depositAmount,
-        securityDepositAmount,
         tenantIds: tenantId ? [tenantId] : [],
         notes,
       });
@@ -178,8 +163,7 @@ export function CreateRentalForm({
     Boolean(propertyId) &&
     Boolean(checkIn) &&
     Boolean(checkOut) &&
-    Boolean(tenantId) &&
-    (!amountRequired || grossAmount.trim() !== "");
+    Boolean(tenantId);
 
   return (
     <form onSubmit={submit} className="max-w-2xl space-y-6">
@@ -382,76 +366,25 @@ export function CreateRentalForm({
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-sm font-medium">Avancement et montants</h3>
+        <h3 className="text-sm font-medium">Montant et notes</h3>
 
-        <div className="space-y-2">
-          <Label htmlFor="status">Statut</Label>
-          <Select
-            value={bookingStatus}
-            onValueChange={(v) => v !== null && setBookingStatus(v)}
+        <div className="space-y-2 sm:max-w-xs">
+          <Label htmlFor="grossAmount">Montant du séjour</Label>
+          <Input
+            id="grossAmount"
+            type="number"
+            min={0}
+            step="0.01"
+            value={grossAmount}
+            onChange={(e) => setGrossAmount(e.target.value)}
             disabled={isPending}
-          >
-            <SelectTrigger id="status" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {BOOKING_PIPELINE.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {bookingStatusLabel(s)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="grossAmount">
-              Montant du séjour {amountRequired ? "*" : ""}
-            </Label>
-            <Input
-              id="grossAmount"
-              type="number"
-              min={0}
-              step="0.01"
-              value={grossAmount}
-              onChange={(e) => setGrossAmount(e.target.value)}
-              disabled={isPending}
-              placeholder={amountRequired ? "" : "Facultatif"}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="depositAmount">Acompte</Label>
-            <Input
-              id="depositAmount"
-              type="number"
-              min={0}
-              step="0.01"
-              value={depositAmount}
-              onChange={(e) => setDepositAmount(e.target.value)}
-              disabled={isPending}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="securityDepositAmount">Dépôt de garantie</Label>
-            <Input
-              id="securityDepositAmount"
-              type="number"
-              min={0}
-              step="0.01"
-              value={securityDepositAmount}
-              onChange={(e) => setSecurityDepositAmount(e.target.value)}
-              disabled={isPending}
-            />
-          </div>
-        </div>
-
-        {!amountRequired ? (
+            placeholder="Facultatif"
+          />
           <p className="text-muted-foreground text-xs">
-            Le montant reste facultatif tant que la location est une simple
-            demande.
+            Facultatif à ce stade. Acompte, caution et paiements se règlent
+            en finalisation.
           </p>
-        ) : null}
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor="notes">Notes internes</Label>
