@@ -162,6 +162,7 @@ model User {
   identityDocuments     IdentityDocument[] @relation("IdentityDocumentUploader")
   touristTaxesUpdated   TouristTax[]       @relation("TouristTaxUpdatedBy")
   demandesCreated       Demande[]          @relation("DemandeCreatedBy")
+  demandesAssigned      Demande[]          @relation("DemandeAssignedAgent")
   invitationsSent       UserInvitation[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -651,6 +652,13 @@ model Demande {
   // One property for a precise demande, several for a wide one.
   properties DemandeProperty[]
 
+  // An agent sees a demande when every one of its properties is theirs
+  // (a precise one they manage, or a wide one entirely theirs). When a
+  // wide demande spans several agents' properties, no one qualifies, so
+  // an admin assigns it here — and then that agent sees it.
+  assignedAgentId String? @db.Uuid
+  assignedAgent   User?   @relation("DemandeAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+
   // Outcome. A rental once converted (that rental opens at Informations),
   // or lost. Neither set means it is still pending.
   convertedRentalId String?   @unique @db.Uuid
@@ -668,6 +676,7 @@ model Demande {
   @@index([contactId])
   @@index([convertedAt])
   @@index([lostAt])
+  @@index([assignedAgentId])
   @@map("demandes")
 }
 

@@ -5,15 +5,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DemandeActions } from "@/features/demandes/components/demande-actions";
+import { AssignAgentField } from "@/features/demandes/components/assign-agent-field";
 import {
   demandeStatus,
   modeLabel,
   sourceLabel,
   STATUS_LABELS,
 } from "@/features/demandes/components/demande-labels";
-import { getDemandeDetail } from "@/features/demandes/services/demande-service";
+import {
+  getDemandeDetail,
+  listAgents,
+} from "@/features/demandes/services/demande-service";
 import { formatDate, formatStay } from "@/features/rentals/components/rental-labels";
 import { getCurrentUser } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 
 export const metadata = { title: "Demande — BSTAY PRO" };
 
@@ -37,7 +42,7 @@ export default async function DemandeDetailPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const demande = await getDemandeDetail(id);
+  const demande = await getDemandeDetail(id, user);
   if (!demande) notFound();
 
   const status = demandeStatus(demande);
@@ -46,6 +51,15 @@ export default async function DemandeDetailPage({
       .filter(Boolean)
       .join(" ") || "Prospect";
   const properties = demande.properties.map((p) => p.property);
+
+  // Only an admin assigns, and it matters when no single agent manages
+  // every property — the wide-across-several-agents case.
+  const canAssign = hasPermission(user, "MANAGE_RENTALS");
+  const managingAgentIds = new Set(
+    properties.map((p) => p.agent?.id ?? "none")
+  );
+  const spansMultipleAgents = managingAgentIds.size > 1;
+  const agents = canAssign ? await listAgents() : [];
 
   return (
     <div className="space-y-6">
@@ -173,6 +187,23 @@ export default async function DemandeDetailPage({
               </p>
             </div>
           </section>
+
+          {canAssign && status !== "converted" ? (
+            <section className="space-y-2">
+              <h3 className="text-sm font-medium">Agent assigné</h3>
+              <AssignAgentField
+                demandeId={demande.id}
+                initialAgentId={demande.assignedAgent?.id ?? null}
+                agents={agents}
+                spansMultipleAgents={spansMultipleAgents}
+              />
+            </section>
+          ) : demande.assignedAgent ? (
+            <section className="space-y-1">
+              <h3 className="text-sm font-medium">Agent assigné</h3>
+              <p className="text-sm">{demande.assignedAgent.fullName}</p>
+            </section>
+          ) : null}
 
           <DemandeActions
             demandeId={demande.id}

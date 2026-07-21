@@ -14,7 +14,7 @@ export default async function DemandesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const demandes = await listDemandes();
+  const demandes = await listDemandes(user);
   const canCreate = hasPermission(user, "MANAGE_RENTALS");
 
   const pending = demandes.filter((d) => demandeStatus(d) === "pending").length;
