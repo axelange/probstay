@@ -6,6 +6,7 @@ import type { Permission } from "@/generated/prisma/enums";
  * plain data — functions don't cross that boundary.
  */
 export type NavIcon =
+  | "demandes"
   | "dashboard"
   | "properties"
   | "rentals"
@@ -47,6 +48,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Métier",
     items: [
       { href: "/properties", label: "Biens", icon: "properties" },
+      { href: "/demandes", label: "Demandes", icon: "demandes" },
       { href: "/rentals", label: "Locations", icon: "rentals" },
       { href: "/contacts", label: "Contacts", icon: "contacts" },
       { href: "/calendar", label: "Calendrier", icon: "calendar" },

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RentalSource } from "@/generated/prisma/enums";
 
 const optionalAmount = z
   .union([z.literal(""), z.coerce.number().min(0)])
@@ -19,6 +20,7 @@ const optionalAmount = z
 export const createRentalSchema = z
   .object({
     propertyId: z.uuid("Sélectionnez un bien."),
+    source: z.enum(RentalSource),
     checkIn: z.iso.date("Date d'arrivée invalide."),
     checkOut: z.iso.date("Date de départ invalide."),
     grossAmount: optionalAmount,

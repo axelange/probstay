@@ -53,6 +53,7 @@ export async function updateRental(
       ownerConfirmedAt: true,
       contractSignedAt: true,
       securityDepositReturnedAt: true,
+      convertedAt: true,
       property: { select: { id: true, ownerId: true, agentId: true } },
     },
   });
@@ -159,6 +160,19 @@ export async function updateRental(
     update.contractSignedById = user.id;
     update.ownerId = rental.property.ownerId;
     update.agentId = rental.property.agentId;
+  }
+
+  // A demande becomes a real booking the first time it leaves INQUIRY
+  // for a live stage — that is the conversion. Stamped once and never
+  // again, so it survives a later cancellation (a cancelled *booking*
+  // stays a converted one, distinct from a lost demande).
+  if (
+    rental.bookingStatus === "INQUIRY" &&
+    data.bookingStatus !== "INQUIRY" &&
+    data.bookingStatus !== "CANCELLED" &&
+    rental.convertedAt === null
+  ) {
+    update.convertedAt = new Date();
   }
 
   // The one thing left after check-out. Ticking it settles the security

@@ -64,8 +64,9 @@ export async function createRental(
         propertyId: property.id,
         // Owner and agent are left null: they are frozen only when the
         // contract is signed, so that the snapshot matches the real
-        // document. A new booking is always an enquiry, where the live
-        // property is read instead.
+        // document. A new booking is always an enquiry — a demande — with
+        // no conversion yet; the live property is read instead.
+        source: data.source,
         checkIn: new Date(data.checkIn),
         checkOut: new Date(data.checkOut),
         grossAmount: data.grossAmount ?? null,

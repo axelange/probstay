@@ -10,9 +10,9 @@ import {
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
-export const metadata = { title: "Nouvelle location — BSTAY PRO" };
+export const metadata = { title: "Nouvelle demande — BSTAY PRO" };
 
-export default async function NewRentalPage() {
+export default async function NewDemandePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -39,27 +39,27 @@ export default async function NewRentalPage() {
           variant="ghost"
           size="sm"
           nativeButton={false}
-          render={<Link href="/rentals" />}
+          render={<Link href="/demandes" />}
         >
           <ArrowLeft aria-hidden="true" />
-          Toutes les locations
+          Toutes les demandes
         </Button>
       </div>
 
       <div className="space-y-1">
         <h2 className="text-xl font-semibold tracking-tight">
-          Nouvelle location
+          Nouvelle demande
         </h2>
         <p className="text-muted-foreground text-sm">
-          Une demande n&apos;exige qu&apos;un bien, des dates et un locataire.
-          Le reste se complète en avançant.
+          Le premier contact d&apos;un client. Un bien, des dates et un
+          locataire suffisent — elle devient une location une fois confirmée.
         </p>
       </div>
 
       {properties.length === 0 ? (
         <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
           Aucun bien ne vous est assigné — vous ne pouvez pas encore créer de
-          location.
+          demande.
         </p>
       ) : (
         <CreateRentalForm properties={properties} tenants={tenants} />

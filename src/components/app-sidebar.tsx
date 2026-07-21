@@ -6,6 +6,7 @@ import {
   Building2,
   CalendarDays,
   FileText,
+  Inbox,
   LayoutDashboard,
   type LucideIcon,
   Receipt,
@@ -31,6 +32,7 @@ import type { NavIcon, NavSection } from "@/lib/navigation";
 const ICONS: Record<NavIcon, LucideIcon> = {
   dashboard: LayoutDashboard,
   properties: Building2,
+  demandes: Inbox,
   rentals: KeyRound,
   contacts: Contact,
   calendar: CalendarDays,

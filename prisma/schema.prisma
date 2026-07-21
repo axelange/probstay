@@ -59,6 +59,15 @@ enum IdentityDocumentType {
   DRIVING_LICENSE
 }
 
+// Where a booking's first contact came from. Every booking begins as a
+// request (a demande) from one of these; the website channel arrives in
+// V2. Kept so conversion can later be analysed by channel.
+enum RentalSource {
+  ASSISTANT
+  AGENT
+  WEBSITE
+}
+
 // Tourist tax (taxe de séjour) rate per commune, in euros per person per
 // night. Reference data an Admin revises about once a year, matched to a
 // property by its city name. Kept as its own table rather than a config
@@ -445,6 +454,17 @@ model Rental {
 
   bookingStatus RentalBookingStatus @default(INQUIRY)
 
+  // A booking is a *demande* (request) until it is confirmed and turns
+  // into a real rental. The first contact — from the assistant, an agent,
+  // or the website — is always a demande; `convertedAt` is stamped when
+  // it becomes a booking (the enquiry is confirmed and moves to
+  // contract). Null means it is still a demande, or was lost as one.
+  //
+  // This is what separates the Demandes screen from the Locations screen,
+  // and what a future conversion-rate statistic reads.
+  source      RentalSource?
+  convertedAt DateTime?
+
   // When the owner confirmed these dates, and who obtained it.
   //
   // Recorded separately from bookingStatus because BOOKING_CONFIRMATION
@@ -524,6 +544,7 @@ model Rental {
   @@index([checkIn, checkOut])
   @@index([bookingStatus])
   @@index([ownerConfirmedAt])
+  @@index([convertedAt])
   @@map("rentals")
 }
 

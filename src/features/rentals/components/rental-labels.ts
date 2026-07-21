@@ -2,7 +2,20 @@ import type {
   IdentityDocumentType,
   RentalBookingStatus,
   RentalPaymentStatus,
+  RentalSource,
 } from "@/generated/prisma/enums";
+
+export const SOURCE_LABELS: Record<RentalSource, string> = {
+  ASSISTANT: "Assistante",
+  AGENT: "Agent",
+  WEBSITE: "Site internet",
+};
+
+export const SOURCES: RentalSource[] = ["ASSISTANT", "AGENT", "WEBSITE"];
+
+export function sourceLabel(source: string): string {
+  return SOURCE_LABELS[source as RentalSource] ?? source;
+}
 
 /** Identifiers English, labels French — as for roles and contact types. */
 export const BOOKING_STATUS_LABELS: Record<RentalBookingStatus, string> = {

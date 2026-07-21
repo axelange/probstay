@@ -21,6 +21,7 @@ import {
   checkOverlaps,
   type OverlapSummary,
 } from "@/features/rentals/actions/check-overlaps";
+import { SOURCES, sourceLabel } from "@/features/rentals/components/rental-labels";
 
 type PropertyOption = {
   id: string;
@@ -48,6 +49,7 @@ export function CreateRentalForm({
   const router = useRouter();
 
   const [propertyId, setPropertyId] = React.useState("");
+  const [source, setSource] = React.useState("AGENT");
   const [checkIn, setCheckIn] = React.useState("");
   const [checkOut, setCheckOut] = React.useState("");
   const [grossAmount, setGrossAmount] = React.useState("");
@@ -143,6 +145,7 @@ export function CreateRentalForm({
     startTransition(async () => {
       const result = await createRental({
         propertyId,
+        source,
         checkIn,
         checkOut,
         grossAmount,
@@ -156,7 +159,7 @@ export function CreateRentalForm({
         return;
       }
 
-      toast.success("Location créée.");
+      toast.success("Demande créée.");
       router.push(`/rentals/${result.id}`);
     });
   }
@@ -190,6 +193,27 @@ export function CreateRentalForm({
               {properties.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {propertyLabel(p)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2 sm:max-w-xs">
+          <Label htmlFor="source">Origine de la demande *</Label>
+          <Select
+            value={source}
+            onValueChange={(v) => v !== null && setSource(v)}
+            items={SOURCES.map((s) => ({ value: s, label: sourceLabel(s) }))}
+            disabled={isPending}
+          >
+            <SelectTrigger id="source" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SOURCES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {sourceLabel(s)}
                 </SelectItem>
               ))}
             </SelectContent>
