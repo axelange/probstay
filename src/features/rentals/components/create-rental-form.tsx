@@ -51,6 +51,7 @@ export function CreateRentalForm({
   const [checkIn, setCheckIn] = React.useState("");
   const [checkOut, setCheckOut] = React.useState("");
   const [grossAmount, setGrossAmount] = React.useState("");
+  const [guests, setGuests] = React.useState("");
   const [notes, setNotes] = React.useState("");
 
   const [tenants, setTenants] = React.useState(initialTenants);
@@ -145,6 +146,7 @@ export function CreateRentalForm({
         checkIn,
         checkOut,
         grossAmount,
+        guests,
         tenantIds: tenantId ? [tenantId] : [],
         notes,
       });
@@ -213,6 +215,20 @@ export function CreateRentalForm({
               disabled={isPending}
             />
           </div>
+        </div>
+
+        <div className="space-y-2 sm:max-w-[12rem]">
+          <Label htmlFor="guests">Nombre de personnes</Label>
+          <Input
+            id="guests"
+            type="number"
+            min={1}
+            max={50}
+            value={guests}
+            onChange={(e) => setGuests(e.target.value)}
+            disabled={isPending}
+            placeholder="Facultatif"
+          />
         </div>
 
         {/* Advisory. Overlapping enquiries are normal — mandates are not

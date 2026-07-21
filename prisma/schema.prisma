@@ -59,6 +59,21 @@ enum IdentityDocumentType {
   DRIVING_LICENSE
 }
 
+// Tourist tax (taxe de séjour) rate per commune, in euros per person per
+// night. Reference data an Admin revises about once a year, matched to a
+// property by its city name. Kept as its own table rather than a config
+// blob so each rate carries who changed it and when.
+model TouristTax {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  city          String   @unique
+  amount        Decimal  @db.Decimal(6, 2)
+  updatedAt     DateTime @updatedAt
+  updatedById   String?  @db.Uuid
+  updatedBy     User?    @relation("TouristTaxUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("tourist_taxes")
+}
+
 enum RentalPaymentStatus {
   UNPAID
   PARTIALLY_PAID
@@ -123,6 +138,7 @@ model User {
   rentalsOwnerConfirmed Rental[]           @relation("RentalOwnerConfirmedBy")
   rentalsContractSigned Rental[]           @relation("RentalContractSignedBy")
   identityDocuments     IdentityDocument[] @relation("IdentityDocumentUploader")
+  touristTaxesUpdated   TouristTax[]       @relation("TouristTaxUpdatedBy")
   invitationsSent       UserInvitation[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -460,6 +476,12 @@ model Rental {
 
   checkIn  DateTime
   checkOut DateTime
+
+  // Number of guests the booking is for — not the number of named
+  // tenants (a party of eight may have one lead contact). Drives the
+  // tourist tax, which is charged per person per night. Nullable: an
+  // enquiry may not know it yet.
+  guests Int?
 
   // grossAmount is the rental revenue. securityDepositAmount is held
   // separately and is never agency revenue — the two must never be

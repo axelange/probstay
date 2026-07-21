@@ -22,6 +22,11 @@ export const createRentalSchema = z
     checkIn: z.iso.date("Date d'arrivée invalide."),
     checkOut: z.iso.date("Date de départ invalide."),
     grossAmount: optionalAmount,
+    // Number of guests, not of named tenants. Optional at enquiry.
+    guests: z
+      .union([z.literal(""), z.coerce.number().int().min(1).max(50)])
+      .transform((v) => (v === "" ? undefined : Number(v)))
+      .optional(),
     tenantIds: z.array(z.uuid()).min(1, "Sélectionnez au moins un locataire."),
     notes: z.string().trim().max(2000).optional(),
   })

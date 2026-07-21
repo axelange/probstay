@@ -69,6 +69,7 @@ export async function createRental(
         checkIn: new Date(data.checkIn),
         checkOut: new Date(data.checkOut),
         grossAmount: data.grossAmount ?? null,
+        guests: data.guests ?? null,
         notes: data.notes || null,
         tenants: {
           create: data.tenantIds.map((contactId, index) => ({
