@@ -15,11 +15,13 @@ function toNumber(value: Decimalish | null): number | null {
  * they must stay in step, since Prisma bypasses RLS.
  *
  *   MANAGE_RENTALS -> all
- *   AGENT          -> assigned to them, OR every property is theirs
- *                     (a precise one they manage, or a wide one entirely
- *                     theirs). A wide demande spanning several agents
- *                     reaches none until an admin assigns it.
+ *   AGENT          -> the one assigned to them; and, only while a demande
+ *                     is unassigned, one whose properties are all theirs.
  *   anyone else    -> nothing
+ *
+ * Assignment is authoritative: once a demande is assigned, it follows that
+ * person and no one else, even if a property later changes hands. The
+ * property-based rule is only the fallback for the still-unassigned ones.
  */
 function visibilityFilter(user: CurrentUser): Prisma.DemandeWhereInput | null {
   if (hasPermission(user, "MANAGE_RENTALS")) return {};
@@ -29,8 +31,9 @@ function visibilityFilter(user: CurrentUser): Prisma.DemandeWhereInput | null {
       OR: [
         { assignedAgentId: user.id },
         {
-          // Non-empty and every property managed by this agent.
+          // Unassigned, non-empty, every property this agent's.
           AND: [
+            { assignedAgentId: null },
             { properties: { some: {} } },
             { properties: { every: { property: { agentId: user.id } } } },
           ],
