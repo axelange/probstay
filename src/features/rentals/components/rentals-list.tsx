@@ -31,7 +31,6 @@ import {
   formatStay,
   nights,
   paymentStatusLabel,
-  sourceLabel,
 } from "@/features/rentals/components/rental-labels";
 
 const search: FilterFn<RentalListItem> = (row, columnId, value) => {
@@ -94,32 +93,20 @@ const SORT_OPTIONS = [
   },
 ] as const;
 
-// Bookings (converted) split into their live and terminal states.
-const BOOKING_CATEGORIES = [
+// The three lists, in this order. "En cours" is everything still moving
+// through the pipeline; the other two are the terminal states. Every
+// status maps to exactly one.
+const CATEGORIES = [
   {
     id: "active",
     label: "En cours",
-    statuses: ["CONTRACT", "FINALISATION", "CHECK_IN"],
+    statuses: ["INQUIRY", "CONTRACT", "FINALISATION", "CHECK_IN"],
   },
   { id: "done", label: "Terminées", statuses: ["CHECK_OUT"] },
   { id: "cancelled", label: "Annulées", statuses: ["CANCELLED"] },
 ] as const;
 
-// Demandes (not yet converted): still open, or lost.
-const DEMANDE_CATEGORIES = [
-  { id: "pending", label: "En attente", statuses: ["INQUIRY"] },
-  { id: "lost", label: "Perdues", statuses: ["CANCELLED"] },
-] as const;
-
-export function RentalsList({
-  rentals,
-  variant = "bookings",
-}: {
-  rentals: RentalListItem[];
-  variant?: "bookings" | "demandes";
-}) {
-  const CATEGORIES =
-    variant === "demandes" ? DEMANDE_CATEGORIES : BOOKING_CATEGORIES;
+export function RentalsList({ rentals }: { rentals: RentalListItem[] }) {
   const [sortId, setSortId] =
     React.useState<(typeof SORT_OPTIONS)[number]["id"]>("checkInDesc");
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -210,11 +197,7 @@ export function RentalsList({
           </h3>
           {section.rows.length === 0 ? (
             <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-6 text-center text-sm">
-              {globalFilter !== ""
-                ? "Aucun résultat."
-                : variant === "demandes"
-                  ? "Aucune demande."
-                  : "Aucune location."}
+              {globalFilter !== "" ? "Aucun résultat." : "Aucune location."}
             </p>
           ) : (
             <ul className="divide-y rounded-lg border">
@@ -266,7 +249,6 @@ function RentalRow({ rental }: { rental: RentalListItem }) {
             {formatStay(rental.checkIn, rental.checkOut)}
             {" · "}
             {nights(rental.checkIn, rental.checkOut)} nuits
-            {rental.source ? ` · ${sourceLabel(rental.source)}` : ""}
           </span>
         </div>
 

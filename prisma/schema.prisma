@@ -59,12 +59,20 @@ enum IdentityDocumentType {
   DRIVING_LICENSE
 }
 
-// Where a booking's first contact came from. Every booking begins as a
-// request (a demande) from one of these; the website channel arrives in
-// V2. Kept so conversion can later be analysed by channel.
-enum RentalSource {
-  ASSISTANT
-  AGENT
+// A demande (request) is its own thing, distinct from a rental: the first
+// contact from a client, which may never turn into a booking. A precise
+// demande names one property with definite dates; a wide one lists
+// several properties of interest, dates optional. It carries a budget,
+// never a stay amount — that belongs to the rental it may become.
+enum DemandeMode {
+  PRECISE
+  WIDE
+}
+
+// Where the request came from. Filled automatically, not chosen: direct
+// when we create it ourselves, website when it arrives from the site.
+enum DemandeSource {
+  DIRECT
   WEBSITE
 }
 
@@ -148,6 +156,7 @@ model User {
   rentalsContractSigned Rental[]           @relation("RentalContractSignedBy")
   identityDocuments     IdentityDocument[] @relation("IdentityDocumentUploader")
   touristTaxesUpdated   TouristTax[]       @relation("TouristTaxUpdatedBy")
+  demandesCreated       Demande[]          @relation("DemandeCreatedBy")
   invitationsSent       UserInvitation[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -254,6 +263,7 @@ model Contact {
   rentalsOwned      Rental[]
   rentalTenants     RentalTenant[]
   identityDocuments IdentityDocument[]
+  demandes          Demande[]          @relation("DemandeProspect")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   archivedAt    DateTime?
@@ -370,6 +380,8 @@ model Property {
   // APIMO's `services` codes above (pool, aircon…). The sync never
   // writes this, so it survives every re-sync, like `marketingName`.
   includedServices String[]
+
+  demandeProperties DemandeProperty[]
   proximities Int[]
   tags        Int[]
 
@@ -452,18 +464,15 @@ model Rental {
 
   tenants RentalTenant[]
 
+  // First stage is INQUIRY, labelled "Informations" in the UI: a rental
+  // only exists once a demande has been converted into one, so its
+  // opening stage is where the booking's information is completed before
+  // the contract. (The request phase lives on the Demande entity.)
   bookingStatus RentalBookingStatus @default(INQUIRY)
 
-  // A booking is a *demande* (request) until it is confirmed and turns
-  // into a real rental. The first contact — from the assistant, an agent,
-  // or the website — is always a demande; `convertedAt` is stamped when
-  // it becomes a booking (the enquiry is confirmed and moves to
-  // contract). Null means it is still a demande, or was lost as one.
-  //
-  // This is what separates the Demandes screen from the Locations screen,
-  // and what a future conversion-rate statistic reads.
-  source      RentalSource?
-  convertedAt DateTime?
+  // The demande this rental was converted from, if any. The FK lives on
+  // Demande (convertedRentalId); this is only the back-relation.
+  originatingDemande Demande? @relation("DemandeConversion")
 
   // When the owner confirmed these dates, and who obtained it.
   //
@@ -544,7 +553,6 @@ model Rental {
   @@index([checkIn, checkOut])
   @@index([bookingStatus])
   @@index([ownerConfirmedAt])
-  @@index([convertedAt])
   @@map("rentals")
 }
 
@@ -611,4 +619,63 @@ model RentalService {
 
   @@index([rentalId])
   @@map("rental_services")
+}
+
+// A client's request, before it is a booking. Distinct from a rental: it
+// may list several properties, its dates may be open, and it may never
+// convert. Converting it creates a Rental (which opens at the
+// "Informations" stage); it can also be marked lost.
+model Demande {
+  id     String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mode   DemandeMode
+  source DemandeSource @default(DIRECT)
+
+  // The prospect. Their Contact holds the email/phone left to be reached
+  // back on — shown alongside the demande.
+  contactId String  @db.Uuid
+  contact   Contact @relation("DemandeProspect", fields: [contactId], references: [id], onDelete: Restrict)
+
+  // Precise carries definite dates; wide leaves them open. There is never
+  // a stay amount here — only a budget, and even that is optional.
+  checkIn  DateTime?
+  checkOut DateTime?
+  guests   Int?
+  budget   Decimal?  @db.Decimal(12, 2)
+  notes    String?
+
+  // One property for a precise demande, several for a wide one.
+  properties DemandeProperty[]
+
+  // Outcome. A rental once converted (that rental opens at Informations),
+  // or lost. Neither set means it is still pending.
+  convertedRentalId String?   @unique @db.Uuid
+  convertedRental   Rental?   @relation("DemandeConversion", fields: [convertedRentalId], references: [id], onDelete: SetNull)
+  convertedAt       DateTime?
+  lostAt            DateTime?
+
+  createdById String? @db.Uuid
+  createdBy   User?   @relation("DemandeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+
+  @@index([contactId])
+  @@index([convertedAt])
+  @@index([lostAt])
+  @@map("demandes")
+}
+
+// A property a demande is interested in. Many for a wide demande, one for
+// a precise one.
+model DemandeProperty {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  demandeId  String   @db.Uuid
+  demande    Demande  @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  propertyId String   @db.Uuid
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([demandeId, propertyId])
+  @@index([propertyId])
+  @@map("demande_properties")
 }

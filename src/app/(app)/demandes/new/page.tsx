@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CreateRentalForm } from "@/features/rentals/components/create-rental-form";
+import { CreateDemandeForm } from "@/features/demandes/components/create-demande-form";
 import {
   listBookableProperties,
   listTenantCandidates,
@@ -16,20 +16,14 @@ export default async function NewDemandePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const canManageAll = hasPermission(user, "MANAGE_RENTALS");
-  if (!canManageAll && user.role !== "AGENT") notFound();
+  if (!hasPermission(user, "MANAGE_RENTALS")) notFound();
 
-  const [allProperties, tenants] = await Promise.all([
+  // A demande can span several villas across the whole portfolio, so it
+  // is not scoped to an agent's own — all properties are offered.
+  const [properties, clients] = await Promise.all([
     listBookableProperties(),
     listTenantCandidates(),
   ]);
-
-  // An Agent may only book the properties they manage, so offering the
-  // rest would produce a form that refuses on submit. The action
-  // re-checks regardless — a filtered list is not permission.
-  const properties = canManageAll
-    ? allProperties
-    : allProperties.filter((p) => p.agentId === user.id);
 
   return (
     <div className="space-y-6">
@@ -51,19 +45,12 @@ export default async function NewDemandePage() {
           Nouvelle demande
         </h2>
         <p className="text-muted-foreground text-sm">
-          Le premier contact d&apos;un client. Un bien, des dates et un
-          locataire suffisent — elle devient une location une fois confirmée.
+          Le premier contact d&apos;un client. Ce n&apos;est pas encore une
+          location — elle le devient une fois convertie.
         </p>
       </div>
 
-      {properties.length === 0 ? (
-        <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
-          Aucun bien ne vous est assigné — vous ne pouvez pas encore créer de
-          demande.
-        </p>
-      ) : (
-        <CreateRentalForm properties={properties} tenants={tenants} />
-      )}
+      <CreateDemandeForm properties={properties} clients={clients} />
     </div>
   );
 }

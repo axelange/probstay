@@ -2,8 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { RentalsList } from "@/features/rentals/components/rentals-list";
-import { listRentals } from "@/features/rentals/services/rental-service";
+import { DemandesList } from "@/features/demandes/components/demandes-list";
+import { listDemandes } from "@/features/demandes/services/demande-service";
+import { demandeStatus } from "@/features/demandes/components/demande-labels";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
@@ -13,14 +14,10 @@ export default async function DemandesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  // Demandes are bookings not yet converted — the first contact, still a
-  // request or lost as one. Confirming one turns it into a Location.
-  const demandes = await listRentals("demandes");
+  const demandes = await listDemandes();
+  const canCreate = hasPermission(user, "MANAGE_RENTALS");
 
-  const canCreate =
-    hasPermission(user, "MANAGE_RENTALS") || user.role === "AGENT";
-
-  const pending = demandes.filter((d) => d.bookingStatus === "INQUIRY").length;
+  const pending = demandes.filter((d) => demandeStatus(d) === "pending").length;
 
   return (
     <div className="space-y-6">
@@ -28,7 +25,8 @@ export default async function DemandesPage() {
         <div className="space-y-1">
           <h2 className="text-xl font-semibold tracking-tight">Demandes</h2>
           <p className="text-muted-foreground text-sm">
-            Premier contact d&apos;un client, avant confirmation.
+            Premier contact d&apos;un client. Une demande peut être convertie
+            en location.
             {pending > 0 ? ` ${pending} en attente.` : ""}
           </p>
         </div>
@@ -45,7 +43,7 @@ export default async function DemandesPage() {
         ) : null}
       </div>
 
-      <RentalsList rentals={demandes} variant="demandes" />
+      <DemandesList demandes={demandes} />
     </div>
   );
 }

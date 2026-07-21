@@ -24,18 +24,10 @@ export type RentalListItem = Awaited<ReturnType<typeof listRentals>>[number];
  * rental — they are read-all, write-own. What an Agent may change is
  * decided by canManageRental below, not by hiding rows.
  */
-/**
- * @param kind "bookings" returns rentals that have converted (a demande
- * confirmed into a real booking); "demandes" returns the ones that have
- * not — still a request, or lost as one. The split is `convertedAt`,
- * which is what separates the two screens.
- */
-export async function listRentals(kind: "bookings" | "demandes" = "bookings") {
+/** Every rental. Rentals only exist once a demande has been converted. */
+export async function listRentals() {
   const rentals = await prisma.rental.findMany({
-    where: {
-      archivedAt: null,
-      convertedAt: kind === "bookings" ? { not: null } : null,
-    },
+    where: { archivedAt: null },
     select: {
       id: true,
       checkIn: true,
@@ -45,8 +37,6 @@ export async function listRentals(kind: "bookings" | "demandes" = "bookings") {
       depositStatus: true,
       balanceStatus: true,
       grossAmount: true,
-      source: true,
-      convertedAt: true,
       ownerConfirmedAt: true,
       property: {
         select: { id: true, marketingName: true, city: true, reference: true },

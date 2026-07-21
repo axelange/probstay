@@ -306,8 +306,8 @@ export function RentalFunnel({
           {stage === "INQUIRY" ? (
             <>
               <StagePanelHeader
-                title="Demande"
-                hint="L'agent ajuste la villa, les dates et le nombre de personnes, puis obtient l'accord des trois parties."
+                title="Informations"
+                hint="L'agent complète la villa, les dates et le nombre de personnes, puis obtient l'accord des trois parties."
               />
 
               <div className="space-y-2">

@@ -2,24 +2,16 @@ import type {
   IdentityDocumentType,
   RentalBookingStatus,
   RentalPaymentStatus,
-  RentalSource,
 } from "@/generated/prisma/enums";
 
-export const SOURCE_LABELS: Record<RentalSource, string> = {
-  ASSISTANT: "Assistante",
-  AGENT: "Agent",
-  WEBSITE: "Site internet",
-};
-
-export const SOURCES: RentalSource[] = ["ASSISTANT", "AGENT", "WEBSITE"];
-
-export function sourceLabel(source: string): string {
-  return SOURCE_LABELS[source as RentalSource] ?? source;
-}
-
-/** Identifiers English, labels French — as for roles and contact types. */
+/**
+ * Identifiers English, labels French. INQUIRY is labelled "Informations":
+ * a rental only exists once a demande has converted into one, so its
+ * opening stage is where the booking's information is completed before the
+ * contract — the request itself is a separate Demande.
+ */
 export const BOOKING_STATUS_LABELS: Record<RentalBookingStatus, string> = {
-  INQUIRY: "Demande",
+  INQUIRY: "Informations",
   CONTRACT: "Contrat",
   FINALISATION: "Finalisation",
   CHECK_IN: "Séjour",

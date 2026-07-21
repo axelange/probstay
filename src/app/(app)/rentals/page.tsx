@@ -10,10 +10,9 @@ export default async function RentalsPage() {
   if (!user) redirect("/login");
 
   // No gate on the page: Agents are read-all on rentals. What they may
-  // change is decided per rental, against the property they manage.
-  // Only converted bookings — a demande that became a real rental. New
-  // ones are created from Demandes, not here.
-  const rentals = await listRentals("bookings");
+  // change is decided per rental, against the property they manage. A
+  // rental only exists once a demande has been converted into one.
+  const rentals = await listRentals();
 
   const active = rentals.filter(
     (r) => !["CHECK_OUT", "CANCELLED"].includes(r.bookingStatus)
@@ -29,7 +28,7 @@ export default async function RentalsPage() {
         </p>
       </div>
 
-      <RentalsList rentals={rentals} variant="bookings" />
+      <RentalsList rentals={rentals} />
     </div>
   );
 }
