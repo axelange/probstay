@@ -35,20 +35,22 @@ export function DemandeActions({
   status,
   convertedRentalId,
   properties,
+  defaultPropertyId,
   defaultCheckIn,
   defaultCheckOut,
 }: {
   demandeId: string;
   status: "pending" | "converted" | "lost";
   convertedRentalId: string | null;
+  /** Villas this user may convert onto — their own, or all for an admin. */
   properties: PropertyChoice[];
+  /** The demande's own property, pre-selected when it is bookable. */
+  defaultPropertyId: string;
   defaultCheckIn: string;
   defaultCheckOut: string;
 }) {
   const router = useRouter();
-  const [propertyId, setPropertyId] = React.useState(
-    properties.length === 1 ? properties[0].id : ""
-  );
+  const [propertyId, setPropertyId] = React.useState(defaultPropertyId);
   const [checkIn, setCheckIn] = React.useState(defaultCheckIn);
   const [checkOut, setCheckOut] = React.useState(defaultCheckOut);
   const [isPending, startTransition] = React.useTransition();
@@ -130,6 +132,10 @@ export function DemandeActions({
 
       <div className="space-y-2">
         <Label htmlFor="convert-villa">Bien retenu</Label>
+        <p className="text-muted-foreground text-xs">
+          N&apos;importe quel bien que vous gérez — pas seulement ceux de la
+          demande.
+        </p>
         <Select
           value={propertyId}
           onValueChange={(v) => v !== null && setPropertyId(v)}

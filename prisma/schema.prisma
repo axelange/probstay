@@ -157,6 +157,7 @@ model User {
   permissions     UserPermission[]
   properties            Property[]         @relation("PropertyAgent")
   rentalsHandled        Rental[]           @relation("RentalAgent")
+  rentalsAsTenantAgent  Rental[]           @relation("RentalTenantAgent")
   rentalsOwnerConfirmed Rental[]           @relation("RentalOwnerConfirmedBy")
   rentalsContractSigned Rental[]           @relation("RentalContractSignedBy")
   identityDocuments     IdentityDocument[] @relation("IdentityDocumentUploader")
@@ -468,6 +469,15 @@ model Rental {
   agentId String? @db.Uuid
   agent   User?   @relation("RentalAgent", fields: [agentId], references: [id], onDelete: Restrict)
 
+  // The tenant-side co-agent: the agent who handled the demande this
+  // rental was converted from. When they differ from the property's agent
+  // (the owner side), the two are co-agents — one represents the tenant,
+  // the other the owner — and both may manage the rental. Set once at
+  // conversion, from the demande's assigned agent; null for a rental with
+  // no such agent (an unassigned demande converted by an admin).
+  tenantAgentId String? @db.Uuid
+  tenantAgent   User?   @relation("RentalTenantAgent", fields: [tenantAgentId], references: [id], onDelete: Restrict)
+
   tenants RentalTenant[]
 
   // First stage is INQUIRY, labelled "Informations" in the UI: a rental
@@ -556,6 +566,7 @@ model Rental {
   @@index([propertyId])
   @@index([ownerId])
   @@index([agentId])
+  @@index([tenantAgentId])
   @@index([checkIn, checkOut])
   @@index([bookingStatus])
   @@index([ownerConfirmedAt])

@@ -223,13 +223,34 @@ export default async function RentalDetailPage({
                   </Link>
                 ) : null}
               </Field>
-              <Field label="Agent">{rental.agent?.fullName}</Field>
+              {/* Co-agents when the tenant-side agent (from the demande)
+                  differs from the property's agent (owner side). Otherwise
+                  a single agent. */}
+              {rental.tenantAgent &&
+              rental.property.agent &&
+              rental.tenantAgent.id !== rental.property.agent.id ? (
+                <>
+                  <Field label="Agent locataire">
+                    {rental.tenantAgent.fullName}
+                  </Field>
+                  <Field label="Agent propriétaire">
+                    {rental.property.agent.fullName}
+                  </Field>
+                </>
+              ) : (
+                <Field label="Agent">
+                  {(rental.property.agent ?? rental.tenantAgent)?.fullName ??
+                    "—"}
+                </Field>
+              )}
               <Field label="Créée le">{formatDate(rental.createdAt)}</Field>
             </dl>
             <p className="text-muted-foreground text-xs">
-              Propriétaire et agent sont figés à la signature du contrat :
-              réassigner le bien ensuite ne réécrit pas l&apos;historique de
-              cette location.
+              {rental.tenantAgent &&
+              rental.property.agent &&
+              rental.tenantAgent.id !== rental.property.agent.id
+                ? "Deux co-agents gèrent cette location : l'un côté locataire, l'autre côté propriétaire."
+                : "Propriétaire et agent figés à la signature du contrat : réassigner le bien ensuite ne réécrit pas l'historique."}
             </p>
           </section>
         </div>

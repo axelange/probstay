@@ -16,6 +16,7 @@ import {
   getDemandeDetail,
   listAgents,
 } from "@/features/demandes/services/demande-service";
+import { listBookableProperties } from "@/features/rentals/services/rental-service";
 import { formatDate, formatStay } from "@/features/rentals/components/rental-labels";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
@@ -60,6 +61,19 @@ export default async function DemandeDetailPage({
   );
   const spansMultipleAgents = managingAgentIds.size > 1;
   const agents = canAssign ? await listAgents() : [];
+
+  // Conversion may steer onto any villa this user manages (an admin, any),
+  // not just those on the demande. The demande's first property is
+  // pre-selected when it is among them.
+  const bookable =
+    status === "converted"
+      ? []
+      : (await listBookableProperties()).filter(
+          (p) => canAssign || p.agentId === user.id
+        );
+  const defaultPropertyId = bookable.some((p) => p.id === properties[0]?.id)
+    ? properties[0].id
+    : "";
 
   return (
     <div className="space-y-6">
@@ -209,7 +223,8 @@ export default async function DemandeDetailPage({
             demandeId={demande.id}
             status={status}
             convertedRentalId={demande.convertedRentalId}
-            properties={properties}
+            properties={bookable}
+            defaultPropertyId={defaultPropertyId}
             defaultCheckIn={demande.checkIn ? toDateInput(demande.checkIn) : ""}
             defaultCheckOut={demande.checkOut ? toDateInput(demande.checkOut) : ""}
           />

@@ -53,6 +53,7 @@ export async function updateRental(
       ownerConfirmedAt: true,
       contractSignedAt: true,
       securityDepositReturnedAt: true,
+      tenantAgentId: true,
       property: { select: { id: true, ownerId: true, agentId: true } },
     },
   });

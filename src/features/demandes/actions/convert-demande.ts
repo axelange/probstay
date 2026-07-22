@@ -5,12 +5,14 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { canBookProperty } from "@/features/rentals/services/rental-service";
 
 const schema = z.object({
   demandeId: z.uuid(),
   // The single property and dates the demande resolves to — a rental
-  // needs both. For a precise demande these are the demande's own; for a
-  // wide one the agent picks which villa and confirms the dates.
+  // needs both. The property need not be one the demande listed: the
+  // agent may steer it onto any villa they manage (an admin onto any),
+  // e.g. proposing a different one than the prospect first asked about.
   propertyId: z.uuid("Choisissez un bien."),
   checkIn: z.iso.date("Date d'arrivée requise."),
   checkOut: z.iso.date("Date de départ requise."),
@@ -61,8 +63,8 @@ export async function convertDemande(
       contactId: true,
       convertedAt: true,
       lostAt: true,
+      assignedAgentId: true,
       contact: { select: { types: true } },
-      properties: { select: { propertyId: true } },
     },
   });
   if (!demande) {
@@ -75,14 +77,23 @@ export async function convertDemande(
     return { status: "error", message: "Cette demande est marquée perdue." };
   }
 
-  // The chosen property must be one of the demande's own — you convert to
-  // a villa the prospect actually asked about.
-  if (!demande.properties.some((p) => p.propertyId === data.propertyId)) {
-    return {
-      status: "error",
-      message: "Ce bien ne fait pas partie de la demande.",
-    };
+  // The chosen villa: any this user may book — their own for an agent,
+  // any for an admin. Not limited to the demande's properties of interest.
+  const property = await prisma.property.findFirst({
+    where: { id: data.propertyId, archivedAt: null },
+    select: { id: true, agentId: true },
+  });
+  if (!property) {
+    return { status: "error", message: "Ce bien n'existe plus." };
   }
+  if (!canBookProperty(user, property)) {
+    return { status: "error", message: "Vous ne gérez pas ce bien." };
+  }
+
+  // Co-agents: the demande's agent handled the tenant side; the property's
+  // agent is the owner side. Carried onto the rental as its tenant-side
+  // agent — when the two differ, both may manage the rental.
+  const tenantAgentId = demande.assignedAgentId;
 
   // The contact becomes a client on conversion — a rental tenant must
   // hold CLIENT (a DB trigger enforces it). PROSPECT is dropped, since it
@@ -104,8 +115,9 @@ export async function convertDemande(
 
       const created = await tx.rental.create({
         data: {
-          propertyId: data.propertyId,
+          propertyId: property.id,
           bookingStatus: "INQUIRY",
+          tenantAgentId,
           checkIn: new Date(data.checkIn),
           checkOut: new Date(data.checkOut),
           tenants: {

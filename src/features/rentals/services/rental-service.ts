@@ -71,11 +71,15 @@ export async function listRentals() {
  */
 export function canManageRental(
   user: CurrentUser,
-  rental: { property: { agentId: string | null } }
+  rental: { property: { agentId: string | null }; tenantAgentId: string | null }
 ): boolean {
   if (hasPermission(user, "MANAGE_RENTALS")) return true;
   if (user.role !== "AGENT") return false;
-  return rental.property.agentId === user.id;
+  // Either co-agent may manage: the property's current agent (owner side)
+  // or the tenant-side agent carried from the demande.
+  return (
+    rental.property.agentId === user.id || rental.tenantAgentId === user.id
+  );
 }
 
 /** Whether this user may create a rental on this property. */
@@ -122,6 +126,7 @@ export async function getRentalDetail(id: string) {
           city: true,
           reference: true,
           agentId: true,
+          agent: { select: { id: true, fullName: true } },
           includedServices: true,
         },
       },
@@ -131,6 +136,8 @@ export async function getRentalDetail(id: string) {
       },
       owner: { select: { id: true, firstName: true, lastName: true } },
       agent: { select: { id: true, fullName: true } },
+      tenantAgentId: true,
+      tenantAgent: { select: { id: true, fullName: true } },
       tenants: {
         select: {
           isPrimary: true,
