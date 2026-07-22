@@ -54,7 +54,7 @@ export default async function RentalDetailPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const rental = await getRentalDetail(id);
+  const rental = await getRentalDetail(id, user);
   if (!rental) notFound();
 
   const canManage = canManageRental(user, rental);

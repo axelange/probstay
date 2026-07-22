@@ -1,10 +1,32 @@
 import "server-only";
 
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { CurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
 type Decimalish = { toNumber(): number };
+
+/**
+ * Which rentals this user may see, mirroring the RLS on `rentals` — they
+ * must stay in step, since Prisma bypasses RLS.
+ *
+ *   MANAGE_RENTALS -> all
+ *   AGENT          -> those they are an agent of: the property's agent, or
+ *                     the tenant-side co-agent carried from the demande.
+ *   anyone else    -> nothing
+ */
+function rentalVisibilityFilter(
+  user: CurrentUser
+): Prisma.RentalWhereInput | null {
+  if (hasPermission(user, "MANAGE_RENTALS")) return {};
+  if (user.role === "AGENT") {
+    return {
+      OR: [{ property: { agentId: user.id } }, { tenantAgentId: user.id }],
+    };
+  }
+  return null;
+}
 
 /**
  * Prisma returns DECIMAL as Decimal instances, which cannot cross into a
@@ -18,16 +40,16 @@ function toNumber(value: Decimalish | null): number | null {
 export type RentalListItem = Awaited<ReturnType<typeof listRentals>>[number];
 
 /**
- * Every rental, newest stay first.
- *
- * No visibility filter: the RLS policies give Agents SELECT on *every*
- * rental — they are read-all, write-own. What an Agent may change is
- * decided by canManageRental below, not by hiding rows.
+ * The rentals this user may see, newest stay first. Agents see only the
+ * ones they are an agent or co-agent of. Rentals only exist once a demande
+ * has been converted.
  */
-/** Every rental. Rentals only exist once a demande has been converted. */
-export async function listRentals() {
+export async function listRentals(user: CurrentUser) {
+  const visible = rentalVisibilityFilter(user);
+  if (visible === null) return [];
+
   const rentals = await prisma.rental.findMany({
-    where: { archivedAt: null },
+    where: { ...visible, archivedAt: null },
     select: {
       id: true,
       checkIn: true,
@@ -94,9 +116,12 @@ export function canBookProperty(
 
 export type RentalDetail = NonNullable<Awaited<ReturnType<typeof getRentalDetail>>>;
 
-export async function getRentalDetail(id: string) {
+export async function getRentalDetail(id: string, user: CurrentUser) {
+  const visible = rentalVisibilityFilter(user);
+  if (visible === null) return null;
+
   const rental = await prisma.rental.findFirst({
-    where: { id, archivedAt: null },
+    where: { ...visible, id, archivedAt: null },
     select: {
       id: true,
       checkIn: true,

@@ -9,10 +9,9 @@ export default async function RentalsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  // No gate on the page: Agents are read-all on rentals. What they may
-  // change is decided per rental, against the property they manage. A
-  // rental only exists once a demande has been converted into one.
-  const rentals = await listRentals();
+  // Agents see only the rentals they are an agent or co-agent of; admins
+  // see all. A rental only exists once a demande has been converted.
+  const rentals = await listRentals(user);
 
   const active = rentals.filter(
     (r) => !["CHECK_OUT", "CANCELLED"].includes(r.bookingStatus)
