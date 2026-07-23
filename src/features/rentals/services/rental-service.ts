@@ -309,3 +309,25 @@ export async function listTenantCandidates() {
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
 }
+
+/**
+ * Contacts that may be picked as the tenant when opening a rental directly.
+ *
+ * Broader than listTenantCandidates: anyone (not only existing clients),
+ * since creating the rental promotes them to CLIENT. `types` rides along so
+ * the picker can hint who is already a client. Prospects are excluded — a
+ * demande, not a direct booking, is their path.
+ */
+export async function listBookingTenantCandidates() {
+  return prisma.contact.findMany({
+    where: { archivedAt: null, NOT: { types: { has: "PROSPECT" } } },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      types: true,
+    },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+  });
+}
