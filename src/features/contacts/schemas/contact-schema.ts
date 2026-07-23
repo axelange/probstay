@@ -26,9 +26,11 @@ const optionalDate = z
  * not French SIREN/SIRET). Only stored when kind is COMPANY — the action
  * drops the whole block for an individual. The representative's email and
  * phone are the contact-level ones, not repeated here.
+ *
+ * Exported so a rental created directly can capture the same fields for a
+ * company tenant — one definition, no drift.
  */
-const companyFields = {
-  kind: z.enum(ContactKind).default("INDIVIDUAL"),
+export const companyDetailFields = {
   legalForm: optionalText(160),
   registrationNumber: optionalText(60),
   registeredOffice: optionalText(300),
@@ -38,6 +40,11 @@ const companyFields = {
   repBirthDate: optionalDate,
   repBirthPlace: optionalText(160),
   repNationality: optionalText(120),
+};
+
+const companyFields = {
+  kind: z.enum(ContactKind).default("INDIVIDUAL"),
+  ...companyDetailFields,
 };
 
 /**

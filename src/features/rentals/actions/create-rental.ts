@@ -84,12 +84,20 @@ export async function createRental(
     }
     resolved = { kind: "promote", id: contact.id, types: contact.types };
   } else {
-    const existing = tenant.email
-      ? await prisma.contact.findFirst({
-          where: { email: tenant.email, archivedAt: null },
-          select: { id: true, types: true },
-        })
-      : null;
+    // Reuse by email only for an individual — that is the individual's
+    // identity key, and it must not match a company that merely shares its
+    // representative's address. A company is always created fresh here.
+    const existing =
+      tenant.kind === "INDIVIDUAL" && tenant.email
+        ? await prisma.contact.findFirst({
+            where: {
+              email: tenant.email,
+              kind: "INDIVIDUAL",
+              archivedAt: null,
+            },
+            select: { id: true, types: true },
+          })
+        : null;
     resolved = existing
       ? { kind: "promote", id: existing.id, types: existing.types }
       : { kind: "create" };
@@ -110,15 +118,38 @@ export async function createRental(
         });
         tenantContactId = resolved.id;
       } else {
-        // tenant.mode is "new" here — a fresh client contact.
+        // tenant.mode is "new" here — a fresh client contact. A company
+        // has no first name of its own; its lastName is the raison sociale,
+        // and it carries the same contract block as the contact page.
         const t = tenant as Extract<typeof tenant, { mode: "new" }>;
+        const isCompanyTenant = t.kind === "COMPANY";
         const created = await tx.contact.create({
           data: {
-            firstName: t.firstName || null,
+            firstName: isCompanyTenant ? null : t.firstName || null,
             lastName: t.lastName,
             email: t.email ?? null,
             phone: t.phone || null,
+            kind: t.kind,
             types: ["CLIENT"],
+            ...(isCompanyTenant
+              ? {
+                  company: {
+                    create: {
+                      legalForm: t.legalForm ?? null,
+                      registrationNumber: t.registrationNumber ?? null,
+                      registeredOffice: t.registeredOffice ?? null,
+                      repFirstName: t.repFirstName ?? null,
+                      repLastName: t.repLastName ?? null,
+                      repCapacity: t.repCapacity ?? null,
+                      repBirthDate: t.repBirthDate
+                        ? new Date(t.repBirthDate)
+                        : null,
+                      repBirthPlace: t.repBirthPlace ?? null,
+                      repNationality: t.repNationality ?? null,
+                    },
+                  },
+                }
+              : {}),
           },
           select: { id: true },
         });
@@ -142,15 +173,24 @@ export async function createRental(
     revalidatePath("/rentals");
     return { status: "success", rentalId: rental.id };
   } catch (error) {
-    // A new tenant's email can still collide with an archived contact's
-    // (the lookup only sees active ones). The database is the arbiter.
+    // A new tenant's identity key can still collide: an individual's email
+    // (possibly on an archived contact the lookup skipped) or a company's
+    // registration number. The database is the arbiter.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
+      const target = JSON.stringify(error.meta?.target ?? "");
+      if (target.includes("registrationNumber")) {
+        return {
+          status: "error",
+          message:
+            "Ce numéro d'immatriculation est déjà utilisé par une autre société.",
+        };
+      }
       return {
         status: "error",
-        message: "Cet e-mail est déjà utilisé par un contact archivé.",
+        message: "Cet e-mail est déjà utilisé par un autre particulier.",
       };
     }
     console.error("createRental failed", error);

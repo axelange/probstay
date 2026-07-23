@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { ContactKind } from "@/generated/prisma/enums";
 import { createRental } from "@/features/rentals/actions/create-rental";
 
 export type BookableProperty = {
@@ -51,7 +52,22 @@ function tenantLabel(t: TenantCandidate): string {
   return t.email ? `${name} — ${t.email}` : name;
 }
 
-const EMPTY_NEW = { firstName: "", lastName: "", email: "", phone: "" };
+const EMPTY_NEW = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  // Company block — only sent when the new tenant is a société.
+  legalForm: "",
+  registrationNumber: "",
+  registeredOffice: "",
+  repFirstName: "",
+  repLastName: "",
+  repCapacity: "",
+  repBirthDate: "",
+  repBirthPlace: "",
+  repNationality: "",
+};
 
 export function CreateRentalDialog({
   properties,
@@ -70,6 +86,8 @@ export function CreateRentalDialog({
   );
   const [tenantId, setTenantId] = React.useState("");
   const [newTenant, setNewTenant] = React.useState(EMPTY_NEW);
+  const [newTenantKind, setNewTenantKind] =
+    React.useState<ContactKind>("INDIVIDUAL");
   const [checkIn, setCheckIn] = React.useState("");
   const [checkOut, setCheckOut] = React.useState("");
   const [guests, setGuests] = React.useState("");
@@ -80,6 +98,7 @@ export function CreateRentalDialog({
     setTenantMode(tenants.length > 0 ? "existing" : "new");
     setTenantId("");
     setNewTenant(EMPTY_NEW);
+    setNewTenantKind("INDIVIDUAL");
     setCheckIn("");
     setCheckOut("");
     setGuests("");
@@ -101,7 +120,7 @@ export function CreateRentalDialog({
     const tenant =
       tenantMode === "existing"
         ? { mode: "existing" as const, contactId: tenantId }
-        : { mode: "new" as const, ...newTenant };
+        : { mode: "new" as const, kind: newTenantKind, ...newTenant };
 
     startTransition(async () => {
       const result = await createRental({
@@ -225,28 +244,187 @@ export function CreateRentalDialog({
                 </Select>
               ) : (
                 <div className="space-y-3 rounded-md border p-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="nt-first">Prénom</Label>
-                      <Input
-                        id="nt-first"
-                        value={newTenant.firstName}
-                        onChange={(e) => setNt("firstName", e.target.value)}
-                        disabled={isPending}
-                        autoComplete="off"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="nt-last">Nom *</Label>
-                      <Input
-                        id="nt-last"
-                        value={newTenant.lastName}
-                        onChange={(e) => setNt("lastName", e.target.value)}
-                        disabled={isPending}
-                        autoComplete="off"
-                      />
-                    </div>
+                  <div className="flex flex-wrap gap-4">
+                    {(
+                      [
+                        ["INDIVIDUAL", "Particulier"],
+                        ["COMPANY", "Société"],
+                      ] as const
+                    ).map(([k, label]) => (
+                      <label
+                        key={k}
+                        className="flex cursor-pointer items-center gap-1.5 text-sm"
+                      >
+                        <input
+                          type="radio"
+                          name="new-tenant-kind"
+                          className="size-4 cursor-pointer"
+                          checked={newTenantKind === k}
+                          onChange={() => setNewTenantKind(k)}
+                          disabled={isPending}
+                        />
+                        {label}
+                      </label>
+                    ))}
                   </div>
+
+                  {newTenantKind === "COMPANY" ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="nt-last">Dénomination sociale *</Label>
+                        <Input
+                          id="nt-last"
+                          value={newTenant.lastName}
+                          onChange={(e) => setNt("lastName", e.target.value)}
+                          disabled={isPending}
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="nt-legalform">Forme juridique</Label>
+                          <Input
+                            id="nt-legalform"
+                            placeholder="SARL, SAS, SCI…"
+                            value={newTenant.legalForm}
+                            onChange={(e) => setNt("legalForm", e.target.value)}
+                            disabled={isPending}
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="nt-regnum">
+                            N&apos;immatriculation
+                          </Label>
+                          <Input
+                            id="nt-regnum"
+                            placeholder="RCS, RCI, SIREN…"
+                            value={newTenant.registrationNumber}
+                            onChange={(e) =>
+                              setNt("registrationNumber", e.target.value)
+                            }
+                            disabled={isPending}
+                            autoComplete="off"
+                            className="font-mono text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="nt-office">Siège social</Label>
+                        <Input
+                          id="nt-office"
+                          value={newTenant.registeredOffice}
+                          onChange={(e) =>
+                            setNt("registeredOffice", e.target.value)
+                          }
+                          disabled={isPending}
+                          autoComplete="off"
+                        />
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        Représentant légal
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="nt-repfirst">Prénom</Label>
+                          <Input
+                            id="nt-repfirst"
+                            value={newTenant.repFirstName}
+                            onChange={(e) =>
+                              setNt("repFirstName", e.target.value)
+                            }
+                            disabled={isPending}
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="nt-replast">Nom</Label>
+                          <Input
+                            id="nt-replast"
+                            value={newTenant.repLastName}
+                            onChange={(e) =>
+                              setNt("repLastName", e.target.value)
+                            }
+                            disabled={isPending}
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="nt-repcap">Qualité</Label>
+                          <Input
+                            id="nt-repcap"
+                            placeholder="Gérant, Président…"
+                            value={newTenant.repCapacity}
+                            onChange={(e) =>
+                              setNt("repCapacity", e.target.value)
+                            }
+                            disabled={isPending}
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="nt-repbirth">Naissance</Label>
+                          <Input
+                            id="nt-repbirth"
+                            type="date"
+                            value={newTenant.repBirthDate}
+                            onChange={(e) =>
+                              setNt("repBirthDate", e.target.value)
+                            }
+                            disabled={isPending}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="nt-repplace">Lieu de naissance</Label>
+                          <Input
+                            id="nt-repplace"
+                            value={newTenant.repBirthPlace}
+                            onChange={(e) =>
+                              setNt("repBirthPlace", e.target.value)
+                            }
+                            disabled={isPending}
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="nt-repnat">Nationalité(s)</Label>
+                          <Input
+                            id="nt-repnat"
+                            placeholder="Suisse / Russe"
+                            value={newTenant.repNationality}
+                            onChange={(e) =>
+                              setNt("repNationality", e.target.value)
+                            }
+                            disabled={isPending}
+                            autoComplete="off"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="nt-first">Prénom</Label>
+                        <Input
+                          id="nt-first"
+                          value={newTenant.firstName}
+                          onChange={(e) => setNt("firstName", e.target.value)}
+                          disabled={isPending}
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="nt-last">Nom *</Label>
+                        <Input
+                          id="nt-last"
+                          value={newTenant.lastName}
+                          onChange={(e) => setNt("lastName", e.target.value)}
+                          disabled={isPending}
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="nt-email">E-mail</Label>
                     <Input
@@ -270,8 +448,9 @@ export function CreateRentalDialog({
                     />
                   </div>
                   <p className="text-muted-foreground text-xs">
-                    Rattaché par e-mail à un contact existant s&apos;il y en a
-                    un, sinon créé comme client.
+                    {newTenantKind === "COMPANY"
+                      ? "Société créée comme cliente. Tout reste modifiable sur sa fiche."
+                      : "Rattaché par e-mail à un contact existant s'il y en a un, sinon créé comme client."}
                   </p>
                 </div>
               )}
