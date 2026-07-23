@@ -64,6 +64,7 @@ export async function convertDemande(
       convertedAt: true,
       lostAt: true,
       assignedAgentId: true,
+      guests: true,
       contact: { select: { types: true } },
     },
   });
@@ -118,6 +119,9 @@ export async function convertDemande(
           propertyId: property.id,
           bookingStatus: "INQUIRY",
           tenantAgentId,
+          // Carry the party size the prospect gave on the demande, so it
+          // isn't lost when the rental opens. Editable afterwards in the funnel.
+          guests: demande.guests,
           checkIn: new Date(data.checkIn),
           checkOut: new Date(data.checkOut),
           tenants: {
