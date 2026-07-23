@@ -218,7 +218,13 @@ export function RentalFunnel({
   } | null>(null);
   const stayKey = `${propertyId}|${checkIn}|${checkOut}`;
   React.useEffect(() => {
-    if (stage !== "INQUIRY" || !propertyId || !checkIn || !checkOut) return;
+    if (
+      (stage !== "INQUIRY" && stage !== "CONTRACT") ||
+      !propertyId ||
+      !checkIn ||
+      !checkOut
+    )
+      return;
     let cancelled = false;
     checkOverlaps(propertyId, checkIn, checkOut, rental.id).then((data) => {
       if (!cancelled) setOverlaps({ key: stayKey, data });
@@ -307,7 +313,7 @@ export function RentalFunnel({
             <>
               <StagePanelHeader
                 title="Informations"
-                hint="L'agent complète la villa, les dates et le nombre de personnes, puis obtient l'accord des trois parties."
+                hint="La villa, les dates et le nombre de personnes. Le montant, l'accord des parties et le contrat se règlent à l'étape suivante."
               />
 
               <div className="space-y-2">
@@ -359,30 +365,16 @@ export function RentalFunnel({
                 </Field>
               </div>
 
-              {overlap && overlap.total > 0 ? (
-                <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2.5 text-sm">
-                  <p className="flex items-center gap-2 font-medium">
-                    <TriangleAlert
-                      aria-hidden="true"
-                      className="size-4 shrink-0 text-amber-600"
-                    />
-                    {overlap.total === 1
-                      ? "1 autre réservation sur ces dates"
-                      : `${overlap.total} autres réservations sur ces dates`}
-                    {overlap.confirmed > 0 ? (
-                      <Badge variant="outline" className="font-normal">
-                        dont {overlap.confirmed} confirmée
-                        {overlap.confirmed > 1 ? "s" : ""}
-                      </Badge>
-                    ) : null}
-                  </p>
-                  <ul className="text-muted-foreground mt-1.5 space-y-0.5 text-xs">
-                    {overlap.lines.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+              <OverlapWarning overlap={overlap} />
+            </>
+          ) : null}
+
+          {stage === "CONTRACT" ? (
+            <>
+              <StagePanelHeader
+                title="Contrat"
+                hint="Le montant, l'accord des trois parties, puis la signature. La génération du PDF arrivera avec le module documents."
+              />
 
               {/* The agent's figure — authoritative, never recomputed. */}
               <Field label="Montant du séjour (fait foi)">
@@ -499,34 +491,42 @@ export function RentalFunnel({
                 ) : null}
               </div>
 
-              <GateCheckbox
-                checked={confirmOwner}
-                onChange={setConfirmOwner}
-                disabled={isPending}
-                title="Accord trouvé (agent + client + propriétaire)"
-                hint="Réserve ces dates : aucune autre location ne pourra être confirmée sur ce bien pour cette période."
-              />
-            </>
-          ) : null}
+              <OverlapWarning overlap={overlap} />
 
-          {stage === "CONTRACT" ? (
-            <>
-              <StagePanelHeader
-                title="Contrat"
-                hint="Le contrat de location. La génération du PDF arrivera avec le module documents."
-              />
-              <ConfirmedLine
-                when={rental.ownerConfirmedAt}
-                who={rental.ownerConfirmedByName}
-                label="Accord du propriétaire"
-              />
-              <GateCheckbox
-                checked={signContract}
-                onChange={setSignContract}
-                disabled={isPending}
-                title="Contrat signé par toutes les parties"
-                hint="Fige le propriétaire et l'agent de cette location."
-              />
+              {/* Gate 1: the agreement, which locks the dates. Shown as a
+                  confirmed line once ticked, otherwise the checkbox. */}
+              {ownerConfirmed ? (
+                <ConfirmedLine
+                  when={rental.ownerConfirmedAt}
+                  who={rental.ownerConfirmedByName}
+                  label="Accord du propriétaire"
+                />
+              ) : (
+                <GateCheckbox
+                  checked={confirmOwner}
+                  onChange={setConfirmOwner}
+                  disabled={isPending}
+                  title="Accord trouvé (agent + client + propriétaire)"
+                  hint="Réserve ces dates : aucune autre location ne pourra être confirmée sur ce bien pour cette période."
+                />
+              )}
+
+              {/* Gate 2: the signed contract, which freezes owner + agent. */}
+              {contractSigned ? (
+                <ConfirmedLine
+                  when={rental.contractSignedAt}
+                  who={rental.contractSignedByName}
+                  label="Contrat signé"
+                />
+              ) : (
+                <GateCheckbox
+                  checked={signContract}
+                  onChange={setSignContract}
+                  disabled={isPending}
+                  title="Contrat signé par toutes les parties"
+                  hint="Fige le propriétaire et l'agent de cette location."
+                />
+              )}
             </>
           ) : null}
 
@@ -669,6 +669,34 @@ export function RentalFunnel({
           ) : null}
         </div>
       )}
+    </div>
+  );
+}
+
+function OverlapWarning({ overlap }: { overlap: OverlapSummary | null }) {
+  if (!overlap || overlap.total === 0) return null;
+  return (
+    <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2.5 text-sm">
+      <p className="flex items-center gap-2 font-medium">
+        <TriangleAlert
+          aria-hidden="true"
+          className="size-4 shrink-0 text-amber-600"
+        />
+        {overlap.total === 1
+          ? "1 autre réservation sur ces dates"
+          : `${overlap.total} autres réservations sur ces dates`}
+        {overlap.confirmed > 0 ? (
+          <Badge variant="outline" className="font-normal">
+            dont {overlap.confirmed} confirmée
+            {overlap.confirmed > 1 ? "s" : ""}
+          </Badge>
+        ) : null}
+      </p>
+      <ul className="text-muted-foreground mt-1.5 space-y-0.5 text-xs">
+        {overlap.lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
     </div>
   );
 }

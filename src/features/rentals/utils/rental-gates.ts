@@ -3,11 +3,13 @@ import type { RentalBookingStatus } from "@/generated/prisma/enums";
 /**
  * The pipeline's hard gates — and only the hard ones.
  *
- * Two gates, each an explicit checkbox on the rental:
- *   • reaching CONTRACT needs the agreement (ownerConfirmedAt) and an
- *     agreed amount — you cannot draw up a contract without a price, and
- *     the agreement is what locks the dates against other agents;
- *   • reaching FINALISATION needs the contract signed (contractSignedAt).
+ * INQUIRY is pure information (villa, dates, party size, notes), so moving
+ * off it carries no prerequisite. The commitments all live on the CONTRACT
+ * stage and gate the move *out* of it:
+ *   • reaching FINALISATION needs an agreed amount, the agreement
+ *     (ownerConfirmedAt) that locks the dates against other agents, and the
+ *     contract signed (contractSignedAt) — everything the contract step
+ *     captures.
  *
  * Past that, nothing is walled: a booking may move to CHECK_IN with
  * payments or identity still outstanding. Those are surfaced as advice
@@ -46,14 +48,12 @@ export function missingToReach(
   const step = PIPELINE.indexOf(target);
   const missing: string[] = [];
 
-  // CONTRACT and everything after it.
-  if (step >= PIPELINE.indexOf("CONTRACT")) {
+  // FINALISATION and everything after it — the whole contract step must be
+  // complete: an amount, the owner's agreement, and the signed contract.
+  if (step >= PIPELINE.indexOf("FINALISATION")) {
     if (!inputs.hasAmount) missing.push("le montant du séjour");
     if (!inputs.ownerConfirmed) missing.push("l'accord du propriétaire");
-  }
-  // FINALISATION and everything after it.
-  if (step >= PIPELINE.indexOf("FINALISATION") && !inputs.contractSigned) {
-    missing.push("le contrat signé");
+    if (!inputs.contractSigned) missing.push("le contrat signé");
   }
 
   return missing;
