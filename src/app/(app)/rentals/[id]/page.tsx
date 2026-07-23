@@ -157,6 +157,8 @@ export default async function RentalDetailPage({
               checkIn: toDateInput(rental.checkIn),
               checkOut: toDateInput(rental.checkOut),
               guests: rental.guests,
+              netOwnerAmount: rental.netOwnerAmount,
+              commissionAmount: rental.commissionAmount,
               grossAmount: rental.grossAmount,
               depositAmount: rental.depositAmount,
               securityDepositAmount: rental.securityDepositAmount,

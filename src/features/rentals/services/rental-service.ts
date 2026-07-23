@@ -131,6 +131,7 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
       depositStatus: true,
       securityDepositStatus: true,
       balanceStatus: true,
+      netOwnerAmount: true,
       grossAmount: true,
       depositAmount: true,
       securityDepositAmount: true,
@@ -159,7 +160,7 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
         },
       },
       services: {
-        select: { id: true, label: true, amount: true },
+        select: { id: true, label: true, amount: true, includedInStay: true },
         orderBy: { createdAt: "asc" },
       },
       owner: { select: { id: true, firstName: true, lastName: true } },
@@ -222,6 +223,7 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
 
   return {
     ...rental,
+    netOwnerAmount: toNumber(rental.netOwnerAmount),
     grossAmount: toNumber(rental.grossAmount),
     depositAmount: toNumber(rental.depositAmount),
     securityDepositAmount: toNumber(rental.securityDepositAmount),

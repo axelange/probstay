@@ -33,16 +33,22 @@ export const updateRentalSchema = z.object({
     .transform((v) => (v === "" ? undefined : Number(v)))
     .optional(),
 
-  grossAmount: optionalAmount,
+  // The stay amount ("Loyer") is no longer entered — it is derived from
+  // these two plus the services flagged as included.
+  netOwnerAmount: optionalAmount,
+  commissionAmount: optionalAmount,
   depositAmount: optionalAmount,
   securityDepositAmount: optionalAmount,
 
-  // Extra priced services. The whole list is sent and reconciled.
+  // Priced services (cleaning and extras). `includedInStay` rolls a line
+  // into the stay amount; otherwise it is billed on top in the client
+  // total. The whole list is sent and reconciled.
   additionalServices: z
     .array(
       z.object({
         label: z.string().trim().min(1).max(120),
         amount: z.coerce.number().min(0),
+        includedInStay: z.boolean().default(false),
       })
     )
     .max(40)

@@ -74,10 +74,13 @@ export function identityTypeLabel(type: string): string {
   return IDENTITY_TYPE_LABELS[type as IdentityDocumentType] ?? type;
 }
 
+// Always two decimals: the agency works to the cent, so a price is
+// "10 300,50 €", never rounded to the euro.
 const MONEY = new Intl.NumberFormat("fr-FR", {
   style: "currency",
   currency: "EUR",
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 /** Null is "—" rather than "0 €": an enquiry has no agreed price. */

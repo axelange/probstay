@@ -596,6 +596,11 @@ model Rental {
   // dates has no agreed price yet. A CHECK constraint requires it from
   // BOOKING_CONFIRMATION onwards, with CANCELLED exempt so an enquiry
   // that goes nowhere can still be closed.
+  // The owner's net take and the agency commission are the two inputs; the
+  // stay amount ("Loyer", grossAmount) is their sum plus any cleaning
+  // service marked included. grossAmount stays stored (derived on save) so
+  // the balance, commission and payment logic keep working off one figure.
+  netOwnerAmount        Decimal? @db.Decimal(12, 2)
   grossAmount           Decimal? @db.Decimal(12, 2)
   depositAmount         Decimal? @db.Decimal(12, 2)
   securityDepositAmount Decimal? @db.Decimal(12, 2)
@@ -681,6 +686,9 @@ model RentalService {
   rental   Rental  @relation(fields: [rentalId], references: [id], onDelete: Cascade)
   label    String
   amount   Decimal @db.Decimal(12, 2)
+  // A cleaning line included in the stay amount rolls into grossAmount;
+  // otherwise it is an extra billed on top, in the client total.
+  includedInStay Boolean @default(false)
 
   createdAt DateTime @default(now())
 

@@ -114,10 +114,20 @@ export async function updateRental(
   const willConfirmOwner = data.confirmOwner || rental.ownerConfirmedAt !== null;
   const willSignContract = data.signContract || rental.contractSignedAt !== null;
 
+  // The stay amount ("Loyer") is derived, not entered: the owner's net take
+  // plus the agency commission. A service is either billed (an amount added
+  // to the client total on top) or included (a label only, no amount).
+  // Null until a net is set — that is the "no amount yet" state the gate and
+  // the grossAmount CHECK both read.
+  const grossAmount =
+    data.netOwnerAmount === undefined
+      ? null
+      : data.netOwnerAmount + (data.commissionAmount ?? 0);
+
   const missing = missingToReach(data.bookingStatus, {
     ownerConfirmed: willConfirmOwner,
     contractSigned: willSignContract,
-    hasAmount: data.grossAmount !== undefined,
+    hasAmount: data.netOwnerAmount !== undefined,
   });
   if (missing.length > 0) {
     return {
@@ -129,7 +139,9 @@ export async function updateRental(
   const update: Prisma.RentalUncheckedUpdateInput = {
     bookingStatus: data.bookingStatus,
     guests: data.guests ?? null,
-    grossAmount: data.grossAmount ?? null,
+    netOwnerAmount: data.netOwnerAmount ?? null,
+    commissionAmount: data.commissionAmount ?? null,
+    grossAmount,
     depositAmount: data.depositAmount ?? null,
     securityDepositAmount: data.securityDepositAmount ?? null,
     depositStatus: data.depositStatus,
@@ -180,7 +192,9 @@ export async function updateRental(
         data: data.additionalServices.map((s) => ({
           rentalId: rental.id,
           label: s.label,
-          amount: s.amount,
+          // Included = a label with no amount of its own.
+          amount: s.includedInStay ? 0 : s.amount,
+          includedInStay: s.includedInStay,
         })),
       }),
     ]);

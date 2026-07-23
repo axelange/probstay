@@ -41,8 +41,13 @@ import {
   paymentStatusLabel,
 } from "@/features/rentals/components/rental-labels";
 import { missingToReach } from "@/features/rentals/utils/rental-gates";
+import { Money } from "@/features/rentals/components/money";
 
-type ServiceDraft = { label: string; amount: string };
+type ServiceDraft = {
+  label: string;
+  amount: string;
+  includedInStay: boolean;
+};
 
 function villaLabel(p: {
   marketingName: string | null;
@@ -68,13 +73,19 @@ export type FunnelRental = {
   checkIn: string;
   checkOut: string;
   guests: number | null;
+  netOwnerAmount: number | null;
+  commissionAmount: number | null;
   grossAmount: number | null;
   depositAmount: number | null;
   securityDepositAmount: number | null;
   depositStatus: string;
   balanceStatus: string;
   securityDepositStatus: string;
-  additionalServices: { label: string; amount: number }[];
+  additionalServices: {
+    label: string;
+    amount: number;
+    includedInStay: boolean;
+  }[];
   ownerConfirmedAt: Date | null;
   ownerConfirmedByName: string | null;
   contractSignedAt: Date | null;
@@ -152,8 +163,11 @@ export function RentalFunnel({
   const [checkIn, setCheckIn] = React.useState(rental.checkIn);
   const [checkOut, setCheckOut] = React.useState(rental.checkOut);
   const [guests, setGuests] = React.useState(rental.guests?.toString() ?? "");
-  const [grossAmount, setGrossAmount] = React.useState(
-    rental.grossAmount?.toString() ?? ""
+  const [netOwner, setNetOwner] = React.useState(
+    rental.netOwnerAmount?.toString() ?? ""
+  );
+  const [commission, setCommission] = React.useState(
+    rental.commissionAmount?.toString() ?? ""
   );
   const [showDeposit, setShowDeposit] = React.useState(
     rental.depositAmount !== null
@@ -168,6 +182,7 @@ export function RentalFunnel({
     rental.additionalServices.map((s) => ({
       label: s.label,
       amount: s.amount.toString(),
+      includedInStay: s.includedInStay,
     }))
   );
   const [notes, setNotes] = React.useState(rental.notes ?? "");
@@ -205,11 +220,20 @@ export function RentalFunnel({
       ? taxRate * guestCount * nights
       : null;
 
-  const stay = Number(grossAmount) || 0;
-  // The stay amount is the agent's figure and IS the total the client
-  // pays — the tourist tax and the services are already inside it, not
-  // added on top. The breakdown below is informational.
-  const total = grossAmount.trim() === "" ? null : stay;
+  // The stay amount ("Loyer") is the owner's net plus the commission. A
+  // service is either billed (an amount, added to the client total on top)
+  // or included (a label, no amount, already covered by the loyer). The
+  // tourist tax is added too. `hasAmount` (a net is set) gates the pipeline
+  // and the DB.
+  const hasAmount = netOwner.trim() !== "";
+  const amount = (v: string) => Number(v) || 0;
+  const billedExtrasTotal = extras
+    .filter((s) => !s.includedInStay)
+    .reduce((sum, s) => sum + amount(s.amount), 0);
+  const stay = amount(netOwner) + amount(commission);
+  const total = hasAmount
+    ? stay + billedExtrasTotal + (touristTax ?? 0)
+    : null;
 
   // Overlap warning at enquiry, when the villa or dates change.
   const [overlaps, setOverlaps] = React.useState<{
@@ -244,12 +268,18 @@ export function RentalFunnel({
         checkIn,
         checkOut,
         guests,
-        grossAmount,
+        netOwnerAmount: netOwner,
+        commissionAmount: commission,
         depositAmount: showDeposit ? depositAmount : "",
         securityDepositAmount,
         additionalServices: extras
           .filter((s) => s.label.trim() !== "")
-          .map((s) => ({ label: s.label, amount: Number(s.amount) || 0 })),
+          .map((s) => ({
+            label: s.label,
+            // Included = a label with no amount of its own.
+            amount: s.includedInStay ? 0 : Number(s.amount) || 0,
+            includedInStay: s.includedInStay,
+          })),
         depositStatus,
         balanceStatus,
         securityDepositStatus,
@@ -277,12 +307,12 @@ export function RentalFunnel({
     ? missingToReach(next, {
         ownerConfirmed: ownerConfirmed || confirmOwner,
         contractSigned: contractSigned || signContract,
-        hasAmount: grossAmount.trim() !== "",
+        hasAmount,
       })
     : [];
 
   const deposit = showDeposit ? Number(depositAmount) || 0 : 0;
-  const balance = grossAmount.trim() === "" ? null : stay - deposit;
+  const balance = hasAmount ? stay - deposit : null;
 
   if (!canManage) {
     return (
@@ -376,15 +406,22 @@ export function RentalFunnel({
                 hint="Le montant, l'accord des trois parties, puis la signature. La génération du PDF arrivera avec le module documents."
               />
 
-              {/* The agent's figure — authoritative, never recomputed. */}
-              <Field label="Montant du séjour (fait foi)">
-                <NumberInput value={grossAmount} onChange={setGrossAmount} disabled={isPending} />
-              </Field>
+              {/* The two figures the stay amount is built from. */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Net propriétaire">
+                  <NumberInput value={netOwner} onChange={setNetOwner} disabled={isPending} />
+                </Field>
+                <Field label="Commission">
+                  <NumberInput value={commission} onChange={setCommission} disabled={isPending} />
+                </Field>
+              </div>
 
-              {/* Composition shown below the stay amount. */}
+              {/* Services box: what the villa includes, plus priced lines. */}
               <div className="space-y-3 rounded-md bg-muted/40 p-3 text-sm">
                 <div className="space-y-1">
-                  <p className="text-muted-foreground text-xs">Services inclus</p>
+                  <p className="text-muted-foreground text-xs">
+                    Services inclus du bien
+                  </p>
                   {selectedProperty && selectedProperty.includedServices.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
                       {selectedProperty.includedServices.map((s) => (
@@ -402,7 +439,8 @@ export function RentalFunnel({
 
                 <div className="space-y-2">
                   <p className="text-muted-foreground text-xs">
-                    Services supplémentaires
+                    Services (ménage, extras) — coché « Inclus » = compris dans
+                    le loyer, sinon facturé en plus.
                   </p>
                   {extras.map((s, i) => (
                     <div key={i} className="flex items-center gap-2">
@@ -415,26 +453,49 @@ export function RentalFunnel({
                             )
                           )
                         }
-                        placeholder="Ménage supplémentaire, transfert…"
+                        placeholder="Ménage, transfert…"
                         disabled={isPending}
                         className="flex-1"
                       />
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={s.amount}
-                        onChange={(e) =>
-                          setExtras((list) =>
-                            list.map((x, j) =>
-                              j === i ? { ...x, amount: e.target.value } : x
+                      {/* Included is a label only — no amount of its own, so
+                          the field is dropped and the label (flex-1) grows to
+                          fill the space up to the Inclus checkbox. */}
+                      {s.includedInStay ? null : (
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={s.amount}
+                          onChange={(e) =>
+                            setExtras((list) =>
+                              list.map((x, j) =>
+                                j === i ? { ...x, amount: e.target.value } : x
+                              )
                             )
-                          )
-                        }
-                        placeholder="€"
-                        disabled={isPending}
-                        className="w-28 text-right tabular-nums"
-                      />
+                          }
+                          placeholder="€"
+                          disabled={isPending}
+                          className="w-24 text-right tabular-nums"
+                        />
+                      )}
+                      <label className="text-muted-foreground flex items-center gap-1 whitespace-nowrap text-xs">
+                        <input
+                          type="checkbox"
+                          className="size-3.5 cursor-pointer"
+                          checked={s.includedInStay}
+                          onChange={(e) =>
+                            setExtras((list) =>
+                              list.map((x, j) =>
+                                j === i
+                                  ? { ...x, includedInStay: e.target.checked }
+                                  : x
+                              )
+                            )
+                          }
+                          disabled={isPending}
+                        />
+                        Inclus
+                      </label>
                       <button
                         type="button"
                         aria-label="Retirer"
@@ -453,7 +514,10 @@ export function RentalFunnel({
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      setExtras((list) => [...list, { label: "", amount: "" }])
+                      setExtras((list) => [
+                        ...list,
+                        { label: "", amount: "", includedInStay: false },
+                      ])
                     }
                     disabled={isPending}
                   >
@@ -461,32 +525,74 @@ export function RentalFunnel({
                     Ajouter un service
                   </Button>
                 </div>
+              </div>
 
-                <div className="flex items-center justify-between border-t pt-2 text-xs">
-                  <span className="text-muted-foreground">
+              {/* Calcul box: the breakdown, read as a sum down to the total. */}
+              <div className="space-y-2 rounded-md bg-muted/40 p-3 text-sm">
+                {hasAmount ? (
+                  <div className="flex items-center justify-between border-t pt-2">
+                    <span>
+                      Loyer
+                      <span className="text-muted-foreground ml-1 text-xs font-normal">
+                        = net + commission
+                      </span>
+                    </span>
+                    <span className="tabular-nums">
+                      <Money value={stay} />
+                    </span>
+                  </div>
+                ) : null}
+
+                {/* Each billed (non-included) service is its own recap line,
+                    so the client total reads as a sum. */}
+                {extras
+                  .filter((s) => !s.includedInStay && s.label.trim() !== "")
+                  .map((s, i) => (
+                    <div
+                      key={`billed-${i}`}
+                      className="flex items-center justify-between border-t pt-2"
+                    >
+                      <span className="text-muted-foreground">{s.label}</span>
+                      <span className="tabular-nums">
+                        <Money value={amount(s.amount)} />
+                      </span>
+                    </div>
+                  ))}
+
+                {/* Its own recap line — same size as Loyer, detail kept small
+                    alongside, amount at the same size as the other amounts. */}
+                <div className="flex items-center justify-between border-t pt-2">
+                  <span>
                     Taxe de séjour
-                    {taxRate !== null
-                      ? ` (${taxRate.toFixed(2)} € × ${guestCount || "?"} pers. × ${nights || "?"} nuits)`
-                      : ""}
+                    {taxRate !== null ? (
+                      <span className="text-muted-foreground ml-1 text-xs font-normal">
+                        ({taxRate.toFixed(2)} € × {guestCount || "?"} pers. ×{" "}
+                        {nights || "?"} nuits)
+                      </span>
+                    ) : null}
                   </span>
                   <span className="tabular-nums">
-                    {touristTax !== null
-                      ? formatAmount(touristTax)
-                      : taxRate === null
-                        ? "taux manquant"
-                        : "—"}
+                    {touristTax !== null ? (
+                      <Money value={touristTax} />
+                    ) : taxRate === null ? (
+                      "taux manquant"
+                    ) : (
+                      "—"
+                    )}
                   </span>
                 </div>
 
-                {total !== null ? (
+                {hasAmount ? (
                   <div className="flex items-center justify-between border-t pt-2 font-medium">
                     <span>
                       Total client
                       <span className="text-muted-foreground ml-1 text-xs font-normal">
-                        = montant du séjour, taxe et services compris
+                        = loyer + services facturés + taxe
                       </span>
                     </span>
-                    <span className="tabular-nums">{formatAmount(total)}</span>
+                    <span className="tabular-nums">
+                      <Money value={total} />
+                    </span>
                   </div>
                 ) : null}
               </div>
@@ -554,8 +660,12 @@ export function RentalFunnel({
                 </p>
               </div>
               <MoneyBlock
-                grossAmount={grossAmount}
-                setGrossAmount={setGrossAmount}
+                netOwner={netOwner}
+                setNetOwner={setNetOwner}
+                commission={commission}
+                setCommission={setCommission}
+                stay={stay}
+                hasAmount={hasAmount}
                 showDeposit={showDeposit}
                 setShowDeposit={setShowDeposit}
                 depositAmount={depositAmount}
@@ -796,8 +906,12 @@ function ConfirmedLine({
 }
 
 function MoneyBlock(props: {
-  grossAmount: string;
-  setGrossAmount: (v: string) => void;
+  netOwner: string;
+  setNetOwner: (v: string) => void;
+  commission: string;
+  setCommission: (v: string) => void;
+  stay: number;
+  hasAmount: boolean;
   showDeposit: boolean;
   setShowDeposit: (v: boolean) => void;
   depositAmount: string;
@@ -809,14 +923,28 @@ function MoneyBlock(props: {
 }) {
   return (
     <div className="space-y-2">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Séjour">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Net propriétaire">
           <NumberInput
-            value={props.grossAmount}
-            onChange={props.setGrossAmount}
+            value={props.netOwner}
+            onChange={props.setNetOwner}
             disabled={props.disabled}
           />
         </Field>
+        <Field label="Commission">
+          <NumberInput
+            value={props.commission}
+            onChange={props.setCommission}
+            disabled={props.disabled}
+          />
+        </Field>
+      </div>
+      {props.hasAmount ? (
+        <p className="text-muted-foreground text-xs">
+          Loyer : {formatAmount(props.stay)} (net + commission).
+        </p>
+      ) : null}
+      <div className="grid gap-3 sm:grid-cols-2">
         {props.showDeposit ? (
           <Field label="Acompte">
             <NumberInput

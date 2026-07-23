@@ -27,11 +27,11 @@ import type { RentalListItem } from "@/features/rentals/services/rental-service"
 import {
   BOOKING_STATUS_LABELS,
   bookingStatusLabel,
-  formatAmount,
   formatStay,
   nights,
   paymentStatusLabel,
 } from "@/features/rentals/components/rental-labels";
+import { Money } from "@/features/rentals/components/money";
 
 const search: FilterFn<RentalListItem> = (row, columnId, value) => {
   const query = String(value ?? "").trim();
@@ -253,7 +253,7 @@ function RentalRow({ rental }: { rental: RentalListItem }) {
         </div>
 
         <span className="shrink-0 text-xs tabular-nums">
-          {formatAmount(rental.grossAmount)}
+          <Money value={rental.grossAmount} />
         </span>
 
         <div className="flex shrink-0 flex-wrap gap-1">
