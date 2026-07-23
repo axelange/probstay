@@ -4,6 +4,7 @@ import * as React from "react";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
 import type {
+  ContactKind,
   ContactSpecialty,
   ContactType,
 } from "@/generated/prisma/enums";
@@ -29,10 +30,27 @@ export type EditableContact = {
   iban: string | null;
   notes: string | null;
   types: ContactType[];
+  kind: ContactKind;
+  company: {
+    legalForm: string | null;
+    registrationNumber: string | null;
+    registeredOffice: string | null;
+    repFirstName: string | null;
+    repLastName: string | null;
+    repCapacity: string | null;
+    repBirthDate: Date | null;
+    repBirthPlace: string | null;
+    repNationality: string | null;
+  } | null;
   specialties: ContactSpecialty[];
   otherSpecialty: string | null;
   apimoId: number | null;
 };
+
+/** A @db.Date arrives as a Date at UTC midnight — yyyy-mm-dd for the input. */
+function toDateInput(date: Date | null): string {
+  return date ? new Date(date).toISOString().slice(0, 10) : "";
+}
 
 export function EditContactForm({
   contact,
@@ -53,7 +71,18 @@ export function EditContactForm({
     iban: contact.iban ?? "",
     notes: contact.notes ?? "",
     otherSpecialty: contact.otherSpecialty ?? "",
+    // Company block — only sent when kind is COMPANY.
+    legalForm: contact.company?.legalForm ?? "",
+    registrationNumber: contact.company?.registrationNumber ?? "",
+    registeredOffice: contact.company?.registeredOffice ?? "",
+    repFirstName: contact.company?.repFirstName ?? "",
+    repLastName: contact.company?.repLastName ?? "",
+    repCapacity: contact.company?.repCapacity ?? "",
+    repBirthDate: toDateInput(contact.company?.repBirthDate ?? null),
+    repBirthPlace: contact.company?.repBirthPlace ?? "",
+    repNationality: contact.company?.repNationality ?? "",
   });
+  const [kind, setKind] = React.useState<ContactKind>(contact.kind);
   const [types, setTypes] = React.useState<ContactType[]>(contact.types);
   const [specialties, setSpecialties] = React.useState<ContactSpecialty[]>(
     contact.specialties
@@ -64,6 +93,7 @@ export function EditContactForm({
   // every sync, so editing it here would show a change that reverts.
   const identityIsLocked = contact.apimoId !== null;
   const wantsOther = specialties.includes("OTHER");
+  const isCompany = kind === "COMPANY";
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -93,6 +123,7 @@ export function EditContactForm({
         ...form,
         id: contact.id,
         types,
+        kind,
         specialties,
         acceptDuplicatePhone,
       };
@@ -126,8 +157,32 @@ export function EditContactForm({
   return (
     <form onSubmit={(e) => save(e)} className="space-y-6">
       <section className="space-y-3">
+        <h3 className="text-sm font-medium">Nature</h3>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {(["INDIVIDUAL", "COMPANY"] as const).map((k) => (
+            <label
+              key={k}
+              className="flex cursor-pointer items-center gap-1.5 text-sm"
+            >
+              <input
+                type="radio"
+                name="kind"
+                className="size-4 cursor-pointer"
+                checked={kind === k}
+                onChange={() => setKind(k)}
+                disabled={disabled}
+              />
+              {k === "INDIVIDUAL" ? "Particulier" : "Société"}
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3">
         <div className="flex flex-wrap items-baseline gap-2">
-          <h3 className="text-sm font-medium">Identité</h3>
+          <h3 className="text-sm font-medium">
+            {isCompany ? "Société" : "Identité"}
+          </h3>
           {identityIsLocked ? (
             <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
               <Lock aria-hidden="true" className="size-3" />
@@ -136,19 +191,9 @@ export function EditContactForm({
           ) : null}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        {isCompany ? (
           <div className="space-y-2">
-            <Label htmlFor="firstName">Prénom</Label>
-            <Input
-              id="firstName"
-              value={form.firstName}
-              onChange={(e) => set("firstName", e.target.value)}
-              disabled={disabled || identityIsLocked}
-              autoComplete="off"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="lastName">Nom *</Label>
+            <Label htmlFor="lastName">Dénomination sociale *</Label>
             <Input
               id="lastName"
               required
@@ -158,6 +203,33 @@ export function EditContactForm({
               autoComplete="off"
             />
           </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">Prénom</Label>
+              <Input
+                id="firstName"
+                value={form.firstName}
+                onChange={(e) => set("firstName", e.target.value)}
+                disabled={disabled || identityIsLocked}
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Nom *</Label>
+              <Input
+                id="lastName"
+                required
+                value={form.lastName}
+                onChange={(e) => set("lastName", e.target.value)}
+                disabled={disabled || identityIsLocked}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="email">E-mail</Label>
             <Input
@@ -182,6 +254,124 @@ export function EditContactForm({
           </div>
         </div>
       </section>
+
+      {isCompany ? (
+        <section className="space-y-4 rounded-md border p-3">
+          <p className="text-muted-foreground text-xs">
+            Informations pour les contrats. Certaines sont synchronisées
+            depuis APIMO (siège, représentant), d&apos;autres depuis le
+            commentaire privé APIMO (forme sociale, immatriculation, qualité)
+            ou saisies ici. Les saisies BSTAY survivent aux synchronisations.
+          </p>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="legalForm">Forme sociale</Label>
+              <Input
+                id="legalForm"
+                placeholder="Société civile particulière, SARL, SAS…"
+                value={form.legalForm}
+                onChange={(e) => set("legalForm", e.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="registrationNumber">
+                Numéro d&apos;immatriculation
+              </Label>
+              <Input
+                id="registrationNumber"
+                placeholder="RCS, RCI, SIREN…"
+                value={form.registrationNumber}
+                onChange={(e) => set("registrationNumber", e.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+                className="font-mono text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="registeredOffice">Siège social</Label>
+            <Input
+              id="registeredOffice"
+              value={form.registeredOffice}
+              onChange={(e) => set("registeredOffice", e.target.value)}
+              disabled={disabled}
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Représentant légal</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="repFirstName">Prénom</Label>
+                <Input
+                  id="repFirstName"
+                  value={form.repFirstName}
+                  onChange={(e) => set("repFirstName", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repLastName">Nom</Label>
+                <Input
+                  id="repLastName"
+                  value={form.repLastName}
+                  onChange={(e) => set("repLastName", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repCapacity">Qualité</Label>
+                <Input
+                  id="repCapacity"
+                  placeholder="Gérant, Président…"
+                  value={form.repCapacity}
+                  onChange={(e) => set("repCapacity", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repBirthDate">Date de naissance</Label>
+                <Input
+                  id="repBirthDate"
+                  type="date"
+                  value={form.repBirthDate}
+                  onChange={(e) => set("repBirthDate", e.target.value)}
+                  disabled={disabled}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repBirthPlace">Lieu de naissance</Label>
+                <Input
+                  id="repBirthPlace"
+                  value={form.repBirthPlace}
+                  onChange={(e) => set("repBirthPlace", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repNationality">Nationalité(s)</Label>
+                <Input
+                  id="repNationality"
+                  placeholder="Suisse / Russe"
+                  value={form.repNationality}
+                  onChange={(e) => set("repNationality", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <h3 className="text-sm font-medium">Type *</h3>

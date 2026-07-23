@@ -73,25 +73,53 @@ export async function updateContact(
   // adds OWNER to.
   const fromApimo = existing.apimoId !== null;
 
+  // Company details are BSTAY's own, editable on any contact (APIMO
+  // included). They only make sense for a company, so an individual clears
+  // the whole side row; a company upserts it. `kind` itself is always
+  // stored — it is the manual person/company call.
+  const isCompany = data.kind === "COMPANY";
+  const companyData = {
+    legalForm: data.legalForm ?? null,
+    registrationNumber: data.registrationNumber ?? null,
+    registeredOffice: data.registeredOffice ?? null,
+    repFirstName: data.repFirstName ?? null,
+    repLastName: data.repLastName ?? null,
+    repCapacity: data.repCapacity ?? null,
+    // Stored as a DATE column; the schema hands back a yyyy-mm-dd string.
+    repBirthDate: data.repBirthDate ? new Date(data.repBirthDate) : null,
+    repBirthPlace: data.repBirthPlace ?? null,
+    repNationality: data.repNationality ?? null,
+  };
+
   try {
-    await prisma.contact.update({
-      where: { id: data.id },
-      data: {
-        ...(fromApimo
-          ? {}
-          : {
-              firstName: data.firstName || null,
-              lastName: data.lastName,
-              email: data.email ?? null,
-              phone: data.phone || null,
-            }),
-        types: data.types,
-        specialties: data.specialties,
-        otherSpecialty: data.otherSpecialty || null,
-        notes: data.notes || null,
-        iban: data.iban || null,
-      },
-    });
+    await prisma.$transaction([
+      prisma.contact.update({
+        where: { id: data.id },
+        data: {
+          ...(fromApimo
+            ? {}
+            : {
+                firstName: data.firstName || null,
+                lastName: data.lastName,
+                email: data.email ?? null,
+                phone: data.phone || null,
+              }),
+          types: data.types,
+          kind: data.kind,
+          specialties: data.specialties,
+          otherSpecialty: data.otherSpecialty || null,
+          notes: data.notes || null,
+          iban: data.iban || null,
+        },
+      }),
+      isCompany
+        ? prisma.contactCompany.upsert({
+            where: { contactId: data.id },
+            create: { contactId: data.id, ...companyData },
+            update: companyData,
+          })
+        : prisma.contactCompany.deleteMany({ where: { contactId: data.id } }),
+    ]);
 
     revalidatePath("/contacts");
     revalidatePath(`/contacts/${data.id}`);
@@ -102,9 +130,19 @@ export async function updateContact(
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
+      // Two identity keys can collide: an individual's email, or a
+      // company's registration number. Name the right one.
+      const target = JSON.stringify(error.meta?.target ?? "");
+      if (target.includes("registrationNumber")) {
+        return {
+          status: "error",
+          message:
+            "Ce numéro d'immatriculation est déjà utilisé par une autre société.",
+        };
+      }
       return {
         status: "error",
-        message: `${data.email} est déjà utilisé par un autre contact.`,
+        message: `${data.email} est déjà utilisé par un autre particulier.`,
       };
     }
 

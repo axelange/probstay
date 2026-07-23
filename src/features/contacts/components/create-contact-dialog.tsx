@@ -3,7 +3,11 @@
 import * as React from "react";
 import { UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import type { ContactSpecialty, ContactType } from "@/generated/prisma/enums";
+import type {
+  ContactKind,
+  ContactSpecialty,
+  ContactType,
+} from "@/generated/prisma/enums";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,19 +37,32 @@ const EMPTY = {
   phone: "",
   notes: "",
   otherSpecialty: "",
+  // Company block — only sent when kind is COMPANY.
+  legalForm: "",
+  registrationNumber: "",
+  registeredOffice: "",
+  repFirstName: "",
+  repLastName: "",
+  repCapacity: "",
+  repBirthDate: "",
+  repBirthPlace: "",
+  repNationality: "",
 };
 
 export function CreateContactDialog() {
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState(EMPTY);
+  const [kind, setKind] = React.useState<ContactKind>("INDIVIDUAL");
   const [types, setTypes] = React.useState<ContactType[]>(["OWNER"]);
   const [specialties, setSpecialties] = React.useState<ContactSpecialty[]>([]);
   const [isPending, startTransition] = React.useTransition();
 
   const wantsOther = specialties.includes("OTHER");
+  const isCompany = kind === "COMPANY";
 
   function reset() {
     setForm(EMPTY);
+    setKind("INDIVIDUAL");
     setTypes(["OWNER"]);
     setSpecialties([]);
   }
@@ -79,6 +96,7 @@ export function CreateContactDialog() {
       const result = await createContact({
         ...form,
         types,
+        kind,
         specialties,
         acceptDuplicatePhone,
       });
@@ -90,6 +108,7 @@ export function CreateContactDialog() {
           const retry = await createContact({
             ...form,
             types,
+            kind,
             specialties,
             acceptDuplicatePhone: true,
           });
@@ -144,20 +163,32 @@ export function CreateContactDialog() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="contact-firstname">Prénom</Label>
-                <Input
-                  id="contact-firstname"
-                  value={form.firstName}
-                  onChange={(e) => set("firstName", e.target.value)}
-                  disabled={isPending}
-                  autoComplete="off"
-                />
+          <div className="max-h-[60vh] space-y-4 overflow-y-auto py-4">
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">Nature</legend>
+              <div className="flex flex-wrap gap-4">
+                {(["INDIVIDUAL", "COMPANY"] as const).map((k) => (
+                  <label
+                    key={k}
+                    className="flex cursor-pointer items-center gap-1.5 text-sm"
+                  >
+                    <input
+                      type="radio"
+                      name="contact-kind"
+                      className="size-4 cursor-pointer"
+                      checked={kind === k}
+                      onChange={() => setKind(k)}
+                      disabled={isPending}
+                    />
+                    {k === "INDIVIDUAL" ? "Particulier" : "Société"}
+                  </label>
+                ))}
               </div>
+            </fieldset>
+
+            {isCompany ? (
               <div className="space-y-2">
-                <Label htmlFor="contact-lastname">Nom *</Label>
+                <Label htmlFor="contact-lastname">Dénomination sociale *</Label>
                 <Input
                   id="contact-lastname"
                   required
@@ -167,7 +198,31 @@ export function CreateContactDialog() {
                   autoComplete="off"
                 />
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="contact-firstname">Prénom</Label>
+                  <Input
+                    id="contact-firstname"
+                    value={form.firstName}
+                    onChange={(e) => set("firstName", e.target.value)}
+                    disabled={isPending}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contact-lastname">Nom *</Label>
+                  <Input
+                    id="contact-lastname"
+                    required
+                    value={form.lastName}
+                    onChange={(e) => set("lastName", e.target.value)}
+                    disabled={isPending}
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="contact-email">E-mail</Label>
@@ -192,6 +247,119 @@ export function CreateContactDialog() {
                 autoComplete="off"
               />
             </div>
+
+            {isCompany ? (
+              <fieldset className="space-y-3 rounded-md border p-3">
+                <legend className="px-1 text-sm font-medium">Société</legend>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-legalform">Forme sociale</Label>
+                    <Input
+                      id="contact-legalform"
+                      placeholder="SARL, SAS, SCI…"
+                      value={form.legalForm}
+                      onChange={(e) => set("legalForm", e.target.value)}
+                      disabled={isPending}
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-regnum">
+                      N&apos;immatriculation
+                    </Label>
+                    <Input
+                      id="contact-regnum"
+                      placeholder="RCS, RCI, SIREN…"
+                      value={form.registrationNumber}
+                      onChange={(e) =>
+                        set("registrationNumber", e.target.value)
+                      }
+                      disabled={isPending}
+                      autoComplete="off"
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contact-office">Siège social</Label>
+                  <Input
+                    id="contact-office"
+                    value={form.registeredOffice}
+                    onChange={(e) => set("registeredOffice", e.target.value)}
+                    disabled={isPending}
+                    autoComplete="off"
+                  />
+                </div>
+
+                <p className="text-muted-foreground pt-1 text-xs">
+                  Représentant légal
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-repfirst">Prénom</Label>
+                    <Input
+                      id="contact-repfirst"
+                      value={form.repFirstName}
+                      onChange={(e) => set("repFirstName", e.target.value)}
+                      disabled={isPending}
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-replast">Nom</Label>
+                    <Input
+                      id="contact-replast"
+                      value={form.repLastName}
+                      onChange={(e) => set("repLastName", e.target.value)}
+                      disabled={isPending}
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-repcap">Qualité</Label>
+                    <Input
+                      id="contact-repcap"
+                      placeholder="Gérant, Président…"
+                      value={form.repCapacity}
+                      onChange={(e) => set("repCapacity", e.target.value)}
+                      disabled={isPending}
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-repbirth">Naissance</Label>
+                    <Input
+                      id="contact-repbirth"
+                      type="date"
+                      value={form.repBirthDate}
+                      onChange={(e) => set("repBirthDate", e.target.value)}
+                      disabled={isPending}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-repplace">Lieu de naissance</Label>
+                    <Input
+                      id="contact-repplace"
+                      value={form.repBirthPlace}
+                      onChange={(e) => set("repBirthPlace", e.target.value)}
+                      disabled={isPending}
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-repnat">Nationalité(s)</Label>
+                    <Input
+                      id="contact-repnat"
+                      placeholder="Suisse / Russe"
+                      value={form.repNationality}
+                      onChange={(e) => set("repNationality", e.target.value)}
+                      disabled={isPending}
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+              </fieldset>
+            ) : null}
 
             <fieldset className="space-y-2">
               <legend className="text-sm font-medium">Type *</legend>

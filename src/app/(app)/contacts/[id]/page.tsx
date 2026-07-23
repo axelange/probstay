@@ -55,6 +55,9 @@ export default async function ContactDetailPage({
 
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-xl font-semibold tracking-tight">{name}</h2>
+        {contact.kind === "COMPANY" ? (
+          <Badge className="font-normal">Société</Badge>
+        ) : null}
         {types.map((type) => (
           <Badge key={type} variant="secondary" className="font-normal">
             {contactTypeLabel(type)}

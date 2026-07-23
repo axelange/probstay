@@ -54,10 +54,13 @@ export async function createContact(
     email,
     phone,
     types,
+    kind,
     specialties,
     otherSpecialty,
     notes,
   } = parsed.data;
+  const data = parsed.data;
+  const isCompany = kind === "COMPANY";
 
   // A shared number is legitimate — households and couples share a line —
   // so this warns once and lets the user proceed, rather than refusing.
@@ -77,14 +80,37 @@ export async function createContact(
   try {
     const contact = await prisma.contact.create({
       data: {
-        firstName: firstName || null,
+        firstName: isCompany ? null : firstName || null,
+        // For a company, lastName holds the raison sociale.
         lastName,
         email: email ?? null,
         phone: phone || null,
         notes: notes || null,
         types,
+        kind,
         specialties,
         otherSpecialty: otherSpecialty || null,
+        // The company block, only for a legal entity. Its email/phone are
+        // the contact-level ones — the representative's contact details.
+        ...(isCompany
+          ? {
+              company: {
+                create: {
+                  legalForm: data.legalForm ?? null,
+                  registrationNumber: data.registrationNumber ?? null,
+                  registeredOffice: data.registeredOffice ?? null,
+                  repFirstName: data.repFirstName ?? null,
+                  repLastName: data.repLastName ?? null,
+                  repCapacity: data.repCapacity ?? null,
+                  repBirthDate: data.repBirthDate
+                    ? new Date(data.repBirthDate)
+                    : null,
+                  repBirthPlace: data.repBirthPlace ?? null,
+                  repNationality: data.repNationality ?? null,
+                },
+              },
+            }
+          : {}),
       },
       select: { id: true, firstName: true, lastName: true },
     });
@@ -101,12 +127,20 @@ export async function createContact(
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      // email is the only unique column a user can collide on. The
-      // database is the arbiter rather than a prior lookup, which could
-      // pass and then lose a race to a concurrent save.
+      // Two identity keys can collide: an individual's email or a
+      // company's registration number. The database is the arbiter rather
+      // than a prior lookup, which could pass and then lose a race.
+      const target = JSON.stringify(error.meta?.target ?? "");
+      if (target.includes("registrationNumber")) {
+        return {
+          status: "error",
+          message:
+            "Ce numéro d'immatriculation est déjà utilisé par une autre société.",
+        };
+      }
       return {
         status: "error",
-        message: `${email} est déjà utilisé par un autre contact.`,
+        message: `${email} est déjà utilisé par un autre particulier.`,
       };
     }
 

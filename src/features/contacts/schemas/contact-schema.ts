@@ -1,5 +1,44 @@
 import { z } from "zod";
-import { ContactSpecialty, ContactType } from "@/generated/prisma/enums";
+import {
+  ContactKind,
+  ContactSpecialty,
+  ContactType,
+} from "@/generated/prisma/enums";
+
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((v) => (v ? v : undefined));
+
+/** An optional ISO date (yyyy-mm-dd) or empty. */
+const optionalDate = z
+  .union([z.literal(""), z.iso.date("Date de naissance invalide.")])
+  .transform((v) => (v === "" ? undefined : v))
+  .optional();
+
+/**
+ * Company details, kept apart from the identity fields — everything a
+ * contract needs about a legal entity and its signing representative. All
+ * optional and international by design (the real records are Monaco/foreign,
+ * not French SIREN/SIRET). Only stored when kind is COMPANY — the action
+ * drops the whole block for an individual. The representative's email and
+ * phone are the contact-level ones, not repeated here.
+ */
+const companyFields = {
+  kind: z.enum(ContactKind).default("INDIVIDUAL"),
+  legalForm: optionalText(160),
+  registrationNumber: optionalText(60),
+  registeredOffice: optionalText(300),
+  repFirstName: optionalText(120),
+  repLastName: optionalText(120),
+  repCapacity: optionalText(120),
+  repBirthDate: optionalDate,
+  repBirthPlace: optionalText(160),
+  repNationality: optionalText(120),
+};
 
 /**
  * The same rules the database enforces, restated so the user gets a
@@ -44,7 +83,7 @@ const OTHER_NEEDS_TEXT = {
 };
 
 export const contactSchema = z
-  .object(contactFields)
+  .object({ ...contactFields, ...companyFields })
   .refine(
     (v) => !v.specialties.includes("OTHER") || Boolean(v.otherSpecialty),
     OTHER_NEEDS_TEXT
@@ -68,6 +107,7 @@ export const contactSchema = z
 export const updateContactSchema = z
   .object({
     ...contactFields,
+    ...companyFields,
     id: z.uuid(),
     iban: z.string().trim().max(34).optional(),
   })

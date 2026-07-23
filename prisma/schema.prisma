@@ -117,6 +117,14 @@ enum ContactType {
   PROSPECT
 }
 
+// Whether a contact is a natural person or a legal entity. Set by hand in
+// BSTAY — APIMO exposes no dependable person/company flag — and defaulted
+// to INDIVIDUAL so nothing is presumed a company.
+enum ContactKind {
+  INDIVIDUAL
+  COMPANY
+}
+
 // What a contact actually does. `types` says how they relate to BSTAY;
 // this says their trade, which "Prestataire" alone cannot distinguish —
 // a cleaner and a bailiff are not interchangeable.
@@ -241,6 +249,12 @@ model Contact {
   // Free text, only meaningful when `specialties` contains OTHER.
   otherSpecialty String?
 
+  // Individual vs company. BSTAY's own call, set by hand and never touched
+  // by the APIMO sync (which has no reliable person/company flag). COMPANY
+  // records carry their registration + legal representative in `company`.
+  kind    ContactKind     @default(INDIVIDUAL)
+  company ContactCompany?
+
   // `apimoId` is the identity for anything synced from APIMO; contacts
   // created in BSTAY simply have none.
   apimoId Int? @unique
@@ -258,11 +272,12 @@ model Contact {
   // agency is filling the gaps at source; this stops the schema being
   // the thing that blocks import meanwhile.
   //
-  // email keeps its unique index — no two owners share an address, and
-  // Postgres does not treat NULLs as conflicting, so the incomplete
-  // records coexist happily. Revisit if the sync ever widens past
-  // owners to the full CRM, where 201 addresses are shared.
-  email String? @unique
+  // email is deliberately NOT unique. A person and the company (or
+  // companies) they legally represent legitimately share one address —
+  // Aslan Khabliev's own contact and his SCP "Alanian Star" both carry
+  // aslan@loewe.de. Uniqueness refused the second, so it was dropped (the
+  // "revisit once addresses are shared" case the owners-only phase deferred).
+  email String?
   phone String?
   iban          String?
   notes         String?
@@ -281,6 +296,41 @@ model Contact {
   // Same shape of lookup: "every plumber" is an = ANY(specialties) scan.
   @@index([specialties], map: "contacts_specialties_gin_idx", type: Gin)
   @@map("contacts")
+}
+
+// Company details for a contact whose `kind` is COMPANY. A 1:1 side table
+// rather than columns on Contact: these fields are only meaningful for the
+// minority that are companies, and grouping them keeps Contact lean. All
+// fields are optional — a foreign company legitimately has no SIREN/SIRET,
+// and the registration or representative may simply not be known yet.
+model ContactCompany {
+  contactId String  @id @db.Uuid
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  // Company identity for contracts. `legalForm`, `registrationNumber` and
+  // the representative's `capacity`/multi-nationality are not native APIMO
+  // columns, so the agency encodes them as labelled lines in the contact's
+  // private comment, which the sync parses; everything else maps from
+  // structured APIMO fields. All optional and international by design —
+  // the real records are Monaco/foreign, not French SIREN/SIRET.
+  legalForm          String? // Forme sociale ← comment "Forme sociale"
+  registrationNumber String? // N° immatriculation ← comment "Numéro d'immatriculation"
+  registeredOffice   String? // Siège social ← APIMO address (+ address_more)
+
+  // The legal representative — the natural person who signs. From APIMO
+  // firstname/lastname and personal fields; capacity and multi-nationality
+  // from the comment. Contact-level email/phone serve as their contact.
+  repFirstName   String? // ← APIMO firstname
+  repLastName    String? // ← APIMO lastname
+  repCapacity    String? // Qualité ← comment "Qualité" / "Capacity"
+  repBirthDate   DateTime? @db.Date // ← APIMO birthday_at
+  repBirthPlace  String? // ← APIMO birthplace
+  repNationality String? // ← comment "Nationalité(s)" else APIMO nationality
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("contact_companies")
 }
 
 model Property {

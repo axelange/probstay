@@ -357,21 +357,78 @@ async function fetchContactsById(
  * None of it is mapped. Do not add it without a reason that outlives
  * this comment.
  */
+/**
+ * APIMO has no columns for a company's legal form, registration number,
+ * the representative's capacity, or a multi-nationality — so the agency
+ * writes them as labelled lines in the contact's private `comment`, e.g.
+ *
+ *   Forme sociale : SOCIETE CIVILE PARTICULIERE
+ *   Numéro d'immatriculation : 25SC26315
+ *   Capacity / Qualité : GERANT
+ *   Nationalité(s) : SUISSE / RUSSE
+ *
+ * Parsed on the first colon (labels themselves contain "/"), accent- and
+ * case-insensitively, matched by keyword so wording can vary.
+ */
+function parseCommentFields(comment: unknown): {
+  legalForm: string | null;
+  registrationNumber: string | null;
+  repCapacity: string | null;
+  repNationality: string | null;
+} {
+  const out = {
+    legalForm: null as string | null,
+    registrationNumber: null as string | null,
+    repCapacity: null as string | null,
+    repNationality: null as string | null,
+  };
+  if (typeof comment !== "string" || !comment.trim()) return out;
+
+  for (const line of comment.split(/\r?\n/)) {
+    const idx = line.indexOf(":");
+    if (idx === -1) continue;
+    const value = line.slice(idx + 1).trim();
+    if (!value) continue;
+    const label = line
+      .slice(0, idx)
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, ""); // strip accents
+
+    if (label.includes("forme sociale")) out.legalForm = value;
+    else if (label.includes("immatriculation")) out.registrationNumber = value;
+    else if (label.includes("qualite") || label.includes("capacity")) out.repCapacity = value;
+    else if (label.includes("nationalit")) out.repNationality = value;
+  }
+  return out;
+}
+
 async function upsertOwner(c: ApimoProperty): Promise<string | null> {
   const apimoId = toIntOrNull(c.id);
-  const lastName = text(c.lastname);
 
-  // lastName is the one name the DB still requires, and it is present on
-  // 5026 of 5052 real contacts. A record without one is unidentifiable,
+  // A company in APIMO carries its raison sociale in `name`, with the
+  // person fields (firstname/lastname) holding the legal representative.
+  // `name` is the reliable signal — category=2 alone is not (many are
+  // professionals who are still individuals). When it is a company the
+  // contact's display name IS the raison sociale.
+  const companyName = text(c.name);
+  const isCompany = companyName !== null;
+
+  const lastName = isCompany ? companyName : text(c.lastname);
+
+  // lastName is the one name the DB still requires (raison sociale for a
+  // company, surname for a person). A record without one is unidentifiable,
   // so it is skipped loudly rather than invented.
   if (apimoId === null || !lastName) {
     console.warn(
-      `apimo-sync: contact ${c?.id} has no usable lastName, skipping owner link`
+      `apimo-sync: contact ${c?.id} has no usable name, skipping owner link`
     );
     return null;
   }
 
-  const firstName = text(c.firstname);
+  // A company has no first name of its own — that belongs to its rep.
+  const firstName = isCompany ? null : text(c.firstname);
+  const kind = isCompany ? "COMPANY" : "INDIVIDUAL";
   // Lowercased so casing variants cannot become two people under the
   // unique index. Verified to introduce no collisions among the owners.
   const email = text(c.email)?.toLowerCase() ?? null;
@@ -382,13 +439,14 @@ async function upsertOwner(c: ApimoProperty): Promise<string | null> {
   // `types` is unioned rather than overwritten, so re-syncing an Owner
   // never erases a CLIENT (or other) membership added elsewhere.
   const [row] = await sql`
-    insert into contacts ("apimoId", "firstName", "lastName", "email", "phone", "types", "updatedAt")
-    values (${apimoId}, ${firstName}, ${lastName}, ${email}, ${phone}, ${["OWNER"]}, ${new Date()})
+    insert into contacts ("apimoId", "firstName", "lastName", "email", "phone", "kind", "types", "updatedAt")
+    values (${apimoId}, ${firstName}, ${lastName}, ${email}, ${phone}, ${kind}::"ContactKind", ${["OWNER"]}, ${new Date()})
     on conflict ("apimoId") do update set
       "firstName" = excluded."firstName",
       "lastName" = excluded."lastName",
       "email" = excluded."email",
       "phone" = excluded."phone",
+      "kind" = excluded."kind",
       "updatedAt" = excluded."updatedAt",
       "types" = (
         select array_agg(distinct t)
@@ -396,8 +454,47 @@ async function upsertOwner(c: ApimoProperty): Promise<string | null> {
       )
     returning id
   `;
+  const contactId = row.id as string;
 
-  return row.id;
+  if (isCompany) {
+    // Siège social from the structured address; the representative from the
+    // person fields; the rest parsed from the private comment.
+    const parsed = parseCommentFields(c.comment);
+    const office =
+      [text(c.address), text(c.address_more)].filter(Boolean).join(", ") || null;
+    const repNationality = parsed.repNationality ?? text(c.nationality);
+
+    // COALESCE(excluded, existing): APIMO wins where it provides a value,
+    // but a field it does not carry never wipes a manual BSTAY entry.
+    await sql`
+      insert into contact_companies (
+        "contactId", "legalForm", "registrationNumber", "registeredOffice",
+        "repFirstName", "repLastName", "repCapacity", "repBirthDate",
+        "repBirthPlace", "repNationality", "updatedAt"
+      ) values (
+        ${contactId}, ${parsed.legalForm}, ${parsed.registrationNumber}, ${office},
+        ${text(c.firstname)}, ${text(c.lastname)}, ${parsed.repCapacity},
+        ${toDateOrNull(c.birthday_at)}, ${text(c.birthplace)}, ${repNationality}, ${new Date()}
+      )
+      on conflict ("contactId") do update set
+        "legalForm"          = coalesce(excluded."legalForm", contact_companies."legalForm"),
+        "registrationNumber" = coalesce(excluded."registrationNumber", contact_companies."registrationNumber"),
+        "registeredOffice"   = coalesce(excluded."registeredOffice", contact_companies."registeredOffice"),
+        "repFirstName"       = coalesce(excluded."repFirstName", contact_companies."repFirstName"),
+        "repLastName"        = coalesce(excluded."repLastName", contact_companies."repLastName"),
+        "repCapacity"        = coalesce(excluded."repCapacity", contact_companies."repCapacity"),
+        "repBirthDate"       = coalesce(excluded."repBirthDate", contact_companies."repBirthDate"),
+        "repBirthPlace"      = coalesce(excluded."repBirthPlace", contact_companies."repBirthPlace"),
+        "repNationality"     = coalesce(excluded."repNationality", contact_companies."repNationality"),
+        "updatedAt"          = excluded."updatedAt"
+    `;
+  } else {
+    // No longer (or never) a company: drop any stale company block. Only
+    // APIMO-synced owners reach here; BSTAY-only contacts are never touched.
+    await sql`delete from contact_companies where "contactId" = ${contactId}`;
+  }
+
+  return contactId;
 }
 
 async function upsertPictures(propertyId: string, pictures: unknown) {

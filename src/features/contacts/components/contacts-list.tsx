@@ -379,6 +379,9 @@ export function ContactsList({ contacts }: { contacts: ContactListItem[] }) {
                   ) : null}
 
                   <div className="flex shrink-0 flex-wrap gap-1">
+                    {contact.kind === "COMPANY" ? (
+                      <Badge className="font-normal">Société</Badge>
+                    ) : null}
                     {types.map((type) => (
                       <Badge
                         key={type}
