@@ -152,6 +152,9 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
           reference: true,
           agentId: true,
           agent: { select: { id: true, fullName: true } },
+          // The property's current owner — shown as the rental owner until
+          // the contract is signed and the real owner snapshot is frozen.
+          owner: { select: { id: true, firstName: true, lastName: true } },
           includedServices: true,
         },
       },
@@ -163,6 +166,18 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
       agent: { select: { id: true, fullName: true } },
       tenantAgentId: true,
       tenantAgent: { select: { id: true, fullName: true } },
+      // The demande this rental was converted from, when it came from one —
+      // the far end of the journey, so the whole path stays traceable from
+      // either side. Null for a rental created directly.
+      originatingDemande: {
+        select: {
+          id: true,
+          mode: true,
+          source: true,
+          createdAt: true,
+          convertedAt: true,
+        },
+      },
       tenants: {
         select: {
           isPrimary: true,

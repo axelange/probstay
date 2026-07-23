@@ -10,6 +10,7 @@ import {
   formatStay,
   nights,
 } from "@/features/rentals/components/rental-labels";
+import { modeLabel } from "@/features/demandes/components/demande-labels";
 import {
   canManageRental,
   getRentalDetail,
@@ -58,6 +59,11 @@ export default async function RentalDetailPage({
   if (!rental) notFound();
 
   const canManage = canManageRental(user, rental);
+
+  // The owner snapshot is frozen only at contract signature. Before that,
+  // fall back to the property's current owner so the field isn't empty —
+  // flagged "(actuel)" since it isn't yet locked to this booking.
+  const owner = rental.owner ?? rental.property.owner;
 
   // The villa can be changed while the booking is an enquiry, so the
   // funnel needs the choices — filtered to what an agent may book.
@@ -212,15 +218,22 @@ export default async function RentalDetailPage({
                   lookups — empty before that. Reassigning the property
                   must not rewrite who this booking belonged to. */}
               <Field label="Propriétaire">
-                {rental.owner ? (
-                  <Link
-                    href={`/contacts/${rental.owner.id}`}
-                    className="underline underline-offset-2"
-                  >
-                    {[rental.owner.firstName, rental.owner.lastName]
-                      .filter(Boolean)
-                      .join(" ")}
-                  </Link>
+                {owner ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Link
+                      href={`/contacts/${owner.id}`}
+                      className="underline underline-offset-2"
+                    >
+                      {[owner.firstName, owner.lastName]
+                        .filter(Boolean)
+                        .join(" ")}
+                    </Link>
+                    {!rental.owner ? (
+                      <span className="text-muted-foreground text-xs">
+                        (actuel)
+                      </span>
+                    ) : null}
+                  </span>
                 ) : null}
               </Field>
               {/* Co-agents when the tenant-side agent (from the demande)
@@ -244,6 +257,19 @@ export default async function RentalDetailPage({
                 </Field>
               )}
               <Field label="Créée le">{formatDate(rental.createdAt)}</Field>
+              {/* The far end of the journey: the demande this booking came
+                  from, so the full path stays traceable both ways. */}
+              {rental.originatingDemande ? (
+                <Field label="Origine">
+                  <Link
+                    href={`/demandes/${rental.originatingDemande.id}`}
+                    className="underline underline-offset-2"
+                  >
+                    Demande {modeLabel(rental.originatingDemande.mode).toLowerCase()}{" "}
+                    du {formatDate(rental.originatingDemande.createdAt)}
+                  </Link>
+                </Field>
+              ) : null}
             </dl>
             <p className="text-muted-foreground text-xs">
               {rental.tenantAgent &&
