@@ -438,14 +438,20 @@ async function upsertOwner(c: ApimoProperty): Promise<string | null> {
 
   // `types` is unioned rather than overwritten, so re-syncing an Owner
   // never erases a CLIENT (or other) membership added elsewhere.
+  //
+  // email/phone are COALESCEd, not overwritten: when APIMO carries none
+  // (14 of 46 owners have no email), a value completed in BSTAY — an
+  // agent filling a contract's missing contact detail — must survive the
+  // next sync rather than be wiped back to null. APIMO still wins when it
+  // does hold a value.
   const [row] = await sql`
     insert into contacts ("apimoId", "firstName", "lastName", "email", "phone", "kind", "types", "updatedAt")
     values (${apimoId}, ${firstName}, ${lastName}, ${email}, ${phone}, ${kind}::"ContactKind", ${["OWNER"]}, ${new Date()})
     on conflict ("apimoId") do update set
-      "firstName" = excluded."firstName",
+      "firstName" = coalesce(excluded."firstName", contacts."firstName"),
       "lastName" = excluded."lastName",
-      "email" = excluded."email",
-      "phone" = excluded."phone",
+      "email" = coalesce(excluded."email", contacts."email"),
+      "phone" = coalesce(excluded."phone", contacts."phone"),
       "kind" = excluded."kind",
       "updatedAt" = excluded."updatedAt",
       "types" = (

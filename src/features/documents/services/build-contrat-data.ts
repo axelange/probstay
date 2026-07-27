@@ -45,11 +45,13 @@ export async function buildContratData(
       guests: true,
       netOwnerAmount: true,
       commissionAmount: true,
+      touristTaxAmount: true,
+      touristTaxRate: true,
       grossAmount: true,
       depositAmount: true,
       securityDepositAmount: true,
       tenantAgentId: true,
-      owner: { select: { firstName: true, lastName: true } },
+      owner: { select: { firstName: true, lastName: true, kind: true, email: true, phone: true, address: true } },
       property: {
         select: {
           marketingName: true,
@@ -62,7 +64,7 @@ export async function buildContratData(
           bedrooms: true,
           sleeps: true,
           agentId: true,
-          owner: { select: { firstName: true, lastName: true } },
+          owner: { select: { firstName: true, lastName: true, kind: true, email: true, phone: true, address: true } },
         },
       },
       services: {
@@ -80,6 +82,12 @@ export async function buildContratData(
               kind: true,
               email: true,
               phone: true,
+              address: true,
+              birthDate: true,
+              birthPlace: true,
+              nationality: true,
+              idDocType: true,
+              idDocNumber: true,
               company: {
                 select: {
                   legalForm: true,
@@ -114,16 +122,25 @@ export async function buildContratData(
   const billed = rental.services.filter((sv) => !sv.includedInStay);
   const billedTotal = billed.reduce((sum, sv) => sum + n(sv.amount), 0);
 
-  const taxRow = p.city
-    ? await prisma.$queryRaw<{ amount: number }[]>`
-        SELECT amount::float8 AS amount FROM tourist_taxes
-        WHERE lower(city) = lower(${p.city}) LIMIT 1`
-    : [];
-  const taxRate = taxRow[0]?.amount ?? null;
+  // Frozen at contract signature; the live city rate only serves the
+  // pre-signature preview.
   const stayNights = nights(rental.checkIn, rental.checkOut);
   const guests = rental.guests ?? 0;
-  const touristTax =
-    taxRate !== null && guests > 0 ? taxRate * guests * stayNights : 0;
+  let taxRate: number | null;
+  let touristTax: number;
+  if (rental.touristTaxAmount !== null) {
+    taxRate = n(rental.touristTaxRate);
+    touristTax = n(rental.touristTaxAmount);
+  } else {
+    const taxRow = p.city
+      ? await prisma.$queryRaw<{ amount: number }[]>`
+          SELECT amount::float8 AS amount FROM tourist_taxes
+          WHERE lower(city) = lower(${p.city}) LIMIT 1`
+      : [];
+    taxRate = taxRow[0]?.amount ?? null;
+    touristTax =
+      taxRate !== null && guests > 0 ? taxRate * guests * stayNights : 0;
+  }
 
   const total = rent + billedTotal + touristTax;
   const owner = rental.owner ?? p.owner;
@@ -138,7 +155,9 @@ export async function buildContratData(
     agency: { ...AGENCY },
     owner: {
       name: fullName(owner),
-      detail: "Propriétaire du bien ci-après désigné.",
+      detail: owner?.address
+        ? `Propriétaire du bien, demeurant ${owner.address}.`
+        : "Propriétaire du bien ci-après désigné.",
     },
     tenant:
       tenant?.kind === "COMPANY"
@@ -157,6 +176,14 @@ export async function buildContratData(
         : {
             kind: "INDIVIDUAL",
             name: fullName(tenant),
+            birth:
+              tenant?.birthDate && tenant?.birthPlace
+                ? `${date(tenant.birthDate)} à ${tenant.birthPlace}`
+                : tenant?.birthDate
+                  ? date(tenant.birthDate)
+                  : undefined,
+            nationality: tenant?.nationality ?? undefined,
+            address: tenant?.address ?? undefined,
             email: tenant?.email ?? undefined,
             phone: tenant?.phone ?? undefined,
           },

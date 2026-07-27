@@ -145,6 +145,7 @@ export async function getContactDetail(id: string, user: CurrentUser) {
       nationality: true,
       idDocType: true,
       idDocNumber: true,
+      address: true,
       // BSTAY's own company block, following the contact's own visibility.
       company: {
         select: {

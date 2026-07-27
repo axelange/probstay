@@ -56,6 +56,7 @@ export type EditableContact = {
   nationality: string | null;
   idDocType: string | null;
   idDocNumber: string | null;
+  address: string | null;
   specialties: ContactSpecialty[];
   otherSpecialty: string | null;
   apimoId: number | null;
@@ -101,6 +102,7 @@ export function EditContactForm({
     nationality: contact.nationality ?? "",
     idDocType: contact.idDocType ?? "",
     idDocNumber: contact.idDocNumber ?? "",
+    address: contact.address ?? "",
   });
   const [kind, setKind] = React.useState<ContactKind>(contact.kind);
   const [types, setTypes] = React.useState<ContactType[]>(contact.types);
@@ -454,7 +456,17 @@ export function EditContactForm({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2">
+              <Label htmlFor="address">Adresse</Label>
+              <Input
+                id="address"
+                value={form.address}
+                onChange={(e) => set("address", e.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="idDocNumber">Numéro de la pièce</Label>
               <Input
                 id="idDocNumber"

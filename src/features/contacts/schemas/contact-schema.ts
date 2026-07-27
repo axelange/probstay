@@ -58,6 +58,7 @@ export const individualDetailFields = {
   nationality: optionalText(120),
   idDocType: optionalText(60),
   idDocNumber: optionalText(60),
+  address: optionalText(300),
 };
 
 /**

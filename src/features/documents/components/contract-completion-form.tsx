@@ -45,6 +45,7 @@ export function ContractCompletionForm({
     firstName: t.firstName ?? "",
     lastName: t.lastName,
     phone: t.phone ?? "",
+    address: t.address ?? "",
     birthDate: t.birthDate ?? "",
     birthPlace: t.birthPlace ?? "",
     nationality: t.nationality ?? "",
@@ -57,6 +58,12 @@ export function ContractCompletionForm({
     repFirstName: t.company?.repFirstName ?? "",
     repLastName: t.company?.repLastName ?? "",
     repCapacity: t.company?.repCapacity ?? "",
+    // Owner — individual contact block.
+    oFirstName: data.owner?.firstName ?? "",
+    oLastName: data.owner?.lastName ?? "",
+    oEmail: data.owner?.email ?? "",
+    oPhone: data.owner?.phone ?? "",
+    oAddress: data.owner?.address ?? "",
     // Owner company block.
     oLegalForm: data.owner?.company?.legalForm ?? "",
     oRegistrationNumber: data.owner?.company?.registrationNumber ?? "",
@@ -85,6 +92,7 @@ export function ContractCompletionForm({
           firstName: form.firstName,
           lastName: form.lastName,
           phone: form.phone,
+          address: form.address,
           birthDate: form.birthDate,
           birthPlace: form.birthPlace,
           nationality: form.nationality,
@@ -103,6 +111,17 @@ export function ContractCompletionForm({
               }
             : {}),
         },
+        ...(data.owner && !ownerIsCompany
+          ? {
+              owner: {
+                firstName: form.oFirstName,
+                lastName: form.oLastName,
+                email: form.oEmail,
+                phone: form.oPhone,
+                address: form.oAddress,
+              },
+            }
+          : {}),
         ...(ownerIsCompany
           ? {
               ownerCompany: {
@@ -130,7 +149,12 @@ export function ContractCompletionForm({
     key: string,
     id: keyof typeof form,
     label: string,
-    opts: { type?: string; placeholder?: string; mono?: boolean } = {}
+    opts: {
+      type?: string;
+      placeholder?: string;
+      mono?: boolean;
+      disabled?: boolean;
+    } = {}
   ) => (
     <div className="space-y-1.5">
       <Label htmlFor={`cc-${id}`} className="text-xs">
@@ -142,7 +166,7 @@ export function ContractCompletionForm({
         placeholder={opts.placeholder}
         value={form[id]}
         onChange={(e) => set(id, e.target.value)}
-        disabled={isPending}
+        disabled={isPending || opts.disabled}
         autoComplete="off"
         className={[
           "h-8 text-sm",
@@ -185,7 +209,9 @@ export function ContractCompletionForm({
           ) : (
             <>
               {field("tenant.firstName", "firstName", "Prénom")}
-              {field("tenant.name", "lastName", "Nom")}
+              {field("tenant.name", "lastName", "Nom", {
+                disabled: t.apimoLocked,
+              })}
             </>
           )}
           <div className="space-y-1.5">
@@ -234,6 +260,9 @@ export function ContractCompletionForm({
             {field("tenant.nationality", "nationality", "Nationalité(s)", {
               placeholder: "Française",
             })}
+            <div className="sm:col-span-2">
+              {field("tenant.address", "address", "Adresse")}
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="cc-idDocType" className="text-xs">
                 Pièce d&apos;identité
@@ -273,7 +302,10 @@ export function ContractCompletionForm({
       {data.owner ? (
         <div className="space-y-3 rounded-md border p-3">
           <p className="text-sm font-medium">
-            Propriétaire — {data.owner.name}
+            Propriétaire —{" "}
+            {[data.owner.firstName, data.owner.lastName]
+              .filter(Boolean)
+              .join(" ")}
             <span className="text-muted-foreground ml-2 text-xs font-normal">
               {ownerIsCompany ? "société" : "particulier"}
             </span>
@@ -301,9 +333,45 @@ export function ContractCompletionForm({
               })}
             </div>
           ) : (
-            <p className="text-muted-foreground text-xs">
-              Identité gérée sur la fiche contact.
-            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="cc-oFirstName" className="text-xs">
+                  Prénom
+                </Label>
+                <Input
+                  id="cc-oFirstName"
+                  value={form.oFirstName}
+                  onChange={(e) => set("oFirstName", e.target.value)}
+                  disabled={isPending}
+                  autoComplete="off"
+                  className={["h-8 text-sm", missCls("owner.firstName")].join(" ")}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cc-oLastName" className="text-xs">
+                  Nom
+                </Label>
+                <Input
+                  id="cc-oLastName"
+                  value={form.oLastName}
+                  onChange={(e) => set("oLastName", e.target.value)}
+                  disabled={isPending || data.owner.apimoLocked}
+                  autoComplete="off"
+                  className={["h-8 text-sm", missCls("owner.name")].join(" ")}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                {field("owner.address", "oAddress", "Adresse")}
+              </div>
+              {field("owner.email", "oEmail", "E-mail", { type: "email" })}
+              {field("owner.phone", "oPhone", "Téléphone", { type: "tel" })}
+              {data.owner.apimoLocked ? (
+                <p className="text-muted-foreground text-[10px] sm:col-span-2">
+                  Nom de famille géré par APIMO — à modifier dans APIMO. Prénom,
+                  adresse, e-mail et téléphone se complètent ici.
+                </p>
+              ) : null}
+            </div>
           )}
         </div>
       ) : null}

@@ -48,7 +48,7 @@ export async function documentReadiness(
       grossAmount: true,
       securityDepositAmount: true,
       tenantAgentId: true,
-      owner: { select: { firstName: true, lastName: true, kind: true, company: { select: { repFirstName: true, repLastName: true, repCapacity: true } } } },
+      owner: { select: { firstName: true, lastName: true, kind: true, email: true, phone: true, address: true, company: { select: { repFirstName: true, repLastName: true, repCapacity: true } } } },
       property: {
         select: {
           marketingName: true,
@@ -59,6 +59,9 @@ export async function documentReadiness(
               firstName: true,
               lastName: true,
               kind: true,
+              email: true,
+              phone: true,
+              address: true,
               company: { select: { repFirstName: true, repLastName: true, repCapacity: true } },
             },
           },
@@ -70,8 +73,10 @@ export async function documentReadiness(
         select: {
           contact: {
             select: {
+              firstName: true,
               lastName: true,
               kind: true,
+              address: true,
               birthDate: true,
               birthPlace: true,
               nationality: true,
@@ -122,6 +127,8 @@ export async function documentReadiness(
     add("tenant.rep", "Locataire — représentant légal", "tenant", [c?.repFirstName, c?.repLastName].filter(Boolean).join(" "));
     add("tenant.repCapacity", "Locataire — qualité du représentant", "tenant", c?.repCapacity);
   } else {
+    add("tenant.firstName", "Locataire — prénom", "tenant", tenant?.firstName);
+    add("tenant.address", "Locataire — adresse", "tenant", tenant?.address);
     add("tenant.birthDate", "Locataire — date de naissance", "tenant", tenant?.birthDate);
     add("tenant.birthPlace", "Locataire — lieu de naissance", "tenant", tenant?.birthPlace);
     add("tenant.nationality", "Locataire — nationalité", "tenant", tenant?.nationality);
@@ -135,6 +142,12 @@ export async function documentReadiness(
     const c = owner.company;
     add("owner.rep", "Propriétaire — représentant légal", "owner", [c?.repFirstName, c?.repLastName].filter(Boolean).join(" "));
     add("owner.repCapacity", "Propriétaire — qualité du représentant", "owner", c?.repCapacity);
+  } else {
+    // An individual owner's contact block, needed on the confirmation.
+    add("owner.firstName", "Propriétaire — prénom", "owner", owner?.firstName);
+    add("owner.address", "Propriétaire — adresse", "owner", owner?.address);
+    add("owner.email", "Propriétaire — e-mail", "owner", owner?.email);
+    add("owner.phone", "Propriétaire — téléphone", "owner", owner?.phone);
   }
 
   // --- Property & booking -----------------------------------------

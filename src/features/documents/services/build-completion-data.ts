@@ -13,29 +13,28 @@ export type CompanyBlock = {
   repCapacity: string | null;
 };
 
+type Party = {
+  id: string;
+  kind: "INDIVIDUAL" | "COMPANY";
+  /** APIMO-synced identity is rewritten by every sync — name shown locked. */
+  apimoLocked: boolean;
+  firstName: string | null;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  company: CompanyBlock | null;
+};
+
 export type CompletionData = {
-  tenant: {
-    id: string;
-    kind: "INDIVIDUAL" | "COMPANY";
-    /** APIMO-synced identity is rewritten by every sync — shown locked. */
-    apimoLocked: boolean;
-    firstName: string | null;
-    lastName: string;
-    email: string | null;
-    phone: string | null;
+  tenant: Party & {
     birthDate: string | null; // yyyy-mm-dd for the date input
     birthPlace: string | null;
     nationality: string | null;
     idDocType: string | null;
     idDocNumber: string | null;
-    company: CompanyBlock | null;
   };
-  owner: {
-    id: string;
-    kind: "INDIVIDUAL" | "COMPANY";
-    name: string;
-    company: CompanyBlock | null;
-  } | null;
+  owner: Party | null;
   securityDepositAmount: number | null;
 };
 
@@ -53,11 +52,50 @@ const companySelect = {
   },
 } as const;
 
+const partySelect = {
+  select: {
+    id: true,
+    apimoId: true,
+    kind: true,
+    firstName: true,
+    lastName: true,
+    email: true,
+    phone: true,
+    address: true,
+    company: companySelect,
+  },
+} as const;
+
+type PartyRow = {
+  id: string;
+  apimoId: number | null;
+  kind: "INDIVIDUAL" | "COMPANY";
+  firstName: string | null;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  company: CompanyBlock | null;
+};
+
+const party = (c: PartyRow): Party => ({
+  id: c.id,
+  kind: c.kind,
+  apimoLocked: c.apimoId !== null,
+  firstName: c.firstName,
+  lastName: c.lastName,
+  email: c.email,
+  phone: c.phone,
+  address: c.address,
+  company: c.company,
+});
+
 /**
  * Everything the contract step's completion form edits, with its current
- * values: the tenant's full identity (individual civil identity or company
- * block), the owner's company block when the owner is a legal entity, and
- * the rental's caution. Same visibility rule as the readiness check.
+ * values: the tenant's full identity (civil identity or company block), the
+ * owner's identity — an individual owner's name/address/email/phone, or a
+ * company's legal block — and the rental's caution. Same visibility rule as
+ * the readiness check.
  */
 export async function buildCompletionData(
   rentalId: string,
@@ -68,28 +106,9 @@ export async function buildCompletionData(
     select: {
       securityDepositAmount: true,
       tenantAgentId: true,
-      owner: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          kind: true,
-          company: companySelect,
-        },
-      },
+      owner: partySelect,
       property: {
-        select: {
-          agentId: true,
-          owner: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              kind: true,
-              company: companySelect,
-            },
-          },
-        },
+        select: { agentId: true, owner: partySelect },
       },
       tenants: {
         where: { isPrimary: true },
@@ -97,19 +116,12 @@ export async function buildCompletionData(
         select: {
           contact: {
             select: {
-              id: true,
-              apimoId: true,
-              kind: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              phone: true,
+              ...partySelect.select,
               birthDate: true,
               birthPlace: true,
               nationality: true,
               idDocType: true,
               idDocNumber: true,
-              company: companySelect,
             },
           },
         },
@@ -130,28 +142,14 @@ export async function buildCompletionData(
 
   return {
     tenant: {
-      id: t.id,
-      kind: t.kind,
-      apimoLocked: t.apimoId !== null,
-      firstName: t.firstName,
-      lastName: t.lastName,
-      email: t.email,
-      phone: t.phone,
+      ...party(t),
       birthDate: toDateInput(t.birthDate),
       birthPlace: t.birthPlace,
       nationality: t.nationality,
       idDocType: t.idDocType,
       idDocNumber: t.idDocNumber,
-      company: t.company,
     },
-    owner: owner
-      ? {
-          id: owner.id,
-          kind: owner.kind,
-          name: [owner.firstName, owner.lastName].filter(Boolean).join(" "),
-          company: owner.company,
-        }
-      : null,
+    owner: owner ? party(owner) : null,
     securityDepositAmount: rental.securityDepositAmount
       ? rental.securityDepositAmount.toNumber()
       : null,

@@ -94,6 +94,7 @@ export async function createContact(
         nationality: isCompany ? null : (data.nationality ?? null),
         idDocType: isCompany ? null : (data.idDocType ?? null),
         idDocNumber: isCompany ? null : (data.idDocNumber ?? null),
+        address: isCompany ? null : (data.address ?? null),
         specialties,
         otherSpecialty: otherSpecialty || null,
         // The company block, only for a legal entity. Its email/phone are

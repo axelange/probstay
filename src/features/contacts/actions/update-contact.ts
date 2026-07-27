@@ -117,6 +117,7 @@ export async function updateContact(
           nationality: isCompany ? null : (data.nationality ?? null),
           idDocType: isCompany ? null : (data.idDocType ?? null),
           idDocNumber: isCompany ? null : (data.idDocNumber ?? null),
+          address: isCompany ? null : (data.address ?? null),
           specialties: data.specialties,
           otherSpecialty: data.otherSpecialty || null,
           notes: data.notes || null,
