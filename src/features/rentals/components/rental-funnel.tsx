@@ -96,14 +96,16 @@ export type FunnelRental = {
 };
 
 const NEXT: Partial<Record<RentalBookingStatus, RentalBookingStatus>> = {
-  INQUIRY: "CONTRACT",
+  INQUIRY: "FINANCIAL",
+  FINANCIAL: "CONTRACT",
   CONTRACT: "FINALISATION",
   FINALISATION: "CHECK_IN",
   CHECK_IN: "CHECK_OUT",
 };
 
 const ADVANCE_LABEL: Partial<Record<RentalBookingStatus, string>> = {
-  INQUIRY: "Passer au contrat",
+  INQUIRY: "Passer au financier",
+  FINANCIAL: "Passer au contrat",
   CONTRACT: "Passer à la finalisation",
   FINALISATION: "Démarrer le séjour",
   CHECK_IN: "Terminer le séjour",
@@ -151,11 +153,17 @@ export function RentalFunnel({
   canManage,
   properties,
   taxRatesByCity,
+  contractStep,
+  contractReady = false,
 }: {
   rental: FunnelRental;
   canManage: boolean;
   properties: FunnelProperty[];
   taxRatesByCity: Record<string, number>;
+  /** The contract stage's completion form, server-assembled (RSC slot). */
+  contractStep?: React.ReactNode;
+  /** Whether every field the documents require is filled. */
+  contractReady?: boolean;
 }) {
   const router = useRouter();
 
@@ -242,8 +250,10 @@ export function RentalFunnel({
   } | null>(null);
   const stayKey = `${propertyId}|${checkIn}|${checkOut}`;
   React.useEffect(() => {
+    // Warn about overlapping stays until the date-lock (accord) is dealt
+    // with — that is, on every stage up to and including the contract.
     if (
-      (stage !== "INQUIRY" && stage !== "CONTRACT") ||
+      (stage !== "INQUIRY" && stage !== "FINANCIAL" && stage !== "CONTRACT") ||
       !propertyId ||
       !checkIn ||
       !checkOut
@@ -305,7 +315,6 @@ export function RentalFunnel({
   const next = NEXT[stage];
   const missing = next
     ? missingToReach(next, {
-        ownerConfirmed: ownerConfirmed || confirmOwner,
         contractSigned: contractSigned || signContract,
         hasAmount,
       })
@@ -399,11 +408,11 @@ export function RentalFunnel({
             </>
           ) : null}
 
-          {stage === "CONTRACT" ? (
+          {stage === "FINANCIAL" ? (
             <>
               <StagePanelHeader
-                title="Contrat"
-                hint="Le montant, l'accord des trois parties, puis la signature. La génération du PDF arrivera avec le module documents."
+                title="Financier"
+                hint="Le net propriétaire, la commission et les services. Les montants validés ouvrent l'étape contrat."
               />
 
               {/* The two figures the stay amount is built from. */}
@@ -598,41 +607,65 @@ export function RentalFunnel({
               </div>
 
               <OverlapWarning overlap={overlap} />
+            </>
+          ) : null}
 
-              {/* Gate 1: the agreement, which locks the dates. Shown as a
-                  confirmed line once ticked, otherwise the checkbox. */}
-              {ownerConfirmed ? (
-                <ConfirmedLine
-                  when={rental.ownerConfirmedAt}
-                  who={rental.ownerConfirmedByName}
-                  label="Accord du propriétaire"
-                />
-              ) : (
-                <GateCheckbox
-                  checked={confirmOwner}
-                  onChange={setConfirmOwner}
-                  disabled={isPending}
-                  title="Accord trouvé (agent + client + propriétaire)"
-                  hint="Réserve ces dates : aucune autre location ne pourra être confirmée sur ce bien pour cette période."
-                />
-              )}
+          {stage === "CONTRACT" ? (
+            <>
+              <StagePanelHeader
+                title="Contrat"
+                hint="Les informations des parties, la génération des documents, puis la signature."
+              />
 
-              {/* Gate 2: the signed contract, which freezes owner + agent. */}
-              {contractSigned ? (
-                <ConfirmedLine
-                  when={rental.contractSignedAt}
-                  who={rental.contractSignedByName}
-                  label="Contrat signé"
-                />
-              ) : (
-                <GateCheckbox
-                  checked={signContract}
-                  onChange={setSignContract}
-                  disabled={isPending}
-                  title="Contrat signé par toutes les parties"
-                  hint="Fige le propriétaire et l'agent de cette location."
-                />
-              )}
+              {/* The completion form: every field the documents require,
+                  server-assembled and written back to contact/rental. */}
+              {contractStep}
+
+              {contractReady ? (
+                <>
+                  <p className="text-muted-foreground rounded-md border border-dashed px-3 py-2.5 text-xs">
+                    Génération des documents (Confirmation de location,
+                    Contrat de location saisonnière) — bientôt disponible ici.
+                    L&apos;aperçu est déjà consultable sur la page Documents.
+                  </p>
+
+                  {/* The date-lock, optional: reserves the dates against
+                      other agents, no longer required to advance. */}
+                  {ownerConfirmed ? (
+                    <ConfirmedLine
+                      when={rental.ownerConfirmedAt}
+                      who={rental.ownerConfirmedByName}
+                      label="Accord du propriétaire"
+                    />
+                  ) : (
+                    <GateCheckbox
+                      checked={confirmOwner}
+                      onChange={setConfirmOwner}
+                      disabled={isPending}
+                      title="Accord trouvé (agent + client + propriétaire)"
+                      hint="Réserve ces dates : aucune autre location ne pourra être confirmée sur ce bien pour cette période. Facultatif pour avancer."
+                    />
+                  )}
+
+                  {/* THE gate: the signed contract, which freezes
+                      owner + agent and opens the finalisation. */}
+                  {contractSigned ? (
+                    <ConfirmedLine
+                      when={rental.contractSignedAt}
+                      who={rental.contractSignedByName}
+                      label="Contrat signé"
+                    />
+                  ) : (
+                    <GateCheckbox
+                      checked={signContract}
+                      onChange={setSignContract}
+                      disabled={isPending}
+                      title="Contrat signé par toutes les parties"
+                      hint="Fige le propriétaire et l'agent de cette location, et ouvre la finalisation."
+                    />
+                  )}
+                </>
+              ) : null}
             </>
           ) : null}
 

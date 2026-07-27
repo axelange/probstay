@@ -11,9 +11,17 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { updateContact } from "@/features/contacts/actions/update-contact";
 import {
   CONTACT_TYPES,
+  ID_DOC_TYPES,
   contactTypeLabel,
 } from "@/features/contacts/components/contact-type-labels";
 import {
@@ -426,14 +434,25 @@ export function EditContactForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="idDocType">Pièce d&apos;identité</Label>
-              <Input
-                id="idDocType"
-                placeholder="Passeport, CNI, Titre de séjour…"
-                value={form.idDocType}
-                onChange={(e) => set("idDocType", e.target.value)}
+              {/* items lets Base UI resolve the selected label without
+                  opening the popup. */}
+              <Select
+                value={form.idDocType || null}
+                onValueChange={(v) => v !== null && set("idDocType", v)}
+                items={ID_DOC_TYPES.map((t) => ({ value: t, label: t }))}
                 disabled={disabled}
-                autoComplete="off"
-              />
+              >
+                <SelectTrigger id="idDocType" className="w-full">
+                  <SelectValue placeholder="Choisir…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ID_DOC_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="idDocNumber">Numéro de la pièce</Label>

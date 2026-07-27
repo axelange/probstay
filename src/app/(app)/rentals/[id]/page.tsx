@@ -11,6 +11,9 @@ import {
   nights,
 } from "@/features/rentals/components/rental-labels";
 import { modeLabel } from "@/features/demandes/components/demande-labels";
+import { ContractCompletionForm } from "@/features/documents/components/contract-completion-form";
+import { buildCompletionData } from "@/features/documents/services/build-completion-data";
+import { documentReadiness } from "@/features/documents/services/document-readiness";
 import {
   canManageRental,
   getRentalDetail,
@@ -74,6 +77,26 @@ export default async function RentalDetailPage({
   const properties = canManageAll
     ? allProperties
     : allProperties.filter((p) => p.agentId === user.id);
+
+  // The contract stage carries the documents' completion form: what is
+  // missing, and every current value so the agent can correct the client
+  // on the spot. Only assembled when the booking is at that stage.
+  const [readiness, completion] =
+    rental.bookingStatus === "CONTRACT" && canManage
+      ? await Promise.all([
+          documentReadiness(rental.id, "CONTRAT", user),
+          buildCompletionData(rental.id, user),
+        ])
+      : [null, null];
+  const contractStep =
+    readiness && completion ? (
+      <ContractCompletionForm
+        rentalId={rental.id}
+        data={completion}
+        missingKeys={readiness.missing.map((m) => m.key)}
+        complete={readiness.complete}
+      />
+    ) : undefined;
 
   return (
     <div className="space-y-6">
@@ -150,6 +173,8 @@ export default async function RentalDetailPage({
             canManage={canManage}
             properties={properties}
             taxRatesByCity={taxRatesByCity}
+            contractStep={contractStep}
+            contractReady={readiness?.complete ?? false}
             rental={{
               id: rental.id,
               bookingStatus: rental.bookingStatus,

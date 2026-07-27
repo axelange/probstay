@@ -100,7 +100,7 @@ const CATEGORIES = [
   {
     id: "active",
     label: "En cours",
-    statuses: ["INQUIRY", "CONTRACT", "FINALISATION", "CHECK_IN"],
+    statuses: ["INQUIRY", "FINANCIAL", "CONTRACT", "FINALISATION", "CHECK_IN"],
   },
   { id: "done", label: "Terminées", statuses: ["CHECK_OUT"] },
   { id: "cancelled", label: "Annulées", statuses: ["CANCELLED"] },

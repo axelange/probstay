@@ -109,9 +109,10 @@ export async function updateRental(
     }
   }
 
-  // The gate checkboxes may be satisfied in this same save, so the gate
-  // is evaluated against the would-be state, not only the stored one.
-  const willConfirmOwner = data.confirmOwner || rental.ownerConfirmedAt !== null;
+  // The gate checkbox may be satisfied in this same save, so the gate is
+  // evaluated against the would-be state, not only the stored one. The
+  // owner's agreement is no longer a gate — it remains the optional
+  // date-lock, set on the contract stage.
   const willSignContract = data.signContract || rental.contractSignedAt !== null;
 
   // The stay amount ("Loyer") is derived, not entered: the owner's net take
@@ -125,7 +126,6 @@ export async function updateRental(
       : data.netOwnerAmount + (data.commissionAmount ?? 0);
 
   const missing = missingToReach(data.bookingStatus, {
-    ownerConfirmed: willConfirmOwner,
     contractSigned: willSignContract,
     hasAmount: data.netOwnerAmount !== undefined,
   });

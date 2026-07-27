@@ -3,24 +3,25 @@ import type { RentalBookingStatus } from "@/generated/prisma/enums";
 /**
  * The pipeline's hard gates — and only the hard ones.
  *
- * INQUIRY is pure information (villa, dates, party size, notes), so moving
- * off it carries no prerequisite. The commitments all live on the CONTRACT
- * stage and gate the move *out* of it:
- *   • reaching FINALISATION needs an agreed amount, the agreement
- *     (ownerConfirmedAt) that locks the dates against other agents, and the
- *     contract signed (contractSignedAt) — everything the contract step
- *     captures.
+ * INQUIRY is pure information (villa, dates, party size, notes) and
+ * FINANCIAL is where the money is settled, so:
+ *   • reaching CONTRACT needs the amount (the money stage is validated
+ *     before the contract opens);
+ *   • reaching FINALISATION needs the contract signed by all parties —
+ *     the single commitment kept as a wall. The owner's agreement
+ *     (ownerConfirmedAt) still exists on the contract stage, but as the
+ *     optional date-lock, no longer a gate.
  *
  * Past that, nothing is walled: a booking may move to CHECK_IN with
- * payments or identity still outstanding. Those are surfaced as advice
- * (see financeReadiness), never as a block. This is the "gates, not
- * walls" rule — the deliberate commitments block, the housekeeping does
- * not.
+ * payments or identity still outstanding. Those are surfaced as advice,
+ * never as a block. This is the "gates, not walls" rule — the deliberate
+ * commitments block, the housekeeping does not.
  *
  * CANCELLED, and any move back down the pipeline, carry no prerequisite.
  */
 const PIPELINE: RentalBookingStatus[] = [
   "INQUIRY",
+  "FINANCIAL",
   "CONTRACT",
   "FINALISATION",
   "CHECK_IN",
@@ -28,7 +29,6 @@ const PIPELINE: RentalBookingStatus[] = [
 ];
 
 export type GateInputs = {
-  ownerConfirmed: boolean;
   contractSigned: boolean;
   hasAmount: boolean;
 };
@@ -48,12 +48,13 @@ export function missingToReach(
   const step = PIPELINE.indexOf(target);
   const missing: string[] = [];
 
-  // FINALISATION and everything after it — the whole contract step must be
-  // complete: an amount, the owner's agreement, and the signed contract.
-  if (step >= PIPELINE.indexOf("FINALISATION")) {
-    if (!inputs.hasAmount) missing.push("le montant du séjour");
-    if (!inputs.ownerConfirmed) missing.push("l'accord du propriétaire");
-    if (!inputs.contractSigned) missing.push("le contrat signé");
+  // CONTRACT and everything after it: the money stage is complete.
+  if (step >= PIPELINE.indexOf("CONTRACT") && !inputs.hasAmount) {
+    missing.push("le loyer (net propriétaire)");
+  }
+  // FINALISATION and everything after it: the signed contract.
+  if (step >= PIPELINE.indexOf("FINALISATION") && !inputs.contractSigned) {
+    missing.push("le contrat signé");
   }
 
   return missing;

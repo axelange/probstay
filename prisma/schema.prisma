@@ -46,6 +46,9 @@ enum Permission {
 // checkbox) and KYC stage (now identity capture inside FINALISATION).
 enum RentalBookingStatus {
   INQUIRY
+  // The money stage: net owner + commission + services are settled here,
+  // and validated before the contract stage opens.
+  FINANCIAL
   CONTRACT
   FINALISATION
   CHECK_IN

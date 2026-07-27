@@ -12,6 +12,7 @@ import type {
  */
 export const BOOKING_STATUS_LABELS: Record<RentalBookingStatus, string> = {
   INQUIRY: "Informations",
+  FINANCIAL: "Financier",
   CONTRACT: "Contrat",
   FINALISATION: "Finalisation",
   CHECK_IN: "Séjour",
@@ -25,6 +26,7 @@ export const BOOKING_STATUS_LABELS: Record<RentalBookingStatus, string> = {
  */
 export const BOOKING_PIPELINE: RentalBookingStatus[] = [
   "INQUIRY",
+  "FINANCIAL",
   "CONTRACT",
   "FINALISATION",
   "CHECK_IN",
