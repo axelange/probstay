@@ -36,11 +36,16 @@ export function hasPermission(
     return permission !== "MANAGE_REGISTERS";
   }
 
-  // A Moderator mirrors an Admin except that managing people is not
-  // theirs by default. An Admin may still grant it per-Moderator, which
-  // lands in user_permissions and is caught by the override above.
+  // A Moderator mirrors an Admin except that managing people and editing
+  // the document templates are not theirs by default. An Admin may still
+  // grant either per-Moderator, which lands in user_permissions and is
+  // caught by the override above.
   if (user.role === "MODERATOR") {
-    return permission !== "MANAGE_REGISTERS" && permission !== "MANAGE_USERS";
+    return (
+      permission !== "MANAGE_REGISTERS" &&
+      permission !== "MANAGE_USERS" &&
+      permission !== "MANAGE_DOCUMENT_TEMPLATES"
+    );
   }
 
   return false;

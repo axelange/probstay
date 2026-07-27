@@ -59,6 +59,12 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/documents", label: "Documents", icon: "documents" },
       {
+        href: "/documents/templates",
+        label: "Modèles",
+        icon: "documents",
+        permission: "MANAGE_DOCUMENT_TEMPLATES",
+      },
+      {
         href: "/invoices",
         label: "Factures",
         icon: "invoices",
