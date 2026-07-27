@@ -88,6 +88,12 @@ export async function createContact(
         notes: notes || null,
         types,
         kind,
+        // Civil identity — only for an individual.
+        birthDate: !isCompany && data.birthDate ? new Date(data.birthDate) : null,
+        birthPlace: isCompany ? null : (data.birthPlace ?? null),
+        nationality: isCompany ? null : (data.nationality ?? null),
+        idDocType: isCompany ? null : (data.idDocType ?? null),
+        idDocNumber: isCompany ? null : (data.idDocNumber ?? null),
         specialties,
         otherSpecialty: otherSpecialty || null,
         // The company block, only for a legal entity. Its email/phone are

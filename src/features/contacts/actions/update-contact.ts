@@ -106,6 +106,17 @@ export async function updateContact(
               }),
           types: data.types,
           kind: data.kind,
+          // Civil identity is an individual's — cleared for a company,
+          // whose identity lives on the company block instead.
+          birthDate: isCompany
+            ? null
+            : data.birthDate
+              ? new Date(data.birthDate)
+              : null,
+          birthPlace: isCompany ? null : (data.birthPlace ?? null),
+          nationality: isCompany ? null : (data.nationality ?? null),
+          idDocType: isCompany ? null : (data.idDocType ?? null),
+          idDocNumber: isCompany ? null : (data.idDocNumber ?? null),
           specialties: data.specialties,
           otherSpecialty: data.otherSpecialty || null,
           notes: data.notes || null,

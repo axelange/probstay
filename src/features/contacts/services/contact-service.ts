@@ -139,6 +139,12 @@ export async function getContactDetail(id: string, user: CurrentUser) {
       notes: true,
       types: true,
       kind: true,
+      // Civil identity of an individual (contracts).
+      birthDate: true,
+      birthPlace: true,
+      nationality: true,
+      idDocType: true,
+      idDocNumber: true,
       // BSTAY's own company block, following the contact's own visibility.
       company: {
         select: {

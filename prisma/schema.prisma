@@ -255,6 +255,16 @@ model Contact {
   kind    ContactKind     @default(INDIVIDUAL)
   company ContactCompany?
 
+  // Civil identity of an individual, needed for rental contracts (birth,
+  // nationality, identity document). BSTAY's own data — the APIMO sync
+  // never writes these columns, so they survive every re-sync. A company's
+  // identity lives on `company` instead; these stay empty for it.
+  birthDate   DateTime? @db.Date
+  birthPlace  String?
+  nationality String?
+  idDocType   String? // Passeport, CNI, Titre de séjour…
+  idDocNumber String?
+
   // `apimoId` is the identity for anything synced from APIMO; contacts
   // created in BSTAY simply have none.
   apimoId Int? @unique

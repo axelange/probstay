@@ -48,6 +48,19 @@ const companyFields = {
 };
 
 /**
+ * Civil identity of an individual, needed on rental contracts. All optional
+ * here; a document's completeness gate is what makes them required at
+ * generation time. Shared with the direct-rental flow.
+ */
+export const individualDetailFields = {
+  birthDate: optionalDate,
+  birthPlace: optionalText(160),
+  nationality: optionalText(120),
+  idDocType: optionalText(60),
+  idDocNumber: optionalText(60),
+};
+
+/**
  * The same rules the database enforces, restated so the user gets a
  * message rather than a constraint violation.
  *
@@ -90,7 +103,7 @@ const OTHER_NEEDS_TEXT = {
 };
 
 export const contactSchema = z
-  .object({ ...contactFields, ...companyFields })
+  .object({ ...contactFields, ...companyFields, ...individualDetailFields })
   .refine(
     (v) => !v.specialties.includes("OTHER") || Boolean(v.otherSpecialty),
     OTHER_NEEDS_TEXT
@@ -115,6 +128,7 @@ export const updateContactSchema = z
   .object({
     ...contactFields,
     ...companyFields,
+    ...individualDetailFields,
     id: z.uuid(),
     iban: z.string().trim().max(34).optional(),
   })

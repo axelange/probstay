@@ -42,6 +42,12 @@ export type EditableContact = {
     repBirthPlace: string | null;
     repNationality: string | null;
   } | null;
+  // Civil identity of an individual (contracts).
+  birthDate: Date | null;
+  birthPlace: string | null;
+  nationality: string | null;
+  idDocType: string | null;
+  idDocNumber: string | null;
   specialties: ContactSpecialty[];
   otherSpecialty: string | null;
   apimoId: number | null;
@@ -81,6 +87,12 @@ export function EditContactForm({
     repBirthDate: toDateInput(contact.company?.repBirthDate ?? null),
     repBirthPlace: contact.company?.repBirthPlace ?? "",
     repNationality: contact.company?.repNationality ?? "",
+    // Individual civil identity.
+    birthDate: toDateInput(contact.birthDate),
+    birthPlace: contact.birthPlace ?? "",
+    nationality: contact.nationality ?? "",
+    idDocType: contact.idDocType ?? "",
+    idDocNumber: contact.idDocNumber ?? "",
   });
   const [kind, setKind] = React.useState<ContactKind>(contact.kind);
   const [types, setTypes] = React.useState<ContactType[]>(contact.types);
@@ -368,6 +380,71 @@ export function EditContactForm({
                   autoComplete="off"
                 />
               </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {!isCompany ? (
+        <section className="space-y-3">
+          <h3 className="text-sm font-medium">Identité civile</h3>
+          <p className="text-muted-foreground text-xs">
+            Requise pour les contrats. Propre à BSTAY — jamais issue d&apos;APIMO
+            ni écrasée par une synchronisation.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="birthDate">Date de naissance</Label>
+              <Input
+                id="birthDate"
+                type="date"
+                value={form.birthDate}
+                onChange={(e) => set("birthDate", e.target.value)}
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="birthPlace">Lieu de naissance</Label>
+              <Input
+                id="birthPlace"
+                value={form.birthPlace}
+                onChange={(e) => set("birthPlace", e.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="nationality">Nationalité(s)</Label>
+              <Input
+                id="nationality"
+                placeholder="Française"
+                value={form.nationality}
+                onChange={(e) => set("nationality", e.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="idDocType">Pièce d&apos;identité</Label>
+              <Input
+                id="idDocType"
+                placeholder="Passeport, CNI, Titre de séjour…"
+                value={form.idDocType}
+                onChange={(e) => set("idDocType", e.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="idDocNumber">Numéro de la pièce</Label>
+              <Input
+                id="idDocNumber"
+                value={form.idDocNumber}
+                onChange={(e) => set("idDocNumber", e.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+                className="font-mono text-xs sm:max-w-xs"
+              />
             </div>
           </div>
         </section>
