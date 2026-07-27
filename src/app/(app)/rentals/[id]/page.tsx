@@ -184,6 +184,8 @@ export default async function RentalDetailPage({
               guests: rental.guests,
               netOwnerAmount: rental.netOwnerAmount,
               commissionAmount: rental.commissionAmount,
+              touristTaxAmount: rental.touristTaxAmount,
+              touristTaxRate: rental.touristTaxAmount !== null ? rental.touristTaxRate : null,
               grossAmount: rental.grossAmount,
               depositAmount: rental.depositAmount,
               securityDepositAmount: rental.securityDepositAmount,

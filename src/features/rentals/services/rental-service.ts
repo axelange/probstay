@@ -137,6 +137,8 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
       securityDepositAmount: true,
       commissionAmount: true,
       commissionRate: true,
+      touristTaxAmount: true,
+      touristTaxRate: true,
       currency: true,
       notes: true,
       ownerConfirmedAt: true,
@@ -231,7 +233,10 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
     commissionRate: toNumber(rental.commissionRate),
     // amount is a non-null Decimal on this table, so convert directly.
     services: rental.services.map((s) => ({ ...s, amount: s.amount.toNumber() })),
-    touristTaxRate: taxRow[0]?.amount ?? null,
+    // Frozen at contract signature; before that the tax follows the
+    // city's current rate.
+    touristTaxAmount: toNumber(rental.touristTaxAmount),
+    touristTaxRate: toNumber(rental.touristTaxRate) ?? taxRow[0]?.amount ?? null,
   };
 }
 

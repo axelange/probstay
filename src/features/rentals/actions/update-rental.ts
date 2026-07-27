@@ -10,6 +10,7 @@ import {
   canManageRental,
 } from "@/features/rentals/services/rental-service";
 import { missingToReach } from "@/features/rentals/utils/rental-gates";
+import { nights } from "@/features/rentals/components/rental-labels";
 
 export type UpdateRentalResult =
   | { status: "success" }
@@ -50,11 +51,15 @@ export async function updateRental(
       bookingStatus: true,
       ownerId: true,
       agentId: true,
+      checkIn: true,
+      checkOut: true,
       ownerConfirmedAt: true,
       contractSignedAt: true,
       securityDepositReturnedAt: true,
       tenantAgentId: true,
-      property: { select: { id: true, ownerId: true, agentId: true } },
+      property: {
+        select: { id: true, ownerId: true, agentId: true, city: true },
+      },
     },
   });
   if (!rental) return { status: "error", message: "Cette location n'existe plus." };
@@ -172,6 +177,23 @@ export async function updateRental(
     update.contractSignedById = user.id;
     update.ownerId = rental.property.ownerId;
     update.agentId = rental.property.agentId;
+
+    // The tourist tax joins the frozen record: amount and the rate it was
+    // computed with, from the city's rate at this moment. Dates are locked
+    // past the enquiry, guests come from this same save. A commune
+    // revising its rate later must never rewrite a signed contract.
+    const taxRow = rental.property.city
+      ? await prisma.$queryRaw<{ amount: number }[]>`
+          SELECT amount::float8 AS amount FROM tourist_taxes
+          WHERE lower(city) = lower(${rental.property.city}) LIMIT 1`
+      : [];
+    const rate = taxRow[0]?.amount ?? null;
+    const guests = data.guests ?? null;
+    const stayNights = nights(rental.checkIn, rental.checkOut);
+    if (rate !== null && guests !== null && guests > 0) {
+      update.touristTaxRate = rate;
+      update.touristTaxAmount = rate * guests * stayNights;
+    }
   }
 
   // The one thing left after check-out. Ticking it settles the security

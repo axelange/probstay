@@ -75,6 +75,9 @@ export type FunnelRental = {
   guests: number | null;
   netOwnerAmount: number | null;
   commissionAmount: number | null;
+  /** Frozen at contract signature; null before. */
+  touristTaxAmount: number | null;
+  touristTaxRate: number | null;
   grossAmount: number | null;
   depositAmount: number | null;
   securityDepositAmount: number | null;
@@ -220,11 +223,16 @@ export function RentalFunnel({
       ? countNights(new Date(checkIn), new Date(checkOut))
       : 0;
   const guestCount = Number(guests) || 0;
-  const taxRate = selectedProperty?.city
+  // Frozen at contract signature — after that the stored figures are
+  // authoritative and a rate change in settings must not move the total.
+  const frozen = rental.touristTaxAmount !== null;
+  const liveRate = selectedProperty?.city
     ? (taxRatesByCity[selectedProperty.city.toLowerCase()] ?? null)
     : null;
-  const touristTax =
-    taxRate !== null && guestCount > 0 && nights > 0
+  const taxRate = frozen ? rental.touristTaxRate : liveRate;
+  const touristTax = frozen
+    ? rental.touristTaxAmount
+    : taxRate !== null && guestCount > 0 && nights > 0
       ? taxRate * guestCount * nights
       : null;
 
