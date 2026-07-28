@@ -171,7 +171,7 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   labelFr: { color: taupe },
-  value: { fontSize: 10, fontWeight: 500, color: ink },
+  value: { fontSize: 10, fontWeight: 400, color: ink },
   line: { fontSize: 9, color: ink, marginTop: 1.5 },
 
   // Stay: four columns
