@@ -78,8 +78,8 @@ const s = StyleSheet.create({
     paddingTop: 52,
     paddingBottom: 60,
     paddingHorizontal: 58,
-    fontFamily: "Spectral",
-    fontWeight: 300,
+    fontFamily: "Neue Haas Grotesk",
+    fontWeight: 400,
     fontSize: 9.6,
     lineHeight: 1.65,
     color: ink,
@@ -101,8 +101,9 @@ const s = StyleSheet.create({
     marginTop: 3,
   },
   title: {
-    fontSize: 23,
-    fontWeight: 200,
+    fontSize: 26,
+    fontFamily: "Passenger Display",
+    fontWeight: 400,
     color: ink,
     textAlign: "center",
     marginTop: 20,
@@ -127,7 +128,7 @@ const s = StyleSheet.create({
   },
   partyLabel: {
     fontSize: 7,
-    fontWeight: 600,
+    fontWeight: 500,
     letterSpacing: 2.5,
     color: accent,
     textTransform: "uppercase",
@@ -144,7 +145,7 @@ const s = StyleSheet.create({
   },
   articleTitle: {
     fontSize: 10,
-    fontWeight: 600,
+    fontWeight: 500,
     color: ink,
     marginBottom: 4,
   },
@@ -174,7 +175,7 @@ const s = StyleSheet.create({
   totalKey: {
     width: "38%",
     fontSize: 8.5,
-    fontWeight: 600,
+    fontWeight: 700,
     letterSpacing: 1.5,
     color: ink,
     textTransform: "uppercase",
@@ -185,7 +186,7 @@ const s = StyleSheet.create({
   signCol: { width: "44%" },
   signLabel: {
     fontSize: 7,
-    fontWeight: 600,
+    fontWeight: 500,
     letterSpacing: 2,
     color: accent,
     textTransform: "uppercase",

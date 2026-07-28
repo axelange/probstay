@@ -1,8 +1,9 @@
 import { Font } from "@react-pdf/renderer";
 
-// Client-side font registration for the live preview. Same Spectral files
-// as the server (served from /public/fonts), so the browser preview is
-// byte-for-byte what the server will render.
+// Client-side font registration for the live preview. Same brand files as
+// the server (served from /public/fonts), so the browser preview is
+// byte-for-byte what the server will render: Passenger Display for titles,
+// Neue Haas Grotesk Display Pro for body.
 let done = false;
 
 export function registerDocumentFontsBrowser() {
@@ -10,16 +11,22 @@ export function registerDocumentFontsBrowser() {
   done = true;
 
   const u = (f: string) => `/fonts/${f}`;
+
   Font.register({
-    family: "Spectral",
+    family: "Passenger Display",
+    fonts: [{ src: u("PassengerDisplay-Regular.ttf"), fontWeight: 400 }],
+  });
+
+  Font.register({
+    family: "Neue Haas Grotesk",
     fonts: [
-      { src: u("Spectral-ExtraLight.ttf"), fontWeight: 200 },
-      { src: u("Spectral-Light.ttf"), fontWeight: 300 },
-      { src: u("Spectral-Regular.ttf"), fontWeight: 400 },
-      { src: u("Spectral-Medium.ttf"), fontWeight: 500 },
-      { src: u("Spectral-SemiBold.ttf"), fontWeight: 600 },
-      { src: u("Spectral-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: u("NeueHaasGrotesk-Light.otf"), fontWeight: 300 },
+      { src: u("NeueHaasGrotesk-Roman.otf"), fontWeight: 400 },
+      { src: u("NeueHaasGrotesk-Italic.otf"), fontWeight: 400, fontStyle: "italic" },
+      { src: u("NeueHaasGrotesk-Medium.otf"), fontWeight: 500 },
+      { src: u("NeueHaasGrotesk-Bold.otf"), fontWeight: 700 },
     ],
   });
+
   Font.registerHyphenationCallback((w) => [w]);
 }
