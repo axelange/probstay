@@ -60,6 +60,8 @@ export type ContratData = {
   money: {
     rent: string;
     services: { label: string; amount: string }[];
+    /** Parahôtellerie VAT (10% on the owner's net); absent for HT rentals. */
+    vat?: string;
     touristTax: string;
     total: string;
     securityDeposit: string;
@@ -376,6 +378,9 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
         <Section lead="Article 4 — Loyer, services et taxe de séjour">
           <View>
             <Fact k="Loyer de la location" v={data.money.rent} amount />
+            {data.money.vat ? (
+              <Fact k="dont TVA 10 % (parahôtellerie)" v={data.money.vat} amount />
+            ) : null}
             {data.money.services.map((sv, i) => (
               <Fact key={i} k={sv.label} v={sv.amount} amount />
             ))}

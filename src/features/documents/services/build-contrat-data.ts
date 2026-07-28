@@ -51,7 +51,17 @@ export async function buildContratData(
       depositAmount: true,
       securityDepositAmount: true,
       tenantAgentId: true,
-      owner: { select: { firstName: true, lastName: true, kind: true, email: true, phone: true, address: true } },
+      owner: {
+        select: {
+          firstName: true,
+          lastName: true,
+          kind: true,
+          email: true,
+          phone: true,
+          address: true,
+          company: { select: { paraHotelRegime: true } },
+        },
+      },
       property: {
         select: {
           marketingName: true,
@@ -64,7 +74,17 @@ export async function buildContratData(
           bedrooms: true,
           sleeps: true,
           agentId: true,
-          owner: { select: { firstName: true, lastName: true, kind: true, email: true, phone: true, address: true } },
+          owner: {
+            select: {
+              firstName: true,
+              lastName: true,
+              kind: true,
+              email: true,
+              phone: true,
+              address: true,
+              company: { select: { paraHotelRegime: true } },
+            },
+          },
         },
       },
       services: {
@@ -142,8 +162,23 @@ export async function buildContratData(
       taxRate !== null && guests > 0 ? taxRate * guests * stayNights : 0;
   }
 
-  const total = rent + billedTotal + touristTax;
   const owner = rental.owner ?? p.owner;
+
+  // Parahôtellerie VAT: the owner's net is VAT-inclusive (TTC), so the 10% is
+  // the portion already inside it (net − net/1.1), not added on top. Only for a
+  // company owner under that regime; every other amount stays HT. The total is
+  // unchanged — the VAT already sits inside grossAmount — so the line is an
+  // informational "dont TVA".
+  const PARA_HOTEL_VAT = 0.1;
+  const paraHotel =
+    owner?.kind === "COMPANY" && owner.company?.paraHotelRegime === true;
+  const netOwner = n(rental.netOwnerAmount);
+  const vat = paraHotel
+    ? Math.round((netOwner - netOwner / (1 + PARA_HOTEL_VAT)) * 100) / 100
+    : 0;
+  const showVat = vat > 0;
+
+  const total = rent + billedTotal + touristTax;
 
   const bedrooms = p.bedrooms ?? 0;
   const sleeps = p.sleeps ?? 0;
@@ -212,6 +247,7 @@ export async function buildContratData(
         label: sv.label,
         amount: money(n(sv.amount)),
       })),
+      vat: showVat ? money(vat) : undefined,
       touristTax: taxRate !== null ? money(touristTax) : "—",
       total: money(total),
       securityDeposit: money(n(rental.securityDepositAmount)),
