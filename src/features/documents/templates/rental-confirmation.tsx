@@ -127,8 +127,8 @@ const s = StyleSheet.create({
   introEn: { color: ink },
   introFr: { color: taupe, fontStyle: "italic", marginTop: 3 },
 
-  // Section header: a small gold numeral, a medium-weight gold sans title and
-  // a muted French caption, underlined by a single gold rule — no filled badge.
+  // Section header: a gold serif (Passenger Display) numeral and title with a
+  // muted French caption, underlined by a single gold rule — no filled badge.
   sectionHead: {
     flexDirection: "row",
     alignItems: "baseline",
@@ -138,8 +138,8 @@ const s = StyleSheet.create({
     borderBottomWidth: 0.7,
     borderBottomColor: gold,
   },
-  sectionNum: { fontFamily: SANS, fontWeight: 500, fontSize: 11, color: gold, marginRight: 10 },
-  sectionEn: { fontFamily: SANS, fontWeight: 500, fontSize: 10.5, color: gold, letterSpacing: 1.2, textTransform: "uppercase" },
+  sectionNum: { fontFamily: SERIF, fontSize: 12, color: gold, marginRight: 10 },
+  sectionEn: { fontFamily: SERIF, fontSize: 12.5, color: gold, letterSpacing: 0.5 },
   sectionFr: { fontSize: 7.5, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginLeft: 9 },
 
   // Boxes — hairline outline, medium-weight gold sans title over a gold rule.
