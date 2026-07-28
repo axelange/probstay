@@ -79,8 +79,6 @@ const gold = "#a1885d"; // TITLES only (document, sections, boxes) + their rules
 const ink = "#1a1613"; // black — primary body text, values, amounts
 const taupe = "#8a8478"; // grey — secondary text, labels, French captions
 const hair = "#e3dccf"; // hairline separators and box outlines
-const navy = "#041c2c"; // brand blue — the box-title band
-const cream = "#f4efe6"; // warm ivory — box-title text on the navy band
 
 const SERIF = "Passenger Display";
 const SANS = "Familjen Grotesk";
@@ -144,18 +142,19 @@ const s = StyleSheet.create({
   sectionEn: { fontFamily: SERIF, fontSize: 12.5, color: gold, letterSpacing: 0.5 },
   sectionFr: { fontSize: 7.5, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginLeft: 9 },
 
-  // Boxes — hairline outline, cream sans title on a navy band.
+  // Boxes — hairline outline, black sans title on white over a hairline.
   box: { borderWidth: 0.5, borderColor: hair },
   boxHeader: {
-    backgroundColor: navy,
     paddingTop: 8,
     paddingBottom: 6,
     paddingHorizontal: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: hair,
   },
-  boxHeaderEn: { fontFamily: SANS, fontWeight: 500, fontSize: 9, color: cream, letterSpacing: 1.4, textTransform: "uppercase" },
+  boxHeaderEn: { fontFamily: SANS, fontWeight: 500, fontSize: 9, color: ink, letterSpacing: 1.4, textTransform: "uppercase" },
   boxHeaderFr: {
     fontSize: 6.8,
-    color: "#b3ab98",
+    color: taupe,
     letterSpacing: 1.4,
     textTransform: "uppercase",
     marginTop: 2,
