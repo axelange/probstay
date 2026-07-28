@@ -81,7 +81,7 @@ const taupe = "#8a8478"; // grey — secondary text, labels, French captions
 const hair = "#e3dccf"; // hairline separators and box outlines
 
 const SERIF = "Passenger Display";
-const SANS = "Neue Haas Grotesk";
+const SANS = "Familjen Grotesk";
 
 // The logo is embedded from a bundled PNG. On the server react-pdf reads it
 // from disk (absolute path); in the browser the same file is served from
@@ -142,16 +142,16 @@ const s = StyleSheet.create({
   sectionEn: { fontFamily: SERIF, fontSize: 12.5, color: gold, letterSpacing: 0.5 },
   sectionFr: { fontSize: 7.5, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginLeft: 9 },
 
-  // Boxes — hairline outline, medium-weight gold sans title over a gold rule.
+  // Boxes — hairline outline, medium-weight black sans title over a hairline.
   box: { borderWidth: 0.5, borderColor: hair },
   boxHeader: {
     paddingTop: 8,
     paddingBottom: 6,
     paddingHorizontal: 12,
-    borderBottomWidth: 0.6,
-    borderBottomColor: gold,
+    borderBottomWidth: 0.5,
+    borderBottomColor: hair,
   },
-  boxHeaderEn: { fontFamily: SANS, fontWeight: 500, fontSize: 9, color: gold, letterSpacing: 1.4, textTransform: "uppercase" },
+  boxHeaderEn: { fontFamily: SANS, fontWeight: 500, fontSize: 9, color: ink, letterSpacing: 1.4, textTransform: "uppercase" },
   boxHeaderFr: {
     fontSize: 6.8,
     color: taupe,
