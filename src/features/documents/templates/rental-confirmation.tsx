@@ -11,14 +11,14 @@ import {
 
 /**
  * "Rental Confirmation / Confirmation de location" — the agency's house
- * charte, bilingual EN/FR: navy numbered sections, gold accents, boxed
- * parties/property, stay, services, financial and payment tables, then the
- * signature blocks. Every value is passed in (assembled from the rental),
+ * charte, bilingual EN/FR in a warm neutral palette (charcoal on cream,
+ * gold only as a sparing accent): numbered sections, boxed parties/property,
+ * stay, services, financial and payment tables, then the signature blocks. Every value is passed in (assembled from the rental),
  * never typed by hand; the same component renders the server file and the
  * live browser preview.
  */
 
-/** An English label with its French counterpart (shown in gold). */
+/** An English label with its French counterpart (shown muted). */
 export type Bilingual = { en: string; fr?: string };
 
 export type ConfirmationData = {
@@ -71,13 +71,15 @@ export type ConfirmationData = {
   };
 };
 
-// Brand palette (house charte).
-const navy = "#041c2c";
-const gold = "#a7926c";
-const goldFill = "#b1a079";
-const ink = "#1f1d1a";
-// Soft warm hairline for refined rules and box outlines.
-const hair = "#e6ddcc";
+// Warm, restrained palette — charcoal on cream, gold as a sparing accent
+// rather than the dominant colour. Navy is gone from the body; it survives
+// only in the printed logo.
+const ink = "#2b2723"; // warm charcoal: primary text and titles
+const gold = "#9c855f"; // gold, kept for small accents and thin rules only
+const taupe = "#8c8477"; // muted secondary text, eyebrow labels, French
+const cream = "#f4efe6"; // subtle warm fill (box + table headers)
+const goldSoft = "#ece2cf"; // pale gold band for the total row
+const hair = "#e3dccf"; // hairline rules and box outlines
 
 const SERIF = "Passenger Display";
 const SANS = "Neue Haas Grotesk";
@@ -109,79 +111,79 @@ const s = StyleSheet.create({
   title: {
     fontFamily: SERIF,
     fontSize: 21,
-    color: navy,
-    textAlign: "center",
-    letterSpacing: 1,
-    marginTop: 4,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: gold,
+    color: ink,
     textAlign: "center",
     letterSpacing: 1.5,
     marginTop: 4,
   },
-  intro: { marginTop: 18, fontSize: 9 },
-  introEn: { color: ink },
-  introFr: { color: gold, fontStyle: "italic", marginTop: 3 },
-
-  // Section header: navy badge + serif EN title + gold FR title
-  sectionHead: { flexDirection: "row", alignItems: "center", marginTop: 20, marginBottom: 8 },
-  badge: {
-    width: 20,
-    height: 20,
-    backgroundColor: navy,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 9,
+  subtitle: {
+    fontSize: 9.5,
+    color: taupe,
+    textAlign: "center",
+    letterSpacing: 3,
+    textTransform: "uppercase",
+    marginTop: 6,
   },
-  badgeText: { fontFamily: SERIF, fontSize: 11, color: gold },
-  sectionEn: { fontFamily: SERIF, fontSize: 12, color: navy, letterSpacing: 0.5 },
-  sectionFr: { fontSize: 10, color: gold, letterSpacing: 0.5 },
+  intro: { marginTop: 20, fontSize: 9 },
+  introEn: { color: ink },
+  introFr: { color: taupe, fontStyle: "italic", marginTop: 3 },
 
-  // Boxes — editorial: thin warm hairline, serif navy title over a gold rule.
+  // Section header: a small gold numeral, a serif charcoal title and a muted
+  // French caption, underlined by a single hairline — no filled badge.
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginTop: 22,
+    marginBottom: 11,
+    paddingBottom: 5,
+    borderBottomWidth: 0.7,
+    borderBottomColor: hair,
+  },
+  sectionNum: { fontFamily: SERIF, fontSize: 12, color: gold, marginRight: 10 },
+  sectionEn: { fontFamily: SERIF, fontSize: 12.5, color: ink, letterSpacing: 0.5 },
+  sectionFr: { fontSize: 7.5, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginLeft: 9 },
+
+  // Boxes — hairline outline with a quiet cream header, serif charcoal title.
   box: { borderWidth: 0.5, borderColor: hair },
   boxHeader: {
-    paddingTop: 9,
+    backgroundColor: cream,
+    paddingTop: 8,
     paddingBottom: 6,
     paddingHorizontal: 12,
-    borderBottomWidth: 0.7,
-    borderBottomColor: gold,
   },
-  boxHeaderEn: { fontFamily: SERIF, fontSize: 10.5, color: navy, letterSpacing: 0.6 },
+  boxHeaderEn: { fontFamily: SERIF, fontSize: 10.5, color: ink, letterSpacing: 0.8 },
   boxHeaderFr: {
-    fontStyle: "italic",
-    fontSize: 7,
-    color: gold,
+    fontSize: 6.8,
+    color: taupe,
     letterSpacing: 1.4,
     textTransform: "uppercase",
     marginTop: 2,
   },
   boxBody: { padding: 12 },
 
-  // Eyebrow labels: uppercase, letter-spaced, gold.
+  // Eyebrow labels: uppercase, letter-spaced, muted taupe.
   label: {
     fontSize: 6.8,
-    color: gold,
+    color: taupe,
     letterSpacing: 1,
     textTransform: "uppercase",
     marginBottom: 2,
   },
-  labelFr: { color: gold },
-  value: { fontSize: 10, fontWeight: 500, color: navy },
+  labelFr: { color: taupe },
+  value: { fontSize: 10, fontWeight: 500, color: ink },
   line: { fontSize: 9, color: ink, marginTop: 1.5 },
 
   // Stay: four columns
   statCol: { flex: 1, alignItems: "center", paddingVertical: 13, paddingHorizontal: 4 },
   statLabel: {
     fontSize: 6.8,
-    color: gold,
+    color: taupe,
     letterSpacing: 1,
     textTransform: "uppercase",
     marginBottom: 5,
   },
-  statLabelFr: { color: gold },
-  statValue: { fontSize: 11, fontWeight: 500, color: navy },
+  statLabelFr: { color: taupe },
+  statValue: { fontSize: 11, fontWeight: 500, color: ink },
   vDivider: { width: 0.5, backgroundColor: hair },
 
   // Services
@@ -189,13 +191,13 @@ const s = StyleSheet.create({
   bulletDot: { width: 10, fontSize: 9, color: gold },
   bulletText: { flex: 1, fontSize: 8.8 },
 
-  // Financial table — navy header with gold caps, gold total with navy caps.
+  // Financial table — quiet cream header, hairline rows, a pale-gold total.
   fRow: { flexDirection: "row", borderTopWidth: 0.5, borderTopColor: hair },
-  fHeadRow: { flexDirection: "row", backgroundColor: navy },
-  fHeadCell: { paddingVertical: 7, paddingHorizontal: 12, color: gold, fontWeight: 700, fontSize: 8, letterSpacing: 1.2, textTransform: "uppercase" },
+  fHeadRow: { flexDirection: "row", backgroundColor: cream, borderBottomWidth: 0.7, borderBottomColor: gold },
+  fHeadCell: { paddingVertical: 7, paddingHorizontal: 12, color: ink, fontWeight: 700, fontSize: 7.5, letterSpacing: 1.4, textTransform: "uppercase" },
   fCell: { paddingVertical: 8, paddingHorizontal: 12, fontSize: 9.5, color: ink },
-  fTotalRow: { flexDirection: "row", backgroundColor: goldFill },
-  fTotalCell: { paddingVertical: 9, paddingHorizontal: 12, color: navy, fontWeight: 700, fontSize: 9.5, letterSpacing: 1, textTransform: "uppercase" },
+  fTotalRow: { flexDirection: "row", backgroundColor: goldSoft, borderTopWidth: 0.7, borderTopColor: gold },
+  fTotalCell: { paddingVertical: 9, paddingHorizontal: 12, color: ink, fontWeight: 700, fontSize: 9.5, letterSpacing: 1, textTransform: "uppercase" },
 
   // Payment terms
   pRow: { flexDirection: "row", borderWidth: 0.5, borderColor: hair, borderTopWidth: 0 },
@@ -203,21 +205,21 @@ const s = StyleSheet.create({
   pCellLabel: { flex: 1.5, paddingVertical: 11, paddingHorizontal: 12, justifyContent: "center" },
   pCellAmount: { flex: 1, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderLeftWidth: 0.5, borderLeftColor: hair },
   pCellDue: { flex: 1.5, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderLeftWidth: 0.5, borderLeftColor: hair },
-  pAmount: { fontSize: 12, fontWeight: 700, color: navy },
+  pAmount: { fontSize: 12, fontWeight: 700, color: ink },
   pDue: { fontSize: 8.5, color: ink, textAlign: "center" },
 
   // Legal prose paragraphs
   paraEn: { fontSize: 9, color: ink, marginBottom: 6 },
-  paraFr: { fontSize: 8.8, color: gold, marginBottom: 5 },
+  paraFr: { fontSize: 8.8, color: taupe, marginBottom: 5 },
 
   // Signatures
   signRow: { flexDirection: "row", marginTop: 26 },
   signBox: { flex: 1, borderWidth: 0.5, borderColor: hair, minHeight: 128, padding: 14, alignItems: "center" },
-  signTitle: { fontSize: 9.5, marginBottom: 8 },
-  signTitleFr: { color: gold, fontStyle: "italic" },
-  signName: { fontWeight: 700, fontStyle: "italic", fontSize: 10, color: navy, marginBottom: 3 },
+  signTitle: { fontSize: 9.5, marginBottom: 8, color: ink },
+  signTitleFr: { color: taupe, fontStyle: "italic" },
+  signName: { fontWeight: 700, fontStyle: "italic", fontSize: 10, color: ink, marginBottom: 3 },
   signRep: { fontSize: 8.5, color: ink },
-  signRepFr: { color: gold },
+  signRepFr: { color: taupe },
 
   // Footer (fixed)
   footer: {
@@ -227,16 +229,16 @@ const s = StyleSheet.create({
     right: 46,
     alignItems: "center",
   },
-  footLine: { fontSize: 7.2, color: gold, textAlign: "center", lineHeight: 1.45 },
+  footLine: { fontSize: 7.2, color: taupe, textAlign: "center", lineHeight: 1.45 },
   footStrong: { fontWeight: 700, color: ink },
-  footWeb: { fontWeight: 700, color: navy },
+  footWeb: { fontWeight: 700, color: gold },
   pageMark: {
     position: "absolute",
     bottom: 26,
     right: 46,
     flexDirection: "row",
     fontSize: 7.5,
-    color: gold,
+    color: taupe,
   },
 });
 
@@ -266,13 +268,9 @@ function Bi({
 function SectionHead({ n, en, fr }: { n: number; en: string; fr: string }) {
   return (
     <View style={s.sectionHead} wrap={false}>
-      <View style={s.badge}>
-        <Text style={s.badgeText}>{n}</Text>
-      </View>
-      <Text>
-        <Text style={s.sectionEn}>{en} </Text>
-        <Text style={s.sectionFr}>/ {fr}</Text>
-      </Text>
+      <Text style={s.sectionNum}>{String(n).padStart(2, "0")}</Text>
+      <Text style={s.sectionEn}>{en}</Text>
+      <Text style={s.sectionFr}>{fr}</Text>
     </View>
   );
 }
@@ -420,7 +418,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
                   <Text style={s.bulletDot}>•</Text>
                   <Text style={s.bulletText}>
                     {it.en}
-                    {it.fr ? <Text style={{ color: gold }}> ({it.fr})</Text> : null}
+                    {it.fr ? <Text style={{ color: taupe }}> ({it.fr})</Text> : null}
                   </Text>
                 </View>
               ))}
@@ -437,7 +435,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
                   <Text style={s.bulletDot}>•</Text>
                   <Text style={s.bulletText}>
                     {it.en}
-                    {it.fr ? <Text style={{ color: gold }}> ({it.fr})</Text> : null}
+                    {it.fr ? <Text style={{ color: taupe }}> ({it.fr})</Text> : null}
                   </Text>
                 </View>
               ))}
@@ -461,7 +459,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
                   en={r.label.en}
                   fr={r.label.fr}
                   style={s.fCell}
-                  frStyle={{ color: gold }}
+                  frStyle={{ color: taupe }}
                 />
               </View>
               <Text style={[s.fCell, { flex: 1, textAlign: "right" }]}>
@@ -489,7 +487,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
                   en={p.label.en}
                   fr={p.label.fr}
                   style={{ fontSize: 9 }}
-                  frStyle={{ color: gold }}
+                  frStyle={{ color: taupe }}
                 />
               </View>
               <View style={s.pCellAmount}>
@@ -498,7 +496,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
               <View style={s.pCellDue}>
                 <Text style={s.pDue}>
                   Due no later than{"\n"}
-                  <Text style={{ color: gold }}>À verser au plus tard le :</Text>
+                  <Text style={{ color: taupe }}>À verser au plus tard le :</Text>
                   {"\n"}
                   {p.due}
                 </Text>
