@@ -89,6 +89,7 @@ export async function updateContact(
     repBirthDate: data.repBirthDate ? new Date(data.repBirthDate) : null,
     repBirthPlace: data.repBirthPlace ?? null,
     repNationality: data.repNationality ?? null,
+    paraHotelRegime: data.paraHotelRegime,
   };
 
   try {

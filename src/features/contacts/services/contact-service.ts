@@ -158,6 +158,7 @@ export async function getContactDetail(id: string, user: CurrentUser) {
           repBirthDate: true,
           repBirthPlace: true,
           repNationality: true,
+          paraHotelRegime: true,
         },
       },
       specialties: true,

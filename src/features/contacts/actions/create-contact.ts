@@ -114,6 +114,7 @@ export async function createContact(
                     : null,
                   repBirthPlace: data.repBirthPlace ?? null,
                   repNationality: data.repNationality ?? null,
+                  paraHotelRegime: data.paraHotelRegime,
                 },
               },
             }

@@ -40,6 +40,9 @@ export const companyDetailFields = {
   repBirthDate: optionalDate,
   repBirthPlace: optionalText(160),
   repNationality: optionalText(120),
+  // Régime parahôtelier: this company owner charges 10% VAT on their net
+  // rental income, which the documents then add to the client total.
+  paraHotelRegime: z.boolean().default(false),
 };
 
 const companyFields = {

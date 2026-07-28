@@ -47,6 +47,7 @@ const EMPTY = {
   repBirthDate: "",
   repBirthPlace: "",
   repNationality: "",
+  paraHotelRegime: false,
 };
 
 export function CreateContactDialog() {
@@ -290,6 +291,30 @@ export function CreateContactDialog() {
                     autoComplete="off"
                   />
                 </div>
+
+                <label className="flex items-start gap-3 rounded-md border p-3">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4"
+                    checked={form.paraHotelRegime}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        paraHotelRegime: e.target.checked,
+                      }))
+                    }
+                    disabled={isPending}
+                  />
+                  <span className="space-y-1">
+                    <span className="block text-sm font-medium">
+                      Régime parahôtelier (TVA 10 %)
+                    </span>
+                    <span className="text-muted-foreground block text-xs">
+                      Ajoute une TVA à 10 % sur le net propriétaire dans les
+                      documents. Sans cela, les montants sont exprimés HT.
+                    </span>
+                  </span>
+                </label>
 
                 <p className="text-muted-foreground pt-1 text-xs">
                   Représentant légal

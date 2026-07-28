@@ -349,6 +349,12 @@ model ContactCompany {
   repBirthPlace  String? // ← APIMO birthplace
   repNationality String? // ← comment "Nationalité(s)" else APIMO nationality
 
+  // Régime parahôtelier: a company owner under this VAT regime charges 10% VAT
+  // on their net rental income. When set, documents add a "TVA 10 %" line on
+  // netOwnerAmount to the client total; otherwise every amount stays HT. BSTAY-
+  // owned data, never touched by the APIMO sync.
+  paraHotelRegime Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

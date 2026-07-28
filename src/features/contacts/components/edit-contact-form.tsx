@@ -49,6 +49,7 @@ export type EditableContact = {
     repBirthDate: Date | null;
     repBirthPlace: string | null;
     repNationality: string | null;
+    paraHotelRegime: boolean;
   } | null;
   // Civil identity of an individual (contracts).
   birthDate: Date | null;
@@ -96,6 +97,7 @@ export function EditContactForm({
     repBirthDate: toDateInput(contact.company?.repBirthDate ?? null),
     repBirthPlace: contact.company?.repBirthPlace ?? "",
     repNationality: contact.company?.repNationality ?? "",
+    paraHotelRegime: contact.company?.paraHotelRegime ?? false,
     // Individual civil identity.
     birthDate: toDateInput(contact.birthDate),
     birthPlace: contact.birthPlace ?? "",
@@ -324,6 +326,27 @@ export function EditContactForm({
               autoComplete="off"
             />
           </div>
+
+          <label className="flex items-start gap-3 rounded-md border p-3">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4"
+              checked={form.paraHotelRegime}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, paraHotelRegime: e.target.checked }))
+              }
+              disabled={disabled}
+            />
+            <span className="space-y-1">
+              <span className="block text-sm font-medium">
+                Régime parahôtelier (TVA 10 %)
+              </span>
+              <span className="text-muted-foreground block text-xs">
+                Ajoute une TVA à 10 % sur le net propriétaire dans les documents
+                (contrat, confirmation). Sans cela, les montants sont exprimés HT.
+              </span>
+            </span>
+          </label>
 
           <div className="space-y-3">
             <p className="text-sm font-medium">Représentant légal</p>
