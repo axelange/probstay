@@ -138,8 +138,8 @@ const s = StyleSheet.create({
     borderBottomWidth: 0.7,
     borderBottomColor: gold,
   },
-  sectionNum: { fontFamily: SERIF, fontSize: 12, color: gold, marginRight: 10 },
-  sectionEn: { fontFamily: SERIF, fontSize: 12.5, color: gold, letterSpacing: 0.5 },
+  sectionNum: { fontFamily: SANS, fontWeight: 700, fontSize: 11, color: gold, marginRight: 10 },
+  sectionEn: { fontFamily: SANS, fontWeight: 700, fontSize: 10.5, color: gold, letterSpacing: 1.2, textTransform: "uppercase" },
   sectionFr: { fontSize: 7.5, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginLeft: 9 },
 
   // Boxes — hairline outline, gold serif title over a gold rule, no fill.
@@ -151,7 +151,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 0.6,
     borderBottomColor: gold,
   },
-  boxHeaderEn: { fontFamily: SERIF, fontSize: 10.5, color: gold, letterSpacing: 0.8 },
+  boxHeaderEn: { fontFamily: SANS, fontWeight: 700, fontSize: 9, color: gold, letterSpacing: 1.4, textTransform: "uppercase" },
   boxHeaderFr: {
     fontSize: 6.8,
     color: taupe,
