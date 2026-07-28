@@ -32,6 +32,17 @@ export function registerDocumentFonts() {
     ],
   });
 
+  // Familjen Grotesk (Google Fonts, OFL) — a grotesque alternative to Neue
+  // Haas, downloaded as static WOFF faces (Regular/Medium/Italic).
+  Font.register({
+    family: "Familjen Grotesk",
+    fonts: [
+      { src: p("FamiljenGrotesk-Regular.woff"), fontWeight: 400 },
+      { src: p("FamiljenGrotesk-Italic.woff"), fontWeight: 400, fontStyle: "italic" },
+      { src: p("FamiljenGrotesk-Medium.woff"), fontWeight: 500 },
+    ],
+  });
+
   // French legal prose reads better whole than hyphenated by an English
   // dictionary — keep words intact.
   Font.registerHyphenationCallback((word) => [word]);

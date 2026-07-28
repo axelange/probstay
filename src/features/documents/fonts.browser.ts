@@ -28,5 +28,15 @@ export function registerDocumentFontsBrowser() {
     ],
   });
 
+  // Familjen Grotesk (Google Fonts, OFL) — grotesque alternative to Neue Haas.
+  Font.register({
+    family: "Familjen Grotesk",
+    fonts: [
+      { src: u("FamiljenGrotesk-Regular.woff"), fontWeight: 400 },
+      { src: u("FamiljenGrotesk-Italic.woff"), fontWeight: 400, fontStyle: "italic" },
+      { src: u("FamiljenGrotesk-Medium.woff"), fontWeight: 500 },
+    ],
+  });
+
   Font.registerHyphenationCallback((w) => [w]);
 }
