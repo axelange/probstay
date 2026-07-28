@@ -6,20 +6,18 @@ import {
   Text,
   Image,
   StyleSheet,
-  type Styles,
 } from "@react-pdf/renderer";
 
 /**
- * "Rental Confirmation / Confirmation de location" — the agency's house
- * charte, bilingual EN/FR. Titles are gold, body text is black, secondary
- * text (French captions, labels) is grey and italic; numbered sections, boxed
- * parties/property, stay, services, financial and payment tables, then the
- * signature blocks. Every value is passed in (assembled from the rental),
- * never typed by hand; the same component renders the server file and the
- * live browser preview.
+ * "Rental Confirmation / Confirmation de location" — the agency's owner-facing
+ * house charte, bilingual EN/FR. An editorial "register" composition: no boxes,
+ * hairline-separated rows, serif names and figures, a letterhead title with the
+ * reference, small-caps section labels trailed by a rule, and ruled signature
+ * lines. Every value is passed in (assembled from the rental), never typed by
+ * hand; the same component renders the server file and the browser preview.
  */
 
-/** An English label with its French counterpart (shown muted). */
+/** An English label with its French counterpart. */
 export type Bilingual = { en: string; fr?: string };
 
 export type ConfirmationData = {
@@ -72,22 +70,19 @@ export type ConfirmationData = {
   };
 };
 
-// Palette: gold is reserved for titles (and their rules); body text is black;
-// secondary text (labels, French captions) is grey. No gold in the body, no
-// filled header bands. Navy survives only in the printed logo.
-const gold = "#a1885d"; // TITLES only (document, sections, boxes) + their rules
-const ink = "#1a1613"; // black — primary body text, values, amounts
-const taupe = "#8a8478"; // grey — secondary text, labels, French captions
-const hair = "#e3dccf"; // hairline internal separators
-const border = "#d3c8b2"; // slightly darker — box / frame outlines
+// Warm, restrained palette. Gold is an accent (title, section labels, marks);
+// body text is black; secondary text (French, captions) is grey and italic.
+const ink = "#1a1613";
+const gold = "#a1885d";
+const taupe = "#8c8477";
+const hair = "#e0d8c9";
 
 const SERIF = "Passenger Display";
 const SANS = "Familjen Grotesk";
 
 // The logo is embedded from a bundled PNG. On the server react-pdf reads it
 // from disk (absolute path); in the browser the same file is served from
-// /public. No node:path import so this module also bundles for the client
-// preview.
+// /public. No node:path import so this module also bundles for the client.
 const LOGO =
   typeof window === "undefined"
     ? `${process.cwd()}/public/img/Bstay-logo-horizontal.png`
@@ -96,216 +91,124 @@ const LOGO =
 const s = StyleSheet.create({
   page: {
     paddingTop: 96,
-    paddingBottom: 92,
-    paddingHorizontal: 46,
+    paddingBottom: 66,
+    paddingHorizontal: 54,
     fontFamily: SANS,
     fontWeight: 400,
     fontSize: 9,
-    lineHeight: 1.5,
+    lineHeight: 1.55,
     color: ink,
   },
-  // A fine inset frame around the whole page — luxury stationery, repeats.
-  pageFrame: {
-    position: "absolute",
-    top: 20,
-    left: 20,
-    right: 20,
-    bottom: 20,
-    borderWidth: 0.6,
-    borderColor: gold,
-  },
 
-  // Masthead (fixed, repeats on every page)
+  // Fixed slim logo, centred, repeats on every page.
   logoWrap: { position: "absolute", top: 34, left: 0, right: 0, alignItems: "center" },
-  logo: { width: 128 },
+  logo: { width: 100 },
 
-  title: {
-    fontFamily: SERIF,
-    fontSize: 23,
-    color: gold,
-    textAlign: "center",
-    letterSpacing: 3,
-    marginTop: 6,
-  },
-  titleRuleWrap: { alignItems: "center", marginTop: 9, marginBottom: 7 },
-  titleRule: { width: 32, height: 1, backgroundColor: gold },
-  subtitle: {
-    fontSize: 8.5,
-    color: taupe,
-    textAlign: "center",
-    letterSpacing: 4,
-    textTransform: "uppercase",
-  },
-  reference: {
-    fontSize: 7,
-    color: taupe,
-    textAlign: "center",
-    letterSpacing: 2.5,
-    textTransform: "uppercase",
-    marginTop: 10,
-  },
-  intro: { marginTop: 26, fontSize: 9 },
-  introEn: { color: ink },
-  introFr: { color: taupe, fontStyle: "italic", marginTop: 3 },
-
-  // Section header: a gold serif (Passenger Display) numeral and title with a
-  // muted French caption, underlined by a single gold rule — no filled badge.
-  sectionHead: {
+  // Letterhead title block (page 1) — big serif title left, reference right,
+  // over a firm rule.
+  head: {
     flexDirection: "row",
-    alignItems: "baseline",
-    marginTop: 28,
-    marginBottom: 13,
-    paddingBottom: 6,
-    borderBottomWidth: 0.7,
-    borderBottomColor: gold,
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    borderBottomWidth: 1,
+    borderBottomColor: ink,
+    paddingBottom: 12,
   },
-  sectionNum: { fontFamily: SERIF, fontSize: 12, color: gold, marginRight: 12, letterSpacing: 1 },
-  sectionEn: { fontFamily: SERIF, fontSize: 12.5, color: gold, letterSpacing: 0.5 },
-  sectionFr: { fontSize: 7.5, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginLeft: 9 },
+  headTitle: { fontFamily: SERIF, fontSize: 27, color: ink, letterSpacing: 0.5, lineHeight: 1 },
+  headSub: { fontFamily: SERIF, fontSize: 12.5, color: gold, marginTop: 8 },
+  headMeta: { alignItems: "flex-end", paddingBottom: 3 },
+  headMetaLabel: { fontSize: 6.5, color: taupe, letterSpacing: 2.5, textTransform: "uppercase" },
+  headMetaVal: { fontFamily: SERIF, fontSize: 12, color: ink, marginTop: 3 },
 
-  // Boxes — hairline outline, black sans title on white over a hairline.
-  box: { borderWidth: 0.5, borderColor: border },
-  boxHeader: {
-    paddingTop: 8,
-    paddingBottom: 6,
-    paddingHorizontal: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: hair,
-  },
-  boxHeaderEn: { fontFamily: SANS, fontWeight: 500, fontSize: 9, color: ink, letterSpacing: 1.4, textTransform: "uppercase" },
-  boxHeaderFr: {
-    fontSize: 6.8,
-    color: taupe,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-    marginTop: 2,
-  },
-  boxBody: { padding: 15 },
+  intro: { marginTop: 16 },
+  introEn: { fontSize: 9, color: ink },
+  introFr: { fontSize: 8.6, color: taupe, fontStyle: "italic", marginTop: 3 },
 
-  // Eyebrow labels: uppercase, letter-spaced, muted taupe.
-  label: {
-    fontSize: 6.8,
-    color: taupe,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    marginBottom: 2,
-  },
-  labelFr: { color: taupe },
-  value: { fontSize: 10, fontWeight: 400, color: ink },
-  line: { fontSize: 9, color: ink, marginTop: 1.5 },
+  // Section: small-caps gold label + French caption + a trailing hairline.
+  section: { flexDirection: "row", alignItems: "center", marginTop: 26, marginBottom: 13 },
+  sectionLabel: { fontFamily: SANS, fontWeight: 500, fontSize: 8.5, color: gold, letterSpacing: 2.5, textTransform: "uppercase" },
+  sectionLabelFr: { fontSize: 6.8, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginLeft: 8, fontStyle: "italic" },
+  sectionRule: { flex: 1, height: 0.7, backgroundColor: hair, marginLeft: 14 },
 
-  // Stay: four columns
-  statCol: { flex: 1, alignItems: "center", paddingVertical: 13, paddingHorizontal: 4 },
-  statLabel: {
-    fontSize: 6.8,
-    color: taupe,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    marginBottom: 5,
-  },
-  statLabelFr: { color: taupe },
-  statValue: { fontSize: 11, fontWeight: 400, color: ink },
-  vDivider: { width: 0.5, backgroundColor: hair },
+  // Register fields
+  fieldLabel: { fontSize: 6.6, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 },
+  serifValue: { fontFamily: SERIF, fontSize: 14, color: ink },
+  detail: { fontSize: 9, color: ink, marginTop: 2 },
+  detailMuted: { fontSize: 9, color: taupe, marginTop: 2 },
+  frItalic: { color: taupe, fontStyle: "italic" },
 
-  // Services
-  bullet: { flexDirection: "row", marginBottom: 4 },
-  bulletDot: { width: 10, fontSize: 9, color: taupe },
-  bulletText: { flex: 1, fontSize: 8.8 },
+  // Two columns with a hairline spine.
+  twoCol: { flexDirection: "row" },
+  colLeft: { flex: 1, paddingRight: 24 },
+  colRight: { flex: 1, paddingLeft: 24, borderLeftWidth: 0.6, borderLeftColor: hair },
 
-  // Financial table — no fills: grey header labels over a soft rule, hairline
-  // rows, a slightly firmer soft rule above the total (no hard black lines).
-  fRow: { flexDirection: "row", borderTopWidth: 0.5, borderTopColor: hair },
-  fHeadRow: { flexDirection: "row", borderBottomWidth: 0.7, borderBottomColor: border },
-  fHeadCell: { paddingVertical: 7, paddingHorizontal: 12, color: taupe, fontWeight: 500, fontSize: 7.5, letterSpacing: 1.4, textTransform: "uppercase" },
-  fCell: { paddingVertical: 8, paddingHorizontal: 12, fontSize: 9.5, color: ink },
-  fTotalRow: { flexDirection: "row", borderTopWidth: 0.8, borderTopColor: border },
-  fTotalCell: { paddingVertical: 9, paddingHorizontal: 12, color: ink, fontWeight: 500, fontSize: 9.5, letterSpacing: 1, textTransform: "uppercase" },
+  // Property row
+  propRow: { flexDirection: "row", marginTop: 20, paddingTop: 16, borderTopWidth: 0.6, borderTopColor: hair },
 
-  // Payment terms
-  pRow: { flexDirection: "row", borderWidth: 0.5, borderColor: border, borderTopWidth: 0 },
-  pRowFirst: { borderTopWidth: 0.5 },
-  pCellLabel: { flex: 1.5, paddingVertical: 11, paddingHorizontal: 12, justifyContent: "center" },
-  pCellAmount: { flex: 1, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderLeftWidth: 0.5, borderLeftColor: hair },
-  pCellDue: { flex: 1.5, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderLeftWidth: 0.5, borderLeftColor: hair },
-  pAmount: { fontSize: 12, fontWeight: 500, color: ink },
-  pDue: { fontSize: 8.5, color: ink, textAlign: "center" },
+  // Stay: four airy columns
+  stayRow: { flexDirection: "row" },
+  stayCol: { flex: 1, paddingRight: 12 },
+  stayVal: { fontFamily: SERIF, fontSize: 14, color: ink },
 
-  // Legal prose paragraphs
-  paraEn: { fontSize: 9, color: ink, marginBottom: 6 },
-  paraFr: { fontSize: 8.8, color: taupe, fontStyle: "italic", marginBottom: 5 },
+  // Services list
+  svcItem: { flexDirection: "row", marginBottom: 5 },
+  svcMark: { width: 11, fontSize: 9, color: gold },
+  svcText: { flex: 1, fontSize: 8.8, color: ink },
 
-  // Signatures
-  signRow: { flexDirection: "row", marginTop: 26 },
-  signBox: { flex: 1, borderWidth: 0.5, borderColor: border, minHeight: 128, padding: 14, alignItems: "center" },
-  signTitle: { fontSize: 9.5, marginBottom: 8, color: ink },
-  signTitleFr: { color: taupe, fontStyle: "italic" },
-  // Only the roman italic (400) face is registered — no medium italic.
-  signName: { fontWeight: 400, fontStyle: "italic", fontSize: 10, color: ink, marginBottom: 3 },
-  signRep: { fontSize: 8.5, color: ink },
-  signRepFr: { color: taupe },
+  // Financial: description left, serif amount right, hairline between rows.
+  finRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", paddingVertical: 8, borderTopWidth: 0.5, borderTopColor: hair },
+  finDesc: { fontSize: 9.5, color: ink, flex: 3 },
+  finAmt: { fontFamily: SERIF, fontSize: 12, color: ink, textAlign: "right", flex: 1 },
+  finTotalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", paddingTop: 10, marginTop: 2, borderTopWidth: 1, borderTopColor: ink },
+  finTotalLabel: { fontSize: 8.5, color: ink, letterSpacing: 2, textTransform: "uppercase", flex: 3 },
+  finTotalAmt: { fontFamily: SERIF, fontSize: 16, color: ink, textAlign: "right", flex: 1 },
+
+  // Payments
+  payRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: hair },
+  payLabel: { flex: 1.4, fontSize: 9.5, color: ink },
+  payAmt: { flex: 1, fontFamily: SERIF, fontSize: 14, color: ink },
+  payDue: { flex: 1.7, alignItems: "flex-end" },
+  payDueCap: { fontSize: 6.5, color: taupe, letterSpacing: 1, textTransform: "uppercase", fontStyle: "italic" },
+  payDueVal: { fontSize: 9, color: ink, marginTop: 2 },
+  note: { marginTop: 12 },
+
+  // Prose
+  paraEn: { fontSize: 8.8, color: ink, marginBottom: 5, lineHeight: 1.5 },
+  paraFr: { fontSize: 8.4, color: taupe, fontStyle: "italic", marginBottom: 4, lineHeight: 1.5 },
+
+  // Signatures — a ruled line to sign on, role below.
+  signRow: { flexDirection: "row", gap: 44, marginTop: 34 },
+  signCol: { flex: 1 },
+  signLine: { borderBottomWidth: 0.7, borderBottomColor: ink, height: 46 },
+  signRole: { fontSize: 6.8, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginTop: 7 },
+  signName: { fontFamily: SERIF, fontSize: 12, color: ink, marginTop: 3 },
+  signRep: { fontSize: 8, color: taupe, marginTop: 1 },
 
   // Footer (fixed)
-  footer: {
-    position: "absolute",
-    bottom: 26,
-    left: 46,
-    right: 46,
-    alignItems: "center",
-  },
-  footLine: { fontSize: 7.2, color: taupe, textAlign: "center", lineHeight: 1.45 },
-  footStrong: { fontWeight: 500, color: ink },
-  footWeb: { fontWeight: 500, color: gold },
-  pageMark: {
-    position: "absolute",
-    bottom: 26,
-    right: 46,
-    flexDirection: "row",
-    fontSize: 7.5,
-    color: taupe,
-  },
+  footer: { position: "absolute", bottom: 30, left: 54, right: 54, alignItems: "center", borderTopWidth: 0.6, borderTopColor: hair, paddingTop: 9 },
+  footLine: { fontSize: 7, color: taupe, textAlign: "center", lineHeight: 1.5 },
+  footStrong: { color: ink },
+  footWeb: { color: gold },
+  pageMark: { position: "absolute", bottom: 30, right: 54, fontSize: 7, color: taupe },
 });
 
-/** Inline English + gold French, e.g. "Name / Nom". */
-type St = Styles[string];
-type TextStyle = St | St[];
-
-function Bi({
-  en,
-  fr,
-  style,
-  frStyle,
-}: {
-  en: string;
-  fr?: string;
-  style?: TextStyle;
-  frStyle?: TextStyle;
-}) {
+/** A section marker: gold label, French caption, trailing hairline. */
+function Section({ en, fr }: { en: string; fr: string }) {
   return (
-    <Text style={style}>
-      {en}
-      {fr ? <Text style={frStyle}> / {fr}</Text> : null}
+    <View style={s.section} wrap={false}>
+      <Text style={s.sectionLabel}>{en}</Text>
+      <Text style={s.sectionLabelFr}>{fr}</Text>
+      <View style={s.sectionRule} />
+    </View>
+  );
+}
+
+/** English + grey-italic French, inline: "English / français". */
+function Label({ en, fr }: { en: string; fr: string }) {
+  return (
+    <Text style={s.fieldLabel}>
+      {en} <Text style={{ fontStyle: "italic" }}>/ {fr}</Text>
     </Text>
-  );
-}
-
-const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
-
-function SectionHead({ n, en, fr }: { n: number; en: string; fr: string }) {
-  return (
-    <View style={s.sectionHead} wrap={false}>
-      <Text style={s.sectionNum}>{ROMAN[n] ?? n}</Text>
-      <Text style={s.sectionEn}>{en}</Text>
-      <Text style={s.sectionFr}>{fr}</Text>
-    </View>
-  );
-}
-
-function BoxHeader({ en, fr }: { en: string; fr: string }) {
-  return (
-    <View style={s.boxHeader}>
-      <Text style={s.boxHeaderEn}>{en}</Text>
-      <Text style={s.boxHeaderFr}>{fr}</Text>
-    </View>
   );
 }
 
@@ -317,23 +220,24 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
       author={a.legalName}
     >
       <Page size="A4" style={s.page}>
-        {/* A fine frame around the whole page — repeats on every page */}
-        <View style={s.pageFrame} fixed />
-
-        {/* Masthead — repeats on every page */}
+        {/* Fixed logo — repeats on every page */}
         <View style={s.logoWrap} fixed>
           <Image src={LOGO} style={s.logo} />
         </View>
 
-        {/* Title (page 1 only, in flow) */}
-        <Text style={s.title}>RENTAL CONFIRMATION</Text>
-        <View style={s.titleRuleWrap}>
-          <View style={s.titleRule} />
+        {/* Letterhead title (page 1, in flow) */}
+        <View style={s.head}>
+          <View>
+            <Text style={s.headTitle}>Rental Confirmation</Text>
+            <Text style={s.headSub}>Confirmation de location</Text>
+          </View>
+          {data.reference ? (
+            <View style={s.headMeta}>
+              <Text style={s.headMetaLabel}>Référence</Text>
+              <Text style={s.headMetaVal}>{data.reference}</Text>
+            </View>
+          ) : null}
         </View>
-        <Text style={s.subtitle}>CONFIRMATION DE LOCATION</Text>
-        {data.reference ? (
-          <Text style={s.reference}>Réf. {data.reference}</Text>
-        ) : null}
 
         <View style={s.intro}>
           <Text style={s.introEn}>
@@ -348,197 +252,134 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
           </Text>
         </View>
 
-        {/* 1 — Parties & property */}
-        <SectionHead n={1} en="PARTIES & PROPERTY" fr="PARTIES & BIEN" />
-        <View style={{ flexDirection: "row", gap: 10 }} wrap={false}>
-          <View style={[s.box, { flex: 1 }]}>
-            <BoxHeader en="OWNER" fr="PROPRIÉTAIRE" />
-            <View style={s.boxBody}>
-              <Bi en="Name" fr="Nom" style={s.label} frStyle={s.labelFr} />
-              <Text style={s.value}>{data.owner.name}</Text>
-              {data.owner.representedBy ? (
-                <>
-                  <Bi
-                    en="Represented by"
-                    fr="Représentée par"
-                    style={[s.label, { marginTop: 11 }]}
-                    frStyle={s.labelFr}
-                  />
-                  <Text style={s.line}>{data.owner.representedBy}</Text>
-                </>
-              ) : null}
-              {data.owner.contact ? (
-                <Text style={[s.line, { marginTop: 3 }]}>{data.owner.contact}</Text>
-              ) : null}
-            </View>
-          </View>
-
-          <View style={[s.box, { flex: 1 }]}>
-            <BoxHeader en="TENANT" fr="LOCATAIRE" />
-            <View style={s.boxBody}>
-              <Bi en="Name" fr="Nom" style={s.label} frStyle={s.labelFr} />
-              <Text style={s.value}>{data.tenant.name}</Text>
-              {data.tenant.lines.map((l, i) => (
-                <Text key={i} style={s.line}>
-                  {l}
-                </Text>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        <View style={[s.box, { marginTop: 10 }]} wrap={false}>
-          <BoxHeader en="PROPERTY" fr="BIEN LOUÉ" />
-          <View style={[s.boxBody, { flexDirection: "row" }]}>
-            <View style={{ flex: 1.5 }}>
-              <Bi en="Name" fr="Nom" style={s.label} frStyle={s.labelFr} />
-              <Text style={s.value}>{data.property.name}</Text>
-              <Bi
-                en="Address"
-                fr="Adresse"
-                style={[s.label, { marginTop: 11 }]}
-                frStyle={s.labelFr}
-              />
-              <Text style={s.line}>{data.property.address}</Text>
-            </View>
-            <View style={{ flex: 1, alignItems: "flex-end" }}>
-              <Bi
-                en="Security deposit"
-                fr="Dépôt de garantie"
-                style={[s.label, { fontStyle: "italic" }]}
-                frStyle={s.labelFr}
-              />
-              <Text style={[s.value, { marginTop: 1 }]}>
-                {data.property.securityDeposit ?? "—"}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 2 — Rental period & occupancy */}
-        <SectionHead
-          n={2}
-          en="RENTAL PERIOD AND OCCUPANCY"
-          fr="DURÉE ET OCCUPATION"
-        />
-        <View style={s.box} wrap={false}>
-          <BoxHeader en="DETAILS OF THE STAY" fr="DÉTAILS DU SÉJOUR" />
-          <View style={{ flexDirection: "row" }}>
-            {[
-              { en: "Check-in", fr: "Arrivée", v: data.stay.checkIn },
-              { en: "Check-out", fr: "Départ", v: data.stay.checkOut },
-              { en: "Duration", fr: "Durée", v: data.stay.duration },
-              { en: "Occupancy", fr: "Occupation", v: data.stay.occupancy },
-            ].map((c, i) => (
-              <React.Fragment key={c.en}>
-                {i > 0 ? <View style={s.vDivider} /> : null}
-                <View style={s.statCol}>
-                  <Bi en={c.en} fr={c.fr} style={s.statLabel} frStyle={s.statLabelFr} />
-                  <Text style={s.statValue}>{c.v}</Text>
+        {/* Parties & property */}
+        <Section en="Parties & Property" fr="Parties & bien" />
+        <View style={s.twoCol} wrap={false}>
+          <View style={s.colLeft}>
+            <Label en="Owner" fr="Propriétaire" />
+            <Text style={s.serifValue}>{data.owner.name}</Text>
+            {data.owner.representedBy ? (
+              <>
+                <View style={{ marginTop: 11 }}>
+                  <Label en="Represented by" fr="Représentée par" />
                 </View>
-              </React.Fragment>
+                <Text style={s.detail}>{data.owner.representedBy}</Text>
+              </>
+            ) : null}
+            {data.owner.contact ? (
+              <Text style={s.detailMuted}>{data.owner.contact}</Text>
+            ) : null}
+          </View>
+          <View style={s.colRight}>
+            <Label en="Tenant" fr="Locataire" />
+            <Text style={s.serifValue}>{data.tenant.name}</Text>
+            {data.tenant.lines.map((l, i) => (
+              <Text key={i} style={s.detail}>
+                {l}
+              </Text>
             ))}
           </View>
         </View>
 
-        {/* 3 — Services */}
-        <SectionHead n={3} en="SERVICES" fr="PRESTATIONS" />
-        <View style={{ flexDirection: "row", gap: 10 }} wrap={false}>
-          <View style={[s.box, { flex: 1 }]}>
-            <BoxHeader en="INCLUDED IN THE RENT" fr="INCLUS DANS LE LOYER" />
-            <View style={s.boxBody}>
-              {data.services.included.map((it, i) => (
-                <View key={i} style={s.bullet}>
-                  <Text style={s.bulletDot}>•</Text>
-                  <Text style={s.bulletText}>
-                    {it.en}
-                    {it.fr ? <Text style={{ color: taupe, fontStyle: "italic" }}> ({it.fr})</Text> : null}
-                  </Text>
-                </View>
-              ))}
-            </View>
+        <View style={s.propRow} wrap={false}>
+          <View style={{ flex: 2, paddingRight: 24 }}>
+            <Label en="Property" fr="Bien loué" />
+            <Text style={s.serifValue}>{data.property.name}</Text>
+            <Text style={s.detailMuted}>{data.property.address}</Text>
           </View>
-          <View style={[s.box, { flex: 1 }]}>
-            <BoxHeader
-              en="NOT INCLUDED (PAYABLE BY THE LESSEE)"
-              fr="NON INCLUS (À LA CHARGE DU LOCATAIRE)"
-            />
-            <View style={s.boxBody}>
-              {data.services.notIncluded.map((it, i) => (
-                <View key={i} style={s.bullet}>
-                  <Text style={s.bulletDot}>•</Text>
-                  <Text style={s.bulletText}>
-                    {it.en}
-                    {it.fr ? <Text style={{ color: taupe, fontStyle: "italic" }}> ({it.fr})</Text> : null}
-                  </Text>
-                </View>
-              ))}
-            </View>
+          <View style={{ flex: 1, alignItems: "flex-end" }}>
+            <Label en="Security deposit" fr="Dépôt de garantie" />
+            <Text style={[s.serifValue, { fontSize: 12 }]}>
+              {data.property.securityDeposit ?? "—"}
+            </Text>
           </View>
         </View>
 
-        {/* 4 — Financial summary */}
-        <SectionHead n={4} en="FINANCIAL SUMMARY" fr="RÉCAPITULATIF FINANCIER" />
-        <View style={s.box} wrap={false}>
-          <View style={s.fHeadRow}>
-            <Text style={[s.fHeadCell, { flex: 2 }]}>DESCRIPTION</Text>
-            <Text style={[s.fHeadCell, { flex: 1, textAlign: "right" }]}>
-              AMOUNT / MONTANT
-            </Text>
-          </View>
-          {data.financial.rows.map((r, i) => (
-            <View key={i} style={s.fRow}>
-              <View style={{ flex: 2 }}>
-                <Bi
-                  en={r.label.en}
-                  fr={r.label.fr}
-                  style={s.fCell}
-                  frStyle={{ color: taupe, fontStyle: "italic" }}
-                />
-              </View>
-              <Text style={[s.fCell, { flex: 1, textAlign: "right" }]}>
-                {r.amount}
-              </Text>
+        {/* Rental period & occupancy */}
+        <Section en="Rental Period & Occupancy" fr="Durée et occupation" />
+        <View style={s.stayRow} wrap={false}>
+          {[
+            { en: "Check-in", fr: "Arrivée", v: data.stay.checkIn },
+            { en: "Check-out", fr: "Départ", v: data.stay.checkOut },
+            { en: "Duration", fr: "Durée", v: data.stay.duration },
+            { en: "Occupancy", fr: "Occupation", v: data.stay.occupancy },
+          ].map((c) => (
+            <View key={c.en} style={s.stayCol}>
+              <Label en={c.en} fr={c.fr} />
+              <Text style={s.stayVal}>{c.v}</Text>
             </View>
           ))}
-          <View style={s.fTotalRow}>
-            <Text style={[s.fTotalCell, { flex: 2 }]}>
-              TOTAL / TOTAL TTC
-            </Text>
-            <Text style={[s.fTotalCell, { flex: 1, textAlign: "right" }]}>
-              {data.financial.total}
-            </Text>
+        </View>
+
+        {/* Services */}
+        <Section en="Services" fr="Prestations" />
+        <View style={s.twoCol} wrap={false}>
+          <View style={s.colLeft}>
+            <Label en="Included in the rent" fr="Inclus dans le loyer" />
+            <View style={{ marginTop: 5 }}>
+              {data.services.included.map((it, i) => (
+                <View key={i} style={s.svcItem}>
+                  <Text style={s.svcMark}>—</Text>
+                  <Text style={s.svcText}>
+                    {it.en}
+                    {it.fr ? <Text style={s.frItalic}> ({it.fr})</Text> : null}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={s.colRight}>
+            <Label en="Not included" fr="Non inclus, à la charge du locataire" />
+            <View style={{ marginTop: 5 }}>
+              {data.services.notIncluded.map((it, i) => (
+                <View key={i} style={s.svcItem}>
+                  <Text style={s.svcMark}>—</Text>
+                  <Text style={s.svcText}>
+                    {it.en}
+                    {it.fr ? <Text style={s.frItalic}> ({it.fr})</Text> : null}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         </View>
 
-        {/* 5 — Payment terms */}
-        <SectionHead n={5} en="PAYMENT TERMS" fr="CONDITIONS DE PAIEMENT" />
+        {/* Financial summary */}
+        <Section en="Financial Summary" fr="Récapitulatif financier" />
+        <View wrap={false}>
+          {data.financial.rows.map((r, i) => (
+            <View key={i} style={s.finRow}>
+              <Text style={s.finDesc}>
+                {r.label.en}
+                {r.label.fr ? <Text style={s.frItalic}> / {r.label.fr}</Text> : null}
+              </Text>
+              <Text style={s.finAmt}>{r.amount}</Text>
+            </View>
+          ))}
+          <View style={s.finTotalRow}>
+            <Text style={s.finTotalLabel}>Total TTC</Text>
+            <Text style={s.finTotalAmt}>{data.financial.total}</Text>
+          </View>
+        </View>
+
+        {/* Payment terms */}
+        <Section en="Payment Terms" fr="Conditions de paiement" />
         <View wrap={false}>
           {data.payments.map((p, i) => (
-            <View key={i} style={[s.pRow, i === 0 ? s.pRowFirst : {}]}>
-              <View style={s.pCellLabel}>
-                <Bi
-                  en={p.label.en}
-                  fr={p.label.fr}
-                  style={{ fontSize: 9 }}
-                  frStyle={{ color: taupe, fontStyle: "italic" }}
-                />
-              </View>
-              <View style={s.pCellAmount}>
-                <Text style={s.pAmount}>{p.amount}</Text>
-              </View>
-              <View style={s.pCellDue}>
-                <Text style={s.pDue}>
-                  Due no later than{"\n"}
-                  <Text style={{ color: taupe, fontStyle: "italic" }}>À verser au plus tard le :</Text>
-                  {"\n"}
-                  {p.due}
-                </Text>
+            <View key={i} style={s.payRow}>
+              <Text style={s.payLabel}>
+                {p.label.en}
+                {p.label.fr ? <Text style={s.frItalic}> / {p.label.fr}</Text> : null}
+              </Text>
+              <Text style={s.payAmt}>{p.amount}</Text>
+              <View style={s.payDue}>
+                <Text style={s.payDueCap}>Due no later than / à verser au plus tard le</Text>
+                <Text style={s.payDueVal}>{p.due}</Text>
               </View>
             </View>
           ))}
         </View>
-        <View style={{ marginTop: 8 }}>
+        <View style={s.note}>
           <Text style={s.paraEn}>
             Payment to the Owner is subject to prior receipt of the corresponding
             funds from the Tenant.
@@ -549,8 +390,8 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
           </Text>
         </View>
 
-        {/* 6 — Cancellation policy */}
-        <SectionHead n={6} en="CANCELLATION POLICY" fr="CONDITIONS D'ANNULATION" />
+        {/* Cancellation policy */}
+        <Section en="Cancellation Policy" fr="Conditions d'annulation" />
         <View>
           {data.cancellation.en.map((p, i) => (
             <Text key={`e${i}`} style={s.paraEn}>
@@ -566,8 +407,8 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
           </View>
         </View>
 
-        {/* 7 — Contractual framework */}
-        <SectionHead n={7} en="CONTRACTUAL AND FRAMEWORK" fr="CADRE CONTRACTUEL" />
+        {/* Contractual framework */}
+        <Section en="Contractual Framework" fr="Cadre contractuel" />
         <View>
           {data.framework.en.map((p, i) => (
             <Text key={`e${i}`} style={s.paraEn}>
@@ -583,8 +424,8 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
           </View>
         </View>
 
-        {/* 8 — Electronic signature */}
-        <SectionHead n={8} en="ELECTRONIC SIGNATURE" fr="SIGNATURE ÉLECTRONIQUE" />
+        {/* Electronic signature */}
+        <Section en="Electronic Signature" fr="Signature électronique" />
         <View>
           {data.esign.en.map((p, i) => (
             <Text key={`e${i}`} style={s.paraEn}>
@@ -601,31 +442,21 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
         </View>
 
         <View style={s.signRow} wrap={false}>
-          <View style={[s.signBox, { marginRight: 10 }]}>
-            <Text style={s.signTitle}>
-              The Owner <Text style={s.signTitleFr}>/ Le Propriétaire</Text>
-            </Text>
+          <View style={s.signCol}>
+            <View style={s.signLine} />
+            <Text style={s.signRole}>The Owner / le Propriétaire</Text>
             <Text style={s.signName}>{data.signature.owner.name}</Text>
             {data.signature.owner.representedBy ? (
               <Text style={s.signRep}>
-                <Text style={s.signRepFr}>représentée par / </Text>
-                represented by
-              </Text>
-            ) : null}
-            {data.signature.owner.representedBy ? (
-              <Text style={[s.signRep, { marginTop: 2 }]}>
-                {data.signature.owner.representedBy}
+                représentée par {data.signature.owner.representedBy}
               </Text>
             ) : null}
           </View>
-          <View style={s.signBox}>
-            <Text style={s.signTitle}>
-              The Agent <Text style={s.signTitleFr}>/ le Mandataire</Text>
-            </Text>
+          <View style={s.signCol}>
+            <View style={s.signLine} />
+            <Text style={s.signRole}>The Agent / le Mandataire</Text>
             <Text style={s.signName}>{data.signature.agent.name}</Text>
-            <Text style={[s.signRep, { marginTop: 2 }]}>
-              {data.signature.agent.representedBy}
-            </Text>
+            <Text style={s.signRep}>{data.signature.agent.representedBy}</Text>
           </View>
         </View>
 
@@ -646,8 +477,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
           </Text>
         </View>
         <View style={s.pageMark} fixed>
-          <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`} />
-          <Text style={{ color: ink, marginLeft: 12 }}>Paraphes</Text>
+          <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>
       </Page>
     </Document>
