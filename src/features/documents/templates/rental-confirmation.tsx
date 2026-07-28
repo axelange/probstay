@@ -78,7 +78,8 @@ export type ConfirmationData = {
 const gold = "#a1885d"; // TITLES only (document, sections, boxes) + their rules
 const ink = "#1a1613"; // black — primary body text, values, amounts
 const taupe = "#8a8478"; // grey — secondary text, labels, French captions
-const hair = "#e3dccf"; // hairline separators and box outlines
+const hair = "#e3dccf"; // hairline internal separators
+const border = "#d3c8b2"; // slightly darker — box / frame outlines
 
 const SERIF = "Passenger Display";
 const SANS = "Familjen Grotesk";
@@ -143,7 +144,7 @@ const s = StyleSheet.create({
   sectionFr: { fontSize: 7.5, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginLeft: 9 },
 
   // Boxes — hairline outline, black sans title on white over a hairline.
-  box: { borderWidth: 0.5, borderColor: hair },
+  box: { borderWidth: 0.5, borderColor: border },
   boxHeader: {
     paddingTop: 8,
     paddingBottom: 6,
@@ -201,7 +202,7 @@ const s = StyleSheet.create({
   fTotalCell: { paddingVertical: 9, paddingHorizontal: 12, color: ink, fontWeight: 500, fontSize: 9.5, letterSpacing: 1, textTransform: "uppercase" },
 
   // Payment terms
-  pRow: { flexDirection: "row", borderWidth: 0.5, borderColor: hair, borderTopWidth: 0 },
+  pRow: { flexDirection: "row", borderWidth: 0.5, borderColor: border, borderTopWidth: 0 },
   pRowFirst: { borderTopWidth: 0.5 },
   pCellLabel: { flex: 1.5, paddingVertical: 11, paddingHorizontal: 12, justifyContent: "center" },
   pCellAmount: { flex: 1, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderLeftWidth: 0.5, borderLeftColor: hair },
@@ -215,7 +216,7 @@ const s = StyleSheet.create({
 
   // Signatures
   signRow: { flexDirection: "row", marginTop: 26 },
-  signBox: { flex: 1, borderWidth: 0.5, borderColor: hair, minHeight: 128, padding: 14, alignItems: "center" },
+  signBox: { flex: 1, borderWidth: 0.5, borderColor: border, minHeight: 128, padding: 14, alignItems: "center" },
   signTitle: { fontSize: 9.5, marginBottom: 8, color: ink },
   signTitleFr: { color: taupe, fontStyle: "italic" },
   // Only the roman italic (400) face is registered — no medium italic.
