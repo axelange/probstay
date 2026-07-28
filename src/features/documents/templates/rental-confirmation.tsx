@@ -184,7 +184,7 @@ const s = StyleSheet.create({
     marginBottom: 5,
   },
   statLabelFr: { color: taupe },
-  statValue: { fontSize: 11, fontWeight: 500, color: ink },
+  statValue: { fontSize: 11, fontWeight: 400, color: ink },
   vDivider: { width: 0.5, backgroundColor: hair },
 
   // Services
