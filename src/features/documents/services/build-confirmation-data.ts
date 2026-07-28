@@ -247,20 +247,25 @@ export async function buildConfirmationData(
   // omits it.
   const notIncluded: Bilingual[] = [];
 
-  // ── Financial summary: what the owner earns ───────────────────────────────
+  // ── Financial summary: earnings excl. VAT, VAT (para-hotel), total TTC ─────
+  // The net is entered VAT-inclusive, so the earnings shown are net − VAT; the
+  // VAT is added back as its own line; the total TTC is their sum (= the net).
+  const earningsExclVat = Math.round((ownerEarnings - vat) * 100) / 100;
   const financialRows: ConfirmationData["financial"]["rows"] = [
-    { label: { en: "Owner net earnings", fr: "Net propriétaire" }, amount: money(ownerEarnings) },
+    {
+      label: showVat
+        ? { en: "Owner earnings (excl. VAT)", fr: "Revenus propriétaire HT" }
+        : { en: "Owner earnings", fr: "Revenus propriétaire" },
+      amount: money(earningsExclVat),
+    },
   ];
   if (showVat) {
     financialRows.push({
-      label: {
-        en: "of which VAT 10% (para-hotel)",
-        fr: "dont TVA 10 % (parahôtellerie)",
-      },
+      label: { en: "VAT 10% (para-hotel)", fr: "TVA 10 % (parahôtellerie)" },
       amount: money(vat),
     });
   }
-  const total = ownerEarnings;
+  const total = ownerEarnings; // TTC = earnings excl. VAT + VAT
 
   // ── Parties ──────────────────────────────────────────────────────────────
   const ownerRep = (

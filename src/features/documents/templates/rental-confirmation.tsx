@@ -75,10 +75,9 @@ export type ConfirmationData = {
 const navy = "#041c2c";
 const gold = "#a7926c";
 const goldFill = "#b1a079";
-const beige = "#f5f2ed";
-const border = "#c3ad84";
 const ink = "#1f1d1a";
-const white = "#ffffff";
+// Soft warm hairline for refined rules and box outlines.
+const hair = "#e6ddcc";
 
 const SERIF = "Passenger Display";
 const SANS = "Neue Haas Grotesk";
@@ -140,51 +139,71 @@ const s = StyleSheet.create({
   sectionEn: { fontFamily: SERIF, fontSize: 12, color: navy, letterSpacing: 0.5 },
   sectionFr: { fontSize: 10, color: gold, letterSpacing: 0.5 },
 
-  // Boxes
-  box: { borderWidth: 0.8, borderColor: border },
+  // Boxes — editorial: thin warm hairline, serif navy title over a gold rule.
+  box: { borderWidth: 0.5, borderColor: hair },
   boxHeader: {
-    backgroundColor: beige,
-    paddingVertical: 6,
-    alignItems: "center",
-    borderBottomWidth: 0.8,
-    borderBottomColor: border,
+    paddingTop: 9,
+    paddingBottom: 6,
+    paddingHorizontal: 12,
+    borderBottomWidth: 0.7,
+    borderBottomColor: gold,
   },
-  boxHeaderEn: { fontWeight: 700, fontSize: 10, color: ink, letterSpacing: 0.5 },
-  boxHeaderFr: { fontStyle: "italic", fontSize: 8.5, color: gold, letterSpacing: 0.5 },
-  boxBody: { padding: 9 },
+  boxHeaderEn: { fontFamily: SERIF, fontSize: 10.5, color: navy, letterSpacing: 0.6 },
+  boxHeaderFr: {
+    fontStyle: "italic",
+    fontSize: 7,
+    color: gold,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    marginTop: 2,
+  },
+  boxBody: { padding: 12 },
 
-  label: { fontSize: 8.5, color: ink, marginBottom: 1 },
+  // Eyebrow labels: uppercase, letter-spaced, gold.
+  label: {
+    fontSize: 6.8,
+    color: gold,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 2,
+  },
   labelFr: { color: gold },
-  value: { fontSize: 9.5, fontWeight: 500, color: ink },
-  line: { fontSize: 9, color: ink, marginTop: 1 },
+  value: { fontSize: 10, fontWeight: 500, color: navy },
+  line: { fontSize: 9, color: ink, marginTop: 1.5 },
 
   // Stay: four columns
-  statCol: { flex: 1, alignItems: "center", paddingVertical: 10, paddingHorizontal: 4 },
-  statLabel: { fontSize: 8.5, color: ink, marginBottom: 4 },
+  statCol: { flex: 1, alignItems: "center", paddingVertical: 13, paddingHorizontal: 4 },
+  statLabel: {
+    fontSize: 6.8,
+    color: gold,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 5,
+  },
   statLabelFr: { color: gold },
-  statValue: { fontSize: 10.5, fontWeight: 500, color: ink },
-  vDivider: { width: 0.8, backgroundColor: border },
+  statValue: { fontSize: 11, fontWeight: 500, color: navy },
+  vDivider: { width: 0.5, backgroundColor: hair },
 
   // Services
   bullet: { flexDirection: "row", marginBottom: 4 },
-  bulletDot: { width: 10, fontSize: 9, color: ink },
+  bulletDot: { width: 10, fontSize: 9, color: gold },
   bulletText: { flex: 1, fontSize: 8.8 },
 
-  // Financial table
-  fRow: { flexDirection: "row", borderTopWidth: 0.8, borderTopColor: border },
+  // Financial table — navy header with gold caps, gold total with navy caps.
+  fRow: { flexDirection: "row", borderTopWidth: 0.5, borderTopColor: hair },
   fHeadRow: { flexDirection: "row", backgroundColor: navy },
-  fHeadCell: { paddingVertical: 6, paddingHorizontal: 10, color: white, fontWeight: 500, fontSize: 9.5, letterSpacing: 0.5 },
-  fCell: { paddingVertical: 6, paddingHorizontal: 10, fontSize: 9.5, color: ink },
+  fHeadCell: { paddingVertical: 7, paddingHorizontal: 12, color: gold, fontWeight: 700, fontSize: 8, letterSpacing: 1.2, textTransform: "uppercase" },
+  fCell: { paddingVertical: 8, paddingHorizontal: 12, fontSize: 9.5, color: ink },
   fTotalRow: { flexDirection: "row", backgroundColor: goldFill },
-  fTotalCell: { paddingVertical: 7, paddingHorizontal: 10, color: white, fontWeight: 700, fontSize: 9.5, letterSpacing: 0.5 },
+  fTotalCell: { paddingVertical: 9, paddingHorizontal: 12, color: navy, fontWeight: 700, fontSize: 9.5, letterSpacing: 1, textTransform: "uppercase" },
 
   // Payment terms
-  pRow: { flexDirection: "row", borderWidth: 0.8, borderColor: border, borderTopWidth: 0 },
-  pRowFirst: { borderTopWidth: 0.8 },
-  pCellLabel: { flex: 1.5, paddingVertical: 9, paddingHorizontal: 10, justifyContent: "center" },
-  pCellAmount: { flex: 1, paddingVertical: 9, paddingHorizontal: 10, alignItems: "center", justifyContent: "center", borderLeftWidth: 0.8, borderLeftColor: border },
-  pCellDue: { flex: 1.5, paddingVertical: 9, paddingHorizontal: 10, alignItems: "center", justifyContent: "center", borderLeftWidth: 0.8, borderLeftColor: border },
-  pAmount: { fontSize: 11, fontWeight: 700, color: ink },
+  pRow: { flexDirection: "row", borderWidth: 0.5, borderColor: hair, borderTopWidth: 0 },
+  pRowFirst: { borderTopWidth: 0.5 },
+  pCellLabel: { flex: 1.5, paddingVertical: 11, paddingHorizontal: 12, justifyContent: "center" },
+  pCellAmount: { flex: 1, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderLeftWidth: 0.5, borderLeftColor: hair },
+  pCellDue: { flex: 1.5, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderLeftWidth: 0.5, borderLeftColor: hair },
+  pAmount: { fontSize: 12, fontWeight: 700, color: navy },
   pDue: { fontSize: 8.5, color: ink, textAlign: "center" },
 
   // Legal prose paragraphs
@@ -193,10 +212,10 @@ const s = StyleSheet.create({
 
   // Signatures
   signRow: { flexDirection: "row", marginTop: 26 },
-  signBox: { flex: 1, borderWidth: 0.8, borderColor: border, minHeight: 128, padding: 12, alignItems: "center" },
+  signBox: { flex: 1, borderWidth: 0.5, borderColor: hair, minHeight: 128, padding: 14, alignItems: "center" },
   signTitle: { fontSize: 9.5, marginBottom: 8 },
   signTitleFr: { color: gold, fontStyle: "italic" },
-  signName: { fontWeight: 700, fontStyle: "italic", fontSize: 10, color: ink, marginBottom: 3 },
+  signName: { fontWeight: 700, fontStyle: "italic", fontSize: 10, color: navy, marginBottom: 3 },
   signRep: { fontSize: 8.5, color: ink },
   signRepFr: { color: gold },
 
@@ -452,7 +471,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
           ))}
           <View style={s.fTotalRow}>
             <Text style={[s.fTotalCell, { flex: 2 }]}>
-              TOTAL AMOUNT DUE / TOTAL À PAYER
+              TOTAL / TOTAL TTC
             </Text>
             <Text style={[s.fTotalCell, { flex: 1, textAlign: "right" }]}>
               {data.financial.total}
