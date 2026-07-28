@@ -330,7 +330,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
                   <Bi
                     en="Represented by"
                     fr="Représentée par"
-                    style={[s.label, { marginTop: 5 }]}
+                    style={[s.label, { marginTop: 11 }]}
                     frStyle={s.labelFr}
                   />
                   <Text style={s.line}>{data.owner.representedBy}</Text>
@@ -365,7 +365,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
               <Bi
                 en="Address"
                 fr="Adresse"
-                style={[s.label, { marginTop: 5 }]}
+                style={[s.label, { marginTop: 11 }]}
                 frStyle={s.labelFr}
               />
               <Text style={s.line}>{data.property.address}</Text>
