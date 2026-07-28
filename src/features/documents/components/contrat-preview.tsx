@@ -11,13 +11,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getContratData } from "@/features/documents/actions/get-contrat-data";
+import { getConfirmationData } from "@/features/documents/actions/get-confirmation-data";
 import { registerDocumentFontsBrowser } from "@/features/documents/fonts.browser";
 import {
   ContratLocationSaisonniere,
   type ContratData,
 } from "@/features/documents/templates/contrat-location-saisonniere";
-import { RentalConfirmation } from "@/features/documents/templates/rental-confirmation";
-import { sampleConfirmation } from "@/features/documents/fixtures";
+import {
+  RentalConfirmation,
+  type ConfirmationData,
+} from "@/features/documents/templates/rental-confirmation";
 
 // Same fonts as the server, registered once in the browser.
 registerDocumentFontsBrowser();
@@ -42,18 +45,25 @@ export default function ContratPreview({
 }) {
   const [docType, setDocType] = React.useState("CONTRAT");
   const [rentalId, setRentalId] = React.useState(rentals[0]?.id ?? "");
-  const [data, setData] = React.useState<ContratData | null>(null);
+  const [contrat, setContrat] = React.useState<ContratData | null>(null);
+  const [confirmation, setConfirmation] =
+    React.useState<ConfirmationData | null>(null);
   const [isPending, startTransition] = React.useTransition();
 
+  // Both documents are driven by the selected rental; fetch the one on screen.
+  // The render guards on `!rentalId`, so no synchronous reset is needed here.
   React.useEffect(() => {
-    if (!rentalId) {
-      setData(null);
-      return;
-    }
+    if (!rentalId) return;
     startTransition(async () => {
-      setData(await getContratData(rentalId));
+      if (docType === "CONFIRMATION") {
+        setConfirmation(await getConfirmationData(rentalId));
+      } else {
+        setContrat(await getContratData(rentalId));
+      }
     });
-  }, [rentalId]);
+  }, [rentalId, docType]);
+
+  const data = docType === "CONFIRMATION" ? confirmation : contrat;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
@@ -110,16 +120,9 @@ export default function ContratPreview({
       </div>
 
       <div className="bg-muted/30 h-[82vh] overflow-hidden rounded-lg border">
-        {docType === "CONFIRMATION" ? (
-          <PDFViewer
-            showToolbar
-            style={{ width: "100%", height: "100%", border: 0 }}
-          >
-            <RentalConfirmation data={sampleConfirmation} />
-          </PDFViewer>
-        ) : !rentalId ? (
+        {!rentalId ? (
           <div className="text-muted-foreground p-8 text-sm">
-            Choisissez une location pour prévisualiser le contrat.
+            Choisissez une location pour prévisualiser le document.
           </div>
         ) : isPending || data === undefined ? (
           <div className="text-muted-foreground p-8 text-sm">Chargement…</div>
@@ -132,7 +135,11 @@ export default function ContratPreview({
             showToolbar
             style={{ width: "100%", height: "100%", border: 0 }}
           >
-            <ContratLocationSaisonniere data={data} />
+            {docType === "CONFIRMATION" ? (
+              <RentalConfirmation data={confirmation!} />
+            ) : (
+              <ContratLocationSaisonniere data={contrat!} />
+            )}
           </PDFViewer>
         )}
       </div>
