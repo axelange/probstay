@@ -192,13 +192,13 @@ const s = StyleSheet.create({
   bulletDot: { width: 10, fontSize: 9, color: taupe },
   bulletText: { flex: 1, fontSize: 8.8 },
 
-  // Financial table — no fills: grey header labels over a rule, hairline rows,
-  // a firmer rule above the black total.
+  // Financial table — no fills: grey header labels over a soft rule, hairline
+  // rows, a slightly firmer soft rule above the total (no hard black lines).
   fRow: { flexDirection: "row", borderTopWidth: 0.5, borderTopColor: hair },
-  fHeadRow: { flexDirection: "row", borderBottomWidth: 0.8, borderBottomColor: ink },
+  fHeadRow: { flexDirection: "row", borderBottomWidth: 0.7, borderBottomColor: border },
   fHeadCell: { paddingVertical: 7, paddingHorizontal: 12, color: taupe, fontWeight: 500, fontSize: 7.5, letterSpacing: 1.4, textTransform: "uppercase" },
   fCell: { paddingVertical: 8, paddingHorizontal: 12, fontSize: 9.5, color: ink },
-  fTotalRow: { flexDirection: "row", borderTopWidth: 1, borderTopColor: ink },
+  fTotalRow: { flexDirection: "row", borderTopWidth: 0.8, borderTopColor: border },
   fTotalCell: { paddingVertical: 9, paddingHorizontal: 12, color: ink, fontWeight: 500, fontSize: 9.5, letterSpacing: 1, textTransform: "uppercase" },
 
   // Payment terms
