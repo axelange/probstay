@@ -104,27 +104,47 @@ const s = StyleSheet.create({
     lineHeight: 1.5,
     color: ink,
   },
+  // A fine inset frame around the whole page — luxury stationery, repeats.
+  pageFrame: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    right: 20,
+    bottom: 20,
+    borderWidth: 0.6,
+    borderColor: gold,
+  },
+
   // Masthead (fixed, repeats on every page)
   logoWrap: { position: "absolute", top: 34, left: 0, right: 0, alignItems: "center" },
-  logo: { width: 132 },
+  logo: { width: 128 },
 
   title: {
     fontFamily: SERIF,
-    fontSize: 21,
+    fontSize: 23,
     color: gold,
     textAlign: "center",
-    letterSpacing: 1.5,
-    marginTop: 4,
-  },
-  subtitle: {
-    fontSize: 9.5,
-    color: taupe,
-    textAlign: "center",
     letterSpacing: 3,
-    textTransform: "uppercase",
     marginTop: 6,
   },
-  intro: { marginTop: 20, fontSize: 9 },
+  titleRuleWrap: { alignItems: "center", marginTop: 9, marginBottom: 7 },
+  titleRule: { width: 32, height: 1, backgroundColor: gold },
+  subtitle: {
+    fontSize: 8.5,
+    color: taupe,
+    textAlign: "center",
+    letterSpacing: 4,
+    textTransform: "uppercase",
+  },
+  reference: {
+    fontSize: 7,
+    color: taupe,
+    textAlign: "center",
+    letterSpacing: 2.5,
+    textTransform: "uppercase",
+    marginTop: 10,
+  },
+  intro: { marginTop: 26, fontSize: 9 },
   introEn: { color: ink },
   introFr: { color: taupe, fontStyle: "italic", marginTop: 3 },
 
@@ -133,13 +153,13 @@ const s = StyleSheet.create({
   sectionHead: {
     flexDirection: "row",
     alignItems: "baseline",
-    marginTop: 22,
-    marginBottom: 11,
-    paddingBottom: 5,
+    marginTop: 28,
+    marginBottom: 13,
+    paddingBottom: 6,
     borderBottomWidth: 0.7,
     borderBottomColor: gold,
   },
-  sectionNum: { fontFamily: SERIF, fontSize: 12, color: gold, marginRight: 10 },
+  sectionNum: { fontFamily: SERIF, fontSize: 12, color: gold, marginRight: 12, letterSpacing: 1 },
   sectionEn: { fontFamily: SERIF, fontSize: 12.5, color: gold, letterSpacing: 0.5 },
   sectionFr: { fontSize: 7.5, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginLeft: 9 },
 
@@ -160,7 +180,7 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     marginTop: 2,
   },
-  boxBody: { padding: 12 },
+  boxBody: { padding: 15 },
 
   // Eyebrow labels: uppercase, letter-spaced, muted taupe.
   label: {
@@ -268,10 +288,12 @@ function Bi({
   );
 }
 
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
+
 function SectionHead({ n, en, fr }: { n: number; en: string; fr: string }) {
   return (
     <View style={s.sectionHead} wrap={false}>
-      <Text style={s.sectionNum}>{String(n).padStart(2, "0")}</Text>
+      <Text style={s.sectionNum}>{ROMAN[n] ?? n}</Text>
       <Text style={s.sectionEn}>{en}</Text>
       <Text style={s.sectionFr}>{fr}</Text>
     </View>
@@ -295,6 +317,9 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
       author={a.legalName}
     >
       <Page size="A4" style={s.page}>
+        {/* A fine frame around the whole page — repeats on every page */}
+        <View style={s.pageFrame} fixed />
+
         {/* Masthead — repeats on every page */}
         <View style={s.logoWrap} fixed>
           <Image src={LOGO} style={s.logo} />
@@ -302,7 +327,13 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
 
         {/* Title (page 1 only, in flow) */}
         <Text style={s.title}>RENTAL CONFIRMATION</Text>
+        <View style={s.titleRuleWrap}>
+          <View style={s.titleRule} />
+        </View>
         <Text style={s.subtitle}>CONFIRMATION DE LOCATION</Text>
+        {data.reference ? (
+          <Text style={s.reference}>Réf. {data.reference}</Text>
+        ) : null}
 
         <View style={s.intro}>
           <Text style={s.introEn}>
