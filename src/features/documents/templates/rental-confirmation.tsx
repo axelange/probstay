@@ -127,8 +127,8 @@ const s = StyleSheet.create({
   introEn: { color: ink },
   introFr: { color: taupe, fontStyle: "italic", marginTop: 3 },
 
-  // Section header: a small gold numeral, a serif charcoal title and a muted
-  // French caption, underlined by a single hairline — no filled badge.
+  // Section header: a small gold numeral, a medium-weight gold sans title and
+  // a muted French caption, underlined by a single gold rule — no filled badge.
   sectionHead: {
     flexDirection: "row",
     alignItems: "baseline",
@@ -138,11 +138,11 @@ const s = StyleSheet.create({
     borderBottomWidth: 0.7,
     borderBottomColor: gold,
   },
-  sectionNum: { fontFamily: SANS, fontWeight: 700, fontSize: 11, color: gold, marginRight: 10 },
-  sectionEn: { fontFamily: SANS, fontWeight: 700, fontSize: 10.5, color: gold, letterSpacing: 1.2, textTransform: "uppercase" },
+  sectionNum: { fontFamily: SANS, fontWeight: 500, fontSize: 11, color: gold, marginRight: 10 },
+  sectionEn: { fontFamily: SANS, fontWeight: 500, fontSize: 10.5, color: gold, letterSpacing: 1.2, textTransform: "uppercase" },
   sectionFr: { fontSize: 7.5, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginLeft: 9 },
 
-  // Boxes — hairline outline, gold serif title over a gold rule, no fill.
+  // Boxes — hairline outline, medium-weight gold sans title over a gold rule.
   box: { borderWidth: 0.5, borderColor: hair },
   boxHeader: {
     paddingTop: 8,
@@ -151,7 +151,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 0.6,
     borderBottomColor: gold,
   },
-  boxHeaderEn: { fontFamily: SANS, fontWeight: 700, fontSize: 9, color: gold, letterSpacing: 1.4, textTransform: "uppercase" },
+  boxHeaderEn: { fontFamily: SANS, fontWeight: 500, fontSize: 9, color: gold, letterSpacing: 1.4, textTransform: "uppercase" },
   boxHeaderFr: {
     fontSize: 6.8,
     color: taupe,
@@ -195,10 +195,10 @@ const s = StyleSheet.create({
   // a firmer rule above the black total.
   fRow: { flexDirection: "row", borderTopWidth: 0.5, borderTopColor: hair },
   fHeadRow: { flexDirection: "row", borderBottomWidth: 0.8, borderBottomColor: ink },
-  fHeadCell: { paddingVertical: 7, paddingHorizontal: 12, color: taupe, fontWeight: 700, fontSize: 7.5, letterSpacing: 1.4, textTransform: "uppercase" },
+  fHeadCell: { paddingVertical: 7, paddingHorizontal: 12, color: taupe, fontWeight: 500, fontSize: 7.5, letterSpacing: 1.4, textTransform: "uppercase" },
   fCell: { paddingVertical: 8, paddingHorizontal: 12, fontSize: 9.5, color: ink },
   fTotalRow: { flexDirection: "row", borderTopWidth: 1, borderTopColor: ink },
-  fTotalCell: { paddingVertical: 9, paddingHorizontal: 12, color: ink, fontWeight: 700, fontSize: 9.5, letterSpacing: 1, textTransform: "uppercase" },
+  fTotalCell: { paddingVertical: 9, paddingHorizontal: 12, color: ink, fontWeight: 500, fontSize: 9.5, letterSpacing: 1, textTransform: "uppercase" },
 
   // Payment terms
   pRow: { flexDirection: "row", borderWidth: 0.5, borderColor: hair, borderTopWidth: 0 },
@@ -206,7 +206,7 @@ const s = StyleSheet.create({
   pCellLabel: { flex: 1.5, paddingVertical: 11, paddingHorizontal: 12, justifyContent: "center" },
   pCellAmount: { flex: 1, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderLeftWidth: 0.5, borderLeftColor: hair },
   pCellDue: { flex: 1.5, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", borderLeftWidth: 0.5, borderLeftColor: hair },
-  pAmount: { fontSize: 12, fontWeight: 700, color: ink },
+  pAmount: { fontSize: 12, fontWeight: 500, color: ink },
   pDue: { fontSize: 8.5, color: ink, textAlign: "center" },
 
   // Legal prose paragraphs
@@ -218,7 +218,8 @@ const s = StyleSheet.create({
   signBox: { flex: 1, borderWidth: 0.5, borderColor: hair, minHeight: 128, padding: 14, alignItems: "center" },
   signTitle: { fontSize: 9.5, marginBottom: 8, color: ink },
   signTitleFr: { color: taupe, fontStyle: "italic" },
-  signName: { fontWeight: 700, fontStyle: "italic", fontSize: 10, color: ink, marginBottom: 3 },
+  // Only the roman italic (400) face is registered — no medium italic.
+  signName: { fontWeight: 400, fontStyle: "italic", fontSize: 10, color: ink, marginBottom: 3 },
   signRep: { fontSize: 8.5, color: ink },
   signRepFr: { color: taupe },
 
@@ -231,8 +232,8 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   footLine: { fontSize: 7.2, color: taupe, textAlign: "center", lineHeight: 1.45 },
-  footStrong: { fontWeight: 700, color: ink },
-  footWeb: { fontWeight: 700, color: gold },
+  footStrong: { fontWeight: 500, color: ink },
+  footWeb: { fontWeight: 500, color: gold },
   pageMark: {
     position: "absolute",
     bottom: 26,
