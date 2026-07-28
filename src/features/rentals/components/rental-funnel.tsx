@@ -180,12 +180,21 @@ export function RentalFunnel({
   const [commission, setCommission] = React.useState(
     rental.commissionAmount?.toString() ?? ""
   );
-  const [showDeposit, setShowDeposit] = React.useState(
-    rental.depositAmount !== null
-  );
-  const [depositAmount, setDepositAmount] = React.useState(
-    rental.depositAmount?.toString() ?? ""
-  );
+  // The acompte defaults to 50% of the client total (what the tenant owes), and
+  // the agent can change it before generating the documents. Pre-filled once
+  // from the stored figures; an existing deposit is kept as-is.
+  const [depositAmount, setDepositAmount] = React.useState(() => {
+    if (rental.depositAmount !== null) return rental.depositAmount.toString();
+    const extrasTotal = rental.additionalServices
+      .filter((s) => !s.includedInStay)
+      .reduce((sum, s) => sum + s.amount, 0);
+    const t =
+      (rental.netOwnerAmount ?? 0) +
+      (rental.commissionAmount ?? 0) +
+      extrasTotal +
+      (rental.touristTaxAmount ?? 0);
+    return t > 0 ? (Math.round(t * 50) / 100).toString() : "";
+  });
   const [securityDepositAmount, setSecurityDepositAmount] = React.useState(
     rental.securityDepositAmount?.toString() ?? ""
   );
@@ -288,7 +297,7 @@ export function RentalFunnel({
         guests,
         netOwnerAmount: netOwner,
         commissionAmount: commission,
-        depositAmount: showDeposit ? depositAmount : "",
+        depositAmount,
         securityDepositAmount,
         additionalServices: extras
           .filter((s) => s.label.trim() !== "")
@@ -328,8 +337,9 @@ export function RentalFunnel({
       })
     : [];
 
-  const deposit = showDeposit ? Number(depositAmount) || 0 : 0;
-  const balance = hasAmount ? stay - deposit : null;
+  const deposit = Number(depositAmount) || 0;
+  // Solde = total client − acompte, matching the tenant's Contrat.
+  const balance = total !== null ? total - deposit : null;
 
   if (!canManage) {
     return (
@@ -707,8 +717,7 @@ export function RentalFunnel({
                 setCommission={setCommission}
                 stay={stay}
                 hasAmount={hasAmount}
-                showDeposit={showDeposit}
-                setShowDeposit={setShowDeposit}
+                total={total}
                 depositAmount={depositAmount}
                 setDepositAmount={setDepositAmount}
                 securityDepositAmount={securityDepositAmount}
@@ -953,8 +962,7 @@ function MoneyBlock(props: {
   setCommission: (v: string) => void;
   stay: number;
   hasAmount: boolean;
-  showDeposit: boolean;
-  setShowDeposit: (v: boolean) => void;
+  total: number | null;
   depositAmount: string;
   setDepositAmount: (v: string) => void;
   securityDepositAmount: string;
@@ -986,27 +994,29 @@ function MoneyBlock(props: {
         </p>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
-        {props.showDeposit ? (
-          <Field label="Acompte">
-            <NumberInput
-              value={props.depositAmount}
-              onChange={props.setDepositAmount}
-              disabled={props.disabled}
-            />
-          </Field>
-        ) : (
-          <div className="flex items-end">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => props.setShowDeposit(true)}
-              disabled={props.disabled}
-            >
-              Ajouter un acompte
-            </Button>
-          </div>
-        )}
+        <Field label="Acompte">
+          <NumberInput
+            value={props.depositAmount}
+            onChange={props.setDepositAmount}
+            disabled={props.disabled}
+          />
+          {(() => {
+            const deposit = Number(props.depositAmount) || 0;
+            if (props.total === null || props.total <= 0 || deposit <= 0) {
+              return (
+                <p className="text-muted-foreground text-xs">
+                  Par défaut 50 % du total client.
+                </p>
+              );
+            }
+            const pct = Math.round((deposit / props.total) * 100);
+            return (
+              <p className="text-muted-foreground text-xs">
+                ≈ {pct} % du total client.
+              </p>
+            );
+          })()}
+        </Field>
         <Field label="Dépôt de garantie">
           <NumberInput
             value={props.securityDepositAmount}
