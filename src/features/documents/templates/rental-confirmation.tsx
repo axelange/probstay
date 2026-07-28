@@ -11,9 +11,10 @@ import {
 
 /**
  * "Rental Confirmation / Confirmation de location" — the agency's house
- * charte, bilingual EN/FR in a warm neutral palette (charcoal on cream,
- * gold only as a sparing accent): numbered sections, boxed parties/property,
- * stay, services, financial and payment tables, then the signature blocks. Every value is passed in (assembled from the rental),
+ * charte, bilingual EN/FR. Titles are gold, body text is black, secondary
+ * text (French captions, labels) is grey and italic; numbered sections, boxed
+ * parties/property, stay, services, financial and payment tables, then the
+ * signature blocks. Every value is passed in (assembled from the rental),
  * never typed by hand; the same component renders the server file and the
  * live browser preview.
  */
@@ -71,15 +72,13 @@ export type ConfirmationData = {
   };
 };
 
-// Warm, restrained palette — charcoal on cream, gold as a sparing accent
-// rather than the dominant colour. Navy is gone from the body; it survives
-// only in the printed logo.
-const ink = "#2b2723"; // warm charcoal: primary text and titles
-const gold = "#9c855f"; // gold, kept for small accents and thin rules only
-const taupe = "#8c8477"; // muted secondary text, eyebrow labels, French
-const cream = "#f4efe6"; // subtle warm fill (box + table headers)
-const goldSoft = "#ece2cf"; // pale gold band for the total row
-const hair = "#e3dccf"; // hairline rules and box outlines
+// Palette: gold is reserved for titles (and their rules); body text is black;
+// secondary text (labels, French captions) is grey. No gold in the body, no
+// filled header bands. Navy survives only in the printed logo.
+const gold = "#a1885d"; // TITLES only (document, sections, boxes) + their rules
+const ink = "#1a1613"; // black — primary body text, values, amounts
+const taupe = "#8a8478"; // grey — secondary text, labels, French captions
+const hair = "#e3dccf"; // hairline separators and box outlines
 
 const SERIF = "Passenger Display";
 const SANS = "Neue Haas Grotesk";
@@ -111,7 +110,7 @@ const s = StyleSheet.create({
   title: {
     fontFamily: SERIF,
     fontSize: 21,
-    color: ink,
+    color: gold,
     textAlign: "center",
     letterSpacing: 1.5,
     marginTop: 4,
@@ -137,21 +136,22 @@ const s = StyleSheet.create({
     marginBottom: 11,
     paddingBottom: 5,
     borderBottomWidth: 0.7,
-    borderBottomColor: hair,
+    borderBottomColor: gold,
   },
   sectionNum: { fontFamily: SERIF, fontSize: 12, color: gold, marginRight: 10 },
-  sectionEn: { fontFamily: SERIF, fontSize: 12.5, color: ink, letterSpacing: 0.5 },
+  sectionEn: { fontFamily: SERIF, fontSize: 12.5, color: gold, letterSpacing: 0.5 },
   sectionFr: { fontSize: 7.5, color: taupe, letterSpacing: 1.5, textTransform: "uppercase", marginLeft: 9 },
 
-  // Boxes — hairline outline with a quiet cream header, serif charcoal title.
+  // Boxes — hairline outline, gold serif title over a gold rule, no fill.
   box: { borderWidth: 0.5, borderColor: hair },
   boxHeader: {
-    backgroundColor: cream,
     paddingTop: 8,
     paddingBottom: 6,
     paddingHorizontal: 12,
+    borderBottomWidth: 0.6,
+    borderBottomColor: gold,
   },
-  boxHeaderEn: { fontFamily: SERIF, fontSize: 10.5, color: ink, letterSpacing: 0.8 },
+  boxHeaderEn: { fontFamily: SERIF, fontSize: 10.5, color: gold, letterSpacing: 0.8 },
   boxHeaderFr: {
     fontSize: 6.8,
     color: taupe,
@@ -188,15 +188,16 @@ const s = StyleSheet.create({
 
   // Services
   bullet: { flexDirection: "row", marginBottom: 4 },
-  bulletDot: { width: 10, fontSize: 9, color: gold },
+  bulletDot: { width: 10, fontSize: 9, color: taupe },
   bulletText: { flex: 1, fontSize: 8.8 },
 
-  // Financial table — quiet cream header, hairline rows, a pale-gold total.
+  // Financial table — no fills: grey header labels over a rule, hairline rows,
+  // a firmer rule above the black total.
   fRow: { flexDirection: "row", borderTopWidth: 0.5, borderTopColor: hair },
-  fHeadRow: { flexDirection: "row", backgroundColor: cream, borderBottomWidth: 0.7, borderBottomColor: gold },
-  fHeadCell: { paddingVertical: 7, paddingHorizontal: 12, color: ink, fontWeight: 700, fontSize: 7.5, letterSpacing: 1.4, textTransform: "uppercase" },
+  fHeadRow: { flexDirection: "row", borderBottomWidth: 0.8, borderBottomColor: ink },
+  fHeadCell: { paddingVertical: 7, paddingHorizontal: 12, color: taupe, fontWeight: 700, fontSize: 7.5, letterSpacing: 1.4, textTransform: "uppercase" },
   fCell: { paddingVertical: 8, paddingHorizontal: 12, fontSize: 9.5, color: ink },
-  fTotalRow: { flexDirection: "row", backgroundColor: goldSoft, borderTopWidth: 0.7, borderTopColor: gold },
+  fTotalRow: { flexDirection: "row", borderTopWidth: 1, borderTopColor: ink },
   fTotalCell: { paddingVertical: 9, paddingHorizontal: 12, color: ink, fontWeight: 700, fontSize: 9.5, letterSpacing: 1, textTransform: "uppercase" },
 
   // Payment terms
@@ -210,7 +211,7 @@ const s = StyleSheet.create({
 
   // Legal prose paragraphs
   paraEn: { fontSize: 9, color: ink, marginBottom: 6 },
-  paraFr: { fontSize: 8.8, color: taupe, marginBottom: 5 },
+  paraFr: { fontSize: 8.8, color: taupe, fontStyle: "italic", marginBottom: 5 },
 
   // Signatures
   signRow: { flexDirection: "row", marginTop: 26 },
@@ -418,7 +419,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
                   <Text style={s.bulletDot}>•</Text>
                   <Text style={s.bulletText}>
                     {it.en}
-                    {it.fr ? <Text style={{ color: taupe }}> ({it.fr})</Text> : null}
+                    {it.fr ? <Text style={{ color: taupe, fontStyle: "italic" }}> ({it.fr})</Text> : null}
                   </Text>
                 </View>
               ))}
@@ -435,7 +436,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
                   <Text style={s.bulletDot}>•</Text>
                   <Text style={s.bulletText}>
                     {it.en}
-                    {it.fr ? <Text style={{ color: taupe }}> ({it.fr})</Text> : null}
+                    {it.fr ? <Text style={{ color: taupe, fontStyle: "italic" }}> ({it.fr})</Text> : null}
                   </Text>
                 </View>
               ))}
@@ -459,7 +460,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
                   en={r.label.en}
                   fr={r.label.fr}
                   style={s.fCell}
-                  frStyle={{ color: taupe }}
+                  frStyle={{ color: taupe, fontStyle: "italic" }}
                 />
               </View>
               <Text style={[s.fCell, { flex: 1, textAlign: "right" }]}>
@@ -487,7 +488,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
                   en={p.label.en}
                   fr={p.label.fr}
                   style={{ fontSize: 9 }}
-                  frStyle={{ color: taupe }}
+                  frStyle={{ color: taupe, fontStyle: "italic" }}
                 />
               </View>
               <View style={s.pCellAmount}>
@@ -496,7 +497,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
               <View style={s.pCellDue}>
                 <Text style={s.pDue}>
                   Due no later than{"\n"}
-                  <Text style={{ color: taupe }}>À verser au plus tard le :</Text>
+                  <Text style={{ color: taupe, fontStyle: "italic" }}>À verser au plus tard le :</Text>
                   {"\n"}
                   {p.due}
                 </Text>
