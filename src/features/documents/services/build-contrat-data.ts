@@ -19,7 +19,10 @@ const DATE = new Intl.DateTimeFormat("fr-FR", {
 });
 type Dec = { toNumber(): number } | null;
 const n = (v: Dec) => (v ? v.toNumber() : 0);
-const money = (v: number) => MONEY.format(v);
+// fr-FR groups thousands with a narrow no-break space (U+202F) and precedes €
+// with a no-break space (U+00A0); the bundled font renders U+202F as a slash-
+// like glyph ("8⁄500"), so normalise both to a regular space.
+const money = (v: number) => MONEY.format(v).replace(/[\u202f\u00a0]/g, " ");
 const date = (d: Date) => DATE.format(d);
 const nights = (a: Date, b: Date) =>
   Math.max(1, Math.round((b.getTime() - a.getTime()) / 86_400_000));
