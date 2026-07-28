@@ -16,6 +16,8 @@ import {
   ContratLocationSaisonniere,
   type ContratData,
 } from "@/features/documents/templates/contrat-location-saisonniere";
+import { RentalConfirmation } from "@/features/documents/templates/rental-confirmation";
+import { sampleConfirmation } from "@/features/documents/fixtures";
 
 // Same fonts as the server, registered once in the browser.
 registerDocumentFontsBrowser();
@@ -108,10 +110,13 @@ export default function ContratPreview({
       </div>
 
       <div className="bg-muted/30 h-[82vh] overflow-hidden rounded-lg border">
-        {docType !== "CONTRAT" ? (
-          <div className="text-muted-foreground p-8 text-sm">
-            Modèle « Confirmation de location » à venir.
-          </div>
+        {docType === "CONFIRMATION" ? (
+          <PDFViewer
+            showToolbar
+            style={{ width: "100%", height: "100%", border: 0 }}
+          >
+            <RentalConfirmation data={sampleConfirmation} />
+          </PDFViewer>
         ) : !rentalId ? (
           <div className="text-muted-foreground p-8 text-sm">
             Choisissez une location pour prévisualiser le contrat.
