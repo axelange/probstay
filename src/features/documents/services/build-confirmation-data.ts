@@ -291,41 +291,38 @@ export async function buildConfirmationData(
   const ownerName =
     owner?.kind === "COMPANY" ? owner.lastName : fullName(owner);
 
-  // Tenant identity lines (individual: birth, address, ID; company: legal form,
-  // registration, registered office, representative).
+  // Tenant identity as labelled rows (individual: born/nationality/ID; company:
+  // legal form/registration/office/representative).
   const co = tenant?.company ?? null;
-  const tenantLines: string[] = [];
+  const tenantDetails: { label: Bilingual; value: string }[] = [];
   let tenantName = fullName(tenant);
   if (tenant?.kind === "COMPANY") {
     tenantName = tenant.lastName;
-    if (co?.legalForm) tenantLines.push(co.legalForm);
+    if (co?.legalForm)
+      tenantDetails.push({ label: { en: "Legal form", fr: "Forme sociale" }, value: co.legalForm });
     if (co?.registrationNumber)
-      tenantLines.push(`Immatriculation n° ${co.registrationNumber}`);
-    if (co?.registeredOffice) tenantLines.push(co.registeredOffice);
+      tenantDetails.push({ label: { en: "Registration", fr: "Immatriculation" }, value: `n° ${co.registrationNumber}` });
+    if (co?.registeredOffice)
+      tenantDetails.push({ label: { en: "Registered office", fr: "Siège social" }, value: co.registeredOffice });
     const rep = co ? [co.repFirstName, co.repLastName].filter(Boolean).join(" ") : "";
     if (rep)
-      tenantLines.push(
-        co?.repCapacity
-          ? `Représentée par ${rep}, ${co.repCapacity}`
-          : `Représentée par ${rep}`
-      );
+      tenantDetails.push({ label: { en: "Represented by", fr: "Représenté par" }, value: co?.repCapacity ? `${rep}, ${co.repCapacity}` : rep });
   } else if (tenant) {
     if (tenant.birthDate)
-      tenantLines.push(
-        tenant.birthPlace
-          ? `Né(e) le ${shortDate(tenant.birthDate)} à ${tenant.birthPlace}`
-          : `Né(e) le ${shortDate(tenant.birthDate)}`
-      );
-    if (tenant.address) tenantLines.push(tenant.address);
-    if (tenant.nationality) tenantLines.push(tenant.nationality);
+      tenantDetails.push({
+        label: { en: "Born in", fr: "Né(e) le" },
+        value: tenant.birthPlace
+          ? `${shortDate(tenant.birthDate)}, ${tenant.birthPlace}`
+          : shortDate(tenant.birthDate),
+      });
+    if (tenant.nationality)
+      tenantDetails.push({ label: { en: "Nationality", fr: "Nationalité" }, value: tenant.nationality });
     if (tenant.idDocType && tenant.idDocNumber)
-      tenantLines.push(`${idDocLabel(tenant.idDocType)} n° ${tenant.idDocNumber}`);
-    const contact = contactLine(tenant);
-    if (contact) tenantLines.push(contact);
+      tenantDetails.push({ label: idDocLabel(tenant.idDocType), value: `n° ${tenant.idDocNumber}` });
   }
 
   return {
-    reference: `BS-${rentalId.slice(0, 8).toUpperCase()}`,
+    reference: `RC-${rentalId.slice(0, 8).toUpperCase()}`,
     agency: {
       legalName: AGENCY.legalName,
       address: AGENCY.address,
@@ -341,7 +338,7 @@ export async function buildConfirmationData(
       representedBy: ownerRep(owner),
       contact: contactLine(owner),
     },
-    tenant: { name: tenantName, lines: tenantLines },
+    tenant: { name: tenantName, details: tenantDetails },
     property: {
       name: p.marketingName ?? "Le bien loué",
       address:
@@ -354,8 +351,8 @@ export async function buildConfirmationData(
     stay: {
       checkIn: shortDate(rental.checkIn),
       checkOut: shortDate(rental.checkOut),
-      duration: `${stayNights} nights / nuits`,
-      occupancy: `${guests || "—"} guests / occupants`,
+      nights: `${stayNights}`,
+      occupancy: `${guests || "—"} Guests / Occupants`,
     },
     services: { included, notIncluded },
     financial: { rows: financialRows, total: money(total) },
@@ -377,16 +374,16 @@ export async function buildConfirmationData(
   };
 }
 
-function idDocLabel(type: string): string {
+function idDocLabel(type: string): Bilingual {
   switch (type) {
     case "PASSPORT":
-      return "Passeport";
+      return { en: "Passport", fr: "Passeport" };
     case "ID_CARD":
-      return "Carte d'identité";
+      return { en: "ID card", fr: "CNI" };
     case "DRIVING_LICENSE":
-      return "Permis de conduire";
+      return { en: "Driving licence", fr: "Permis" };
     default:
-      return "Pièce d'identité";
+      return { en: "ID document", fr: "Pièce d'identité" };
   }
 }
 

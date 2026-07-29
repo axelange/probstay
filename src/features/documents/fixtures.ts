@@ -79,10 +79,10 @@ export const sampleConfirmation: ConfirmationData = {
   },
   tenant: {
     name: "Mme Lucie DUBOIS",
-    lines: [
-      "Née le 10/12/1995 à Cannes",
-      "26 Bd de la Croisette, 06400 Cannes, FRANCE",
-      "Passeport Français n° 22HB032",
+    details: [
+      { label: { en: "Born in", fr: "Né(e) le" }, value: "10/12/1995, Cannes" },
+      { label: { en: "Nationality", fr: "Nationalité" }, value: "Française" },
+      { label: { en: "ID card", fr: "CNI" }, value: "n° 22HB032" },
     ],
   },
   property: {
@@ -93,8 +93,8 @@ export const sampleConfirmation: ConfirmationData = {
   stay: {
     checkIn: "15/07/2026",
     checkOut: "15/08/2026",
-    duration: "31 nights / nuits",
-    occupancy: "6 guests / occupants",
+    nights: "31",
+    occupancy: "6 Guests / Occupants",
   },
   services: {
     included: [
