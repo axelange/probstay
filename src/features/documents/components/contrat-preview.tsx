@@ -1,7 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { PDFViewer } from "@react-pdf/renderer";
+import { PDFViewer, pdf } from "@react-pdf/renderer";
+import { Download } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -21,6 +24,8 @@ import {
   RentalConfirmation,
   type ConfirmationData,
 } from "@/features/documents/templates/rental-confirmation";
+import { documentFileName } from "@/features/documents/reference";
+import type { DocumentType } from "@/features/documents/services/document-readiness";
 
 // Same fonts as the server, registered once in the browser.
 registerDocumentFontsBrowser();
@@ -43,7 +48,7 @@ export default function ContratPreview({
 }: {
   rentals: RentalOption[];
 }) {
-  const [docType, setDocType] = React.useState("CONTRAT");
+  const [docType, setDocType] = React.useState<DocumentType>("CONTRAT");
   const [rentalId, setRentalId] = React.useState(rentals[0]?.id ?? "");
   const [contrat, setContrat] = React.useState<ContratData | null>(null);
   const [confirmation, setConfirmation] =
@@ -64,6 +69,44 @@ export default function ContratPreview({
   }, [rentalId, docType]);
 
   const data = docType === "CONFIRMATION" ? confirmation : contrat;
+
+  // The same element the viewer shows, so the saved file is the preview.
+  const doc =
+    docType === "CONFIRMATION" ? (
+      <RentalConfirmation data={confirmation!} />
+    ) : (
+      <ContratLocationSaisonniere data={contrat!} />
+    );
+
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  /**
+   * Renders to a blob and saves it under the document's own name — the viewer's
+   * own save button cannot be renamed, and would write the blob's opaque id.
+   */
+  async function download() {
+    if (!data) return;
+    setIsSaving(true);
+    let url: string | undefined;
+    try {
+      const blob = await pdf(doc).toBlob();
+      url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = documentFileName(docType, data.reference, data.tenant.name);
+      a.click();
+    } catch {
+      toast.error("Le document n'a pas pu être téléchargé.");
+    } finally {
+      // Revoking immediately can cancel the download in some browsers; give
+      // the click a turn to be picked up first.
+      if (url) {
+        const objectUrl = url;
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+      }
+      setIsSaving(false);
+    }
+  }
 
   return (
     <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
@@ -117,6 +160,23 @@ export default function ContratPreview({
             contacts, dates et montants.
           </p>
         </div>
+
+        <div className="space-y-2">
+          <Button
+            type="button"
+            onClick={download}
+            disabled={!data || isPending || isSaving}
+            className="w-full"
+          >
+            <Download />
+            {isSaving ? "Préparation…" : "Télécharger le PDF"}
+          </Button>
+          {data ? (
+            <p className="text-muted-foreground truncate text-xs">
+              {documentFileName(docType, data.reference, data.tenant.name)}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <div className="bg-muted/30 h-[82vh] overflow-hidden rounded-lg border">
@@ -135,11 +195,7 @@ export default function ContratPreview({
             showToolbar
             style={{ width: "100%", height: "100%", border: 0 }}
           >
-            {docType === "CONFIRMATION" ? (
-              <RentalConfirmation data={confirmation!} />
-            ) : (
-              <ContratLocationSaisonniere data={contrat!} />
-            )}
+            {doc}
           </PDFViewer>
         )}
       </div>
