@@ -4,6 +4,7 @@ import type { CurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { AGENCY } from "@/features/documents/agency";
+import { documentReference } from "@/features/documents/reference";
 import type { ContratData } from "@/features/documents/templates/contrat-location-saisonniere";
 
 const MONEY = new Intl.NumberFormat("fr-FR", {
@@ -43,6 +44,7 @@ export async function buildContratData(
   const rental = await prisma.rental.findFirst({
     where: { id: rentalId, archivedAt: null },
     select: {
+      reference: true,
       checkIn: true,
       checkOut: true,
       guests: true,
@@ -187,7 +189,7 @@ export async function buildContratData(
   const sleeps = p.sleeps ?? 0;
 
   return {
-    reference: `BS-${rentalId.slice(0, 8).toUpperCase()}`,
+    reference: documentReference("CONTRAT", rental.reference),
     place: p.city ?? AGENCY.address,
     date: date(new Date()),
     agency: { ...AGENCY },

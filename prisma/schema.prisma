@@ -512,6 +512,30 @@ model PropertyPicture {
 model Rental {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
+  // The booking's human-readable number, printed on every document the
+  // rental produces: the confirmation as "RC-0001240", the seasonal rental
+  // contract as "SRC-0001240". The prefix names the document type, this
+  // number names the rental — the same booking keeps one number across all
+  // of its paperwork, which is what lets an owner and a tenant hold two
+  // different documents and see they belong together.
+  //
+  // A single monotonic sequence that never resets, and one that deliberately
+  // starts at 1240 rather than 1: padded to seven digits by the formatter,
+  // the reference reads as an opaque file number instead of a running count,
+  // so the paperwork never tells a client how many rentals BSTAY has done.
+  // The offset is presentational only — nothing computes a volume from this
+  // column, and nothing should.
+  //
+  // Assigned by the database at insert, so two agents converting demandes at
+  // the same instant cannot collide; never recycled, so a cancelled rental's
+  // number is retired with it rather than handed to the next booking.
+  //
+  // Set at creation (INQUIRY), not at signature: the number has to exist
+  // before the confirmation is drafted, which happens well before anything
+  // is signed. Enquiries that never convert therefore consume numbers, which
+  // is another reason the series must not be read as a count.
+  reference Int @unique @default(dbgenerated("nextval('rentals_reference_seq')"))
+
   propertyId String   @db.Uuid
   property   Property @relation(fields: [propertyId], references: [id])
 

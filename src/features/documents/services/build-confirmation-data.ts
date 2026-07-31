@@ -4,6 +4,7 @@ import type { CurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { AGENCY } from "@/features/documents/agency";
+import { documentReference } from "@/features/documents/reference";
 import type {
   ConfirmationData,
   Bilingual,
@@ -65,6 +66,7 @@ export async function buildConfirmationData(
   const rental = await prisma.rental.findFirst({
     where: { id: rentalId, archivedAt: null },
     select: {
+      reference: true,
       checkIn: true,
       checkOut: true,
       guests: true,
@@ -322,7 +324,7 @@ export async function buildConfirmationData(
   }
 
   return {
-    reference: `RC-${rentalId.slice(0, 8).toUpperCase()}`,
+    reference: documentReference("CONFIRMATION", rental.reference),
     agency: {
       legalName: AGENCY.legalName,
       address: AGENCY.address,

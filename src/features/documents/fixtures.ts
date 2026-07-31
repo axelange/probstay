@@ -4,7 +4,7 @@ import type { ConfirmationData } from "@/features/documents/templates/rental-con
 
 /** Fictional data for the sample document — not a real record. */
 export const sampleContrat: ContratData = {
-  reference: "BS-2026-0148",
+  reference: "SRC-0001240",
   place: "Cannes",
   date: "23 juillet 2026",
   agency: {
@@ -61,7 +61,7 @@ export const sampleContrat: ContratData = {
 
 /** Fictional data for the sample "Rental Confirmation" — not a real record. */
 export const sampleConfirmation: ConfirmationData = {
-  reference: "BS-2026-0148",
+  reference: "RC-0001240",
   agency: {
     legalName: AGENCY.legalName,
     address: AGENCY.address,
