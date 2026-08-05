@@ -461,6 +461,16 @@ model Property {
   // referentiel lookup when needed, not stored as text here)
   services    Int[]
 
+  // The security deposit this property is normally let with. BSTAY's own
+  // field — APIMO's `price.deposit` is a different figure and the sync never
+  // writes this one.
+  //
+  // It seeds a rental's own securityDepositAmount at conversion and nothing
+  // more: the copy is one-way. A rental that has already been created keeps
+  // the figure it was created with, because a contract may already quote it —
+  // revising the property's default must never rewrite what a tenant signed.
+  defaultSecurityDeposit Decimal? @db.Decimal(12, 2)
+
   // Services included with a stay, shown on the rental as "services
   // inclus". BSTAY's own field — plain labels typed by the agency, not
   // APIMO's `services` codes above (pool, aircon…). The sync never

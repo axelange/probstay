@@ -82,7 +82,7 @@ export async function convertDemande(
   // any for an admin. Not limited to the demande's properties of interest.
   const property = await prisma.property.findFirst({
     where: { id: data.propertyId, archivedAt: null },
-    select: { id: true, agentId: true },
+    select: { id: true, agentId: true, defaultSecurityDeposit: true },
   });
   if (!property) {
     return { status: "error", message: "Ce bien n'existe plus." };
@@ -122,6 +122,11 @@ export async function convertDemande(
           // Carry the party size the prospect gave on the demande, so it
           // isn't lost when the rental opens. Editable afterwards in the funnel.
           guests: demande.guests,
+          // Seed the caution from the property. Copied once, here, and never
+          // read again: revising the property's default must not rewrite a
+          // rental whose contract may already quote the old figure. Editable
+          // on the rental afterwards, like the party size.
+          securityDepositAmount: property.defaultSecurityDeposit,
           checkIn: new Date(data.checkIn),
           checkOut: new Date(data.checkOut),
           tenants: {
