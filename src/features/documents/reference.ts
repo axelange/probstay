@@ -3,7 +3,7 @@
  *
  * A rental carries one number for its whole life (`Rental.reference`, assigned
  * by the database at creation). Each document it produces prints that number
- * behind a prefix naming the document type, so "RC-0001240" and "SRC-0001240"
+ * behind a prefix naming the document type, so "RC-0001240" and "SRA-0001240"
  * are visibly the same booking seen through two different papers — the owner's
  * confirmation and the tenant's contract.
  *
@@ -18,6 +18,26 @@
  */
 
 import type { DocumentType } from "@/features/documents/services/document-readiness";
+import type { DocumentTemplateTypeKey } from "@/features/documents/template-clauses";
+
+/**
+ * The stored template type behind each document. Two vocabularies exist —
+ * the UI's short one and the enum's explicit one — so the crossing is made
+ * once, here, rather than re-spelled at each call site.
+ */
+export const TEMPLATE_TYPE: Record<DocumentType, DocumentTemplateTypeKey> = {
+  CONFIRMATION: "RENTAL_CONFIRMATION",
+  CONTRAT: "SEASONAL_RENTAL_CONTRACT",
+};
+
+/** The same crossing the other way, for rows read back from the database. */
+export const DOCUMENT_TYPE_OF_TEMPLATE: Record<
+  DocumentTemplateTypeKey,
+  DocumentType
+> = {
+  RENTAL_CONFIRMATION: "CONFIRMATION",
+  SEASONAL_RENTAL_CONTRACT: "CONTRAT",
+};
 
 /**
  * Width the rental number is padded to: 0001240, not 1240.
@@ -33,15 +53,16 @@ const REFERENCE_DIGITS = 7;
 const PREFIX: Record<DocumentType, string> = {
   // Rental Confirmation — the owner-facing house charte.
   CONFIRMATION: "RC",
-  // Seasonal Rental Contract — contrat de location saisonnière.
-  CONTRAT: "SRC",
+  // Seasonal Rental Agreement — contrat de location saisonnière. The master
+  // prints "SRA-", after the document's own title.
+  CONTRAT: "SRA",
 };
 
 /**
  * What each document is called in the file name. French, like the documents
  * themselves and the rest of the UI — these files go to owners and tenants.
  */
-const DOCUMENT_NAME: Record<DocumentType, string> = {
+export const DOCUMENT_NAME: Record<DocumentType, string> = {
   CONFIRMATION: "Confirmation de location",
   CONTRAT: "Contrat de location saisonnière",
 };

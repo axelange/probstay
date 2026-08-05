@@ -1,21 +1,64 @@
 import { AGENCY } from "@/features/documents/agency";
+import {
+  DEFAULT_CLAUSES,
+  resolveClause,
+} from "@/features/documents/template-clauses";
 import type { ContratData } from "@/features/documents/templates/contrat-location-saisonniere";
 import type { ConfirmationData } from "@/features/documents/templates/rental-confirmation";
 
 /** Fictional data for the sample document — not a real record. */
+// The sample runs on the shipped wording, with its own values interpolated —
+// the same path a real document takes when no template has been saved yet.
+const SAMPLE_CONTRAT_VARIABLES = {
+  "property.name": "Villa Reina",
+  "property.kind": "villa contemporaine avec piscine",
+  "property.address": "42 boulevard de la Croisette",
+  "property.city": "Cannes (06400)",
+  "property.surface": "320 m²",
+  "property.rooms": "8 pièces dont 5 chambres",
+  "property.sleeps": "jusqu'à 10 personnes",
+  "stay.checkIn": "13 août 2026",
+  "stay.checkOut": "25 août 2026",
+  "stay.nights": "12 nuits",
+  "stay.guests": "10 personnes",
+  "money.securityDeposit": "10 000,00 €",
+};
+
 export const sampleContrat: ContratData = {
-  reference: "SRC-0001240",
+  reference: "SRA-0001240",
+  clauses: Object.fromEntries(
+    Object.keys(DEFAULT_CLAUSES.SEASONAL_RENTAL_CONTRACT).map((key) => [
+      key,
+      resolveClause(
+        "SEASONAL_RENTAL_CONTRACT",
+        key,
+        null,
+        SAMPLE_CONTRAT_VARIABLES
+      ),
+    ])
+  ),
   place: "Cannes",
   date: "23 juillet 2026",
   agency: {
+    bankName: AGENCY.bankName,
+    bankAccountName: AGENCY.bankAccountName,
+    bankIban: AGENCY.bankIban,
+    bankBic: AGENCY.bankBic,
     name: "B-STAY",
     tagline: "Locations d'exception · Côte d'Azur",
     legalForm: "SAS",
     capital: "50 000 €",
-    rcs: "RCS Cannes 900 000 000",
-    address: "12 boulevard de la Croisette, 06400 Cannes",
     representedBy: "Mme Valentine Roche",
     capacity: "Présidente",
+    // The footer identity, shared with the Confirmation.
+    legalName: AGENCY.legalName,
+    address: AGENCY.address,
+    rcs: AGENCY.rcs,
+    cartePro: AGENCY.cartePro,
+    garantieFinanciere: AGENCY.garantieFinanciere,
+    rcp: AGENCY.rcp,
+    web: AGENCY.web,
+    phone: AGENCY.phone,
   },
   owner: {
     name: "M. Thomas Buffa",
@@ -30,6 +73,10 @@ export const sampleContrat: ContratData = {
       "c/o Gordon S. Blair, 7 rue du Gabian, Le Gildo Pastor Center, 98000 Monaco",
     representative: "M. Aslan Khabliev",
     capacity: "Gérant",
+    details: [
+      { label: { en: "Permanent address", fr: "Adresse permanente" }, value: "9 Rue des Jonquières, 06400 Cannes" },
+      { label: { en: "Email", fr: "Courriel" }, value: "contact@alanianstar.mc" },
+    ],
   },
   property: {
     name: "Villa Reina",
@@ -39,12 +86,28 @@ export const sampleContrat: ContratData = {
     surface: "320 m²",
     rooms: "8 pièces dont 5 chambres",
     sleeps: "jusqu'à 10 personnes",
+    photos: [],
+    includedCharges: ["Eau", "Électricité", "Internet (Wi-Fi)", "Ménage de fin de séjour"],
+    details: [
+      { label: { en: "Living area", fr: "Surface" }, value: "320 m²" },
+      { label: { en: "Number of rooms, bedrooms", fr: "Nombre de pièces, chambres" }, value: "8 pièces, 5 chambres" },
+      { label: { en: "Maximum occupancy", fr: "Capacité maximale" }, value: "10 personnes" },
+    ],
+    description: {
+      en: [],
+      fr: [
+        "Située dans le quartier du Petit Juas à Cannes, à seulement 15 minutes à pied de la prestigieuse Croisette et des commerces, cette magnifique villa de style Belle Époque offre une surface habitable de 225 m².",
+        "Un grand jardin/terrasse avec piscine chauffée au sel et des espaces extérieurs paysagers, incluant un coin lounge, viennent parfaire ce bien d'exception.",
+      ],
+    },
   },
   stay: {
     checkIn: "13 août 2026",
     checkOut: "25 août 2026",
     nights: "12 nuits",
     guests: "10 personnes",
+    checkInTime: AGENCY.checkInTime,
+    checkOutTime: AGENCY.checkOutTime,
   },
   money: {
     rent: "48 000,00 €",
@@ -56,12 +119,21 @@ export const sampleContrat: ContratData = {
     total: "52 530,00 €",
     securityDeposit: "10 000,00 €",
     deposit: "24 000,00 €",
+    balance: "28 530,00 €",
+    depositPercent: "46 %",
+    balancePercent: "54 %",
+    securityDepositDue: "14/07/2026",
+    depositDue: "30/07/2026",
+    balanceDue: "14/06/2026",
+    surcharge: "2 626,50 €",
+    touristTaxBasis: "6,16 × 10 pers × 12 nuits",
   },
 };
 
 /** Fictional data for the sample "Rental Confirmation" — not a real record. */
 export const sampleConfirmation: ConfirmationData = {
   reference: "RC-0001240",
+  intro: DEFAULT_CLAUSES.RENTAL_CONFIRMATION.intro,
   agency: {
     legalName: AGENCY.legalName,
     address: AGENCY.address,
