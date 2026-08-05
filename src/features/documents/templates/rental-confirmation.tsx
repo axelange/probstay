@@ -60,6 +60,8 @@ export type ConfirmationData = {
     nights: string;
     occupancy: string;
   };
+  /** Opening paragraph, from the template's clauses. */
+  intro: { en: string[]; fr: string[] };
   services: {
     included: Bilingual[];
     notIncluded: Bilingual[];
@@ -524,16 +526,16 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
         <View style={s.headRule} />
 
         <View style={s.intro}>
-          <Text style={s.introEn}>
-            Pursuant to the Seasonal Rental Mandate signed between the Owner and
-            the Agent, we are pleased to confirm the seasonal rental described
-            below.
-          </Text>
-          <Text style={s.introFr}>
-            En application du Mandat de location saisonnière signé entre le
-            Propriétaire et BSTAY, nous avons le plaisir de confirmer la
-            location saisonnière décrite ci-dessous.
-          </Text>
+          {data.intro.en.map((p, i) => (
+            <Text key={`ie${i}`} style={s.introEn}>
+              {p}
+            </Text>
+          ))}
+          {data.intro.fr.map((p, i) => (
+            <Text key={`if${i}`} style={s.introFr}>
+              {p}
+            </Text>
+          ))}
         </View>
 
         {/* Parties & property */}

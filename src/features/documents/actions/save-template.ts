@@ -5,11 +5,11 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { templateBlocksSchema } from "@/features/documents/template-blocks";
+import { templateClausesSchema } from "@/features/documents/template-clauses";
 
 const schema = z.object({
   templateId: z.uuid(),
-  blocks: templateBlocksSchema,
+  clauses: templateClausesSchema,
 });
 
 export type SaveTemplateResult =
@@ -62,7 +62,8 @@ export async function saveTemplate(
         data: {
           templateId: template.id,
           version: next,
-          blocks: data.blocks,
+          // The column is still named `blocks`; it now holds the clause map.
+          blocks: data.clauses,
           createdById: user.id,
         },
       });

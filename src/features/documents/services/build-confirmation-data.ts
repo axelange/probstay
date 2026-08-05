@@ -5,6 +5,9 @@ import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { AGENCY } from "@/features/documents/agency";
 import { documentReference } from "@/features/documents/reference";
+import { currentTemplateClauses } from "@/features/documents/services/template-service";
+import { resolveClause } from "@/features/documents/template-clauses";
+import { idDocLabel } from "@/features/documents/identity";
 import type {
   ConfirmationData,
   Bilingual,
@@ -323,6 +326,13 @@ export async function buildConfirmationData(
       tenantDetails.push({ label: idDocLabel(tenant.idDocType), value: `n° ${tenant.idDocNumber}` });
   }
 
+  // The wording comes from the current template version when one exists, and
+  // from the shipped defaults otherwise. The Confirmation's clauses carry no
+  // variables, so nothing is interpolated into them.
+  const { clauses } = await currentTemplateClauses("RENTAL_CONFIRMATION");
+  const clause = (key: string) =>
+    resolveClause("RENTAL_CONFIRMATION", key, clauses);
+
   return {
     reference: documentReference("CONFIRMATION", rental.reference),
     agency: {
@@ -359,10 +369,10 @@ export async function buildConfirmationData(
     services: { included, notIncluded },
     financial: { rows: financialRows, total: money(total) },
     payments,
-    // Static legal prose — the house charte's clauses, agency-wide.
-    cancellation: CANCELLATION,
-    framework: FRAMEWORK,
-    esign: ESIGN,
+    intro: clause("intro"),
+    cancellation: clause("cancellation"),
+    framework: clause("framework"),
+    esign: clause("esign"),
     signature: {
       owner: {
         name: owner?.kind === "COMPANY" ? owner.lastName : fullName(owner),
@@ -376,83 +386,6 @@ export async function buildConfirmationData(
   };
 }
 
-/**
- * Bilingual caption for a tenant's identity document — "ID card / CNI" rather
- * than the generic "ID document / Pièce d'identité".
- *
- * `Contact.idDocType` is free text, not the `IdentityDocumentType` enum: both
- * contact forms write the French labels from `ID_DOC_TYPES` ("CNI",
- * "Passeport", "Permis de conduire"), and the column's comment allows others
- * still ("Titre de séjour…"). Matching on the enum's spellings therefore never
- * hit, and every tenant fell through to the generic caption. Accents, case and
- * punctuation are normalised away so "CNI", "Carte d'identité" and a legacy
- * "ID_CARD" all land on the same row, and an unrecognised value prints as
- * stored instead of being flattened — the type is never lost.
- */
-function idDocLabel(type: string): Bilingual {
-  const key = type
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z]+/g, " ")
-    .trim();
-  switch (key) {
-    case "cni":
-    case "id card":
-    case "carte d identite":
-    case "carte nationale d identite":
-      return { en: "ID card", fr: "CNI" };
-    case "passeport":
-    case "passport":
-      return { en: "Passport", fr: "Passeport" };
-    case "permis":
-    case "permis de conduire":
-    case "driving license":
-    case "driving licence":
-      return { en: "Driving licence", fr: "Permis de conduire" };
-    case "titre de sejour":
-    case "residence permit":
-      return { en: "Residence permit", fr: "Titre de séjour" };
-    default:
-      return { en: "ID document", fr: type.trim() };
-  }
-}
 
-const CANCELLATION: ConfirmationData["cancellation"] = {
-  en: [
-    "The booking shall become firm and binding upon signature of this Rental Confirmation and payment of the sums due by the Tenant.",
-    "In the event of cancellation by the Tenant, for any reason whatsoever, no refund shall be made and the full rental amount shall remain payable to the Owner.",
-    "In the event of cancellation by the Owner, all sums received shall be refunded to the Tenant.",
-    "Force majeure events, as defined by applicable law, shall not give rise to any compensation by either Party.",
-  ],
-  fr: [
-    "La réservation devient ferme et définitive dès signature de la présente Confirmation de location et paiement des sommes dues par le Locataire.",
-    "En cas d'annulation par le Locataire, pour quelque cause que ce soit, aucun remboursement ne pourra être effectué et la totalité du loyer restera due au Propriétaire.",
-    "En cas d'annulation par le Propriétaire, les sommes effectivement perçues seront restituées au Locataire.",
-    "Les cas de force majeure, tels que définis par la réglementation en vigueur, ne donnent lieu à aucune indemnisation de part et d'autre.",
-  ],
-};
 
-const FRAMEWORK: ConfirmationData["framework"] = {
-  en: [
-    "This Rental Confirmation constitutes a binding agreement between the Parties.",
-    "It forms part of the overall contractual framework governing the rental and shall be read in conjunction with the applicable rental terms.",
-  ],
-  fr: [
-    "La présente Confirmation de location constitue un accord ferme entre les Parties.",
-    "Elle s'inscrit dans le cadre contractuel global régissant la location et doit être lue conjointement avec les conditions de location applicables.",
-  ],
-};
 
-const ESIGN: ConfirmationData["esign"] = {
-  en: [
-    "The Parties agree that this document may be signed electronically and that such electronic signature shall have the same legal value as a handwritten signature.",
-    "The date of signature shall correspond to the date of electronic validation.",
-    "Each Party acknowledges having received a copy of this document.",
-  ],
-  fr: [
-    "Les Parties conviennent que le présent document pourra être signé par voie électronique, laquelle aura la même valeur juridique qu'une signature manuscrite.",
-    "La date de signature correspond à la date de validation électronique.",
-    "Chaque Partie reconnaît avoir reçu un exemplaire du présent document.",
-  ],
-};

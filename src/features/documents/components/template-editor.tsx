@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Lock, Plus, X } from "lucide-react";
+import { Lock, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,10 +15,12 @@ import {
 } from "@/components/ui/select";
 import { saveTemplate } from "@/features/documents/actions/save-template";
 import {
-  BLOCK_KIND_LABELS,
-  TEXT_KINDS,
-  type TemplateBlock,
-} from "@/features/documents/template-blocks";
+  CLAUSE_FIELDS,
+  CLAUSE_VARIABLES,
+  DEFAULT_CLAUSES,
+  type DocumentTemplateTypeKey,
+  type TemplateClauses,
+} from "@/features/documents/template-clauses";
 import { formatDate } from "@/features/rentals/components/rental-labels";
 
 export type EditorTemplate = {
@@ -26,47 +28,93 @@ export type EditorTemplate = {
   type: string;
   name: string;
   currentVersion: number;
-  blocks: TemplateBlock[];
+  clauses: TemplateClauses;
   versions: { version: number; createdAt: Date; author: string | null }[];
 };
 
-const isText = (
-  b: TemplateBlock
-): b is Extract<TemplateBlock, { fr: string }> =>
-  (TEXT_KINDS as readonly string[]).includes(b.kind);
-
-function TextArea({
+function Paragraph({
   value,
   onChange,
-  lang,
+  onRemove,
   disabled,
 }: {
   value: string;
   onChange: (v: string) => void;
-  lang: "FR" | "EN";
+  onRemove: () => void;
   disabled: boolean;
 }) {
   return (
     <div className="flex gap-2">
-      <span className="text-muted-foreground w-6 shrink-0 pt-2 text-[10px] font-medium">
-        {lang}
-      </span>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        rows={Math.min(6, Math.max(2, Math.ceil(value.length / 90)))}
+        rows={Math.min(8, Math.max(2, Math.ceil(value.length / 90)))}
         className="border-input focus-visible:ring-ring w-full rounded-md border bg-transparent px-3 py-1.5 text-sm leading-relaxed focus-visible:ring-1 focus-visible:outline-none disabled:opacity-50"
       />
+      <button
+        type="button"
+        aria-label="Retirer le paragraphe"
+        onClick={onRemove}
+        disabled={disabled}
+        className="text-muted-foreground hover:text-destructive mt-1 h-fit cursor-pointer disabled:opacity-30"
+      >
+        <X aria-hidden="true" className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+/** One language of one clause: its paragraphs, in order. */
+function LanguageColumn({
+  lang,
+  paragraphs,
+  onChange,
+  disabled,
+}: {
+  lang: "FR" | "EN";
+  paragraphs: string[];
+  onChange: (next: string[]) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-muted-foreground text-[10px] font-medium">
+        {lang}
+        {lang === "FR" ? " — fait foi" : " — courtoisie"}
+      </p>
+      {paragraphs.map((p, i) => (
+        <Paragraph
+          key={i}
+          value={p}
+          disabled={disabled}
+          onChange={(v) => onChange(paragraphs.map((x, j) => (j === i ? v : x)))}
+          onRemove={() => onChange(paragraphs.filter((_, j) => j !== i))}
+        />
+      ))}
+      {!disabled ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onChange([...paragraphs, ""])}
+        >
+          <Plus aria-hidden="true" />
+          Paragraphe
+        </Button>
+      ) : null}
     </div>
   );
 }
 
 /**
- * The template editor: ordered blocks — bilingual text, or data slots the
- * renderer fills from the rental (movable, never rewritable). Saving
- * always creates a new immutable version; generation only ever uses the
- * newest one, older versions are kept read-only for traceability.
+ * The template editor: the document's legal wording, clause by clause.
+ *
+ * Only the prose is editable. The composition — which section follows which,
+ * where the parties, stay and financial tables sit, where the pages break —
+ * stays in the template components, which match the agency's Figma master.
+ * Saving always creates a new immutable version; generation only ever uses
+ * the newest, older versions are kept read-only for traceability.
  */
 export function TemplateEditor({
   template,
@@ -76,32 +124,42 @@ export function TemplateEditor({
   canEdit: boolean;
 }) {
   const router = useRouter();
-  const [blocks, setBlocks] = React.useState<TemplateBlock[]>(template.blocks);
+  const [clauses, setClauses] = React.useState<TemplateClauses>(
+    template.clauses
+  );
   const [dirty, setDirty] = React.useState(false);
   const [isPending, startTransition] = React.useTransition();
   const disabled = isPending || !canEdit;
 
-  function mutate(fn: (list: TemplateBlock[]) => TemplateBlock[]) {
-    setBlocks(fn);
+  const type = template.type as DocumentTemplateTypeKey;
+  const fields = CLAUSE_FIELDS[type] ?? [];
+  const variables = CLAUSE_VARIABLES[type] ?? [];
+
+  /** What a clause currently reads — the stored wording, else the shipped one. */
+  function clauseOf(key: string) {
+    const stored = clauses[key];
+    if (stored && (stored.fr.length > 0 || stored.en.length > 0)) return stored;
+    return DEFAULT_CLAUSES[type]?.[key] ?? { fr: [], en: [] };
+  }
+
+  function setClause(key: string, lang: "fr" | "en", next: string[]) {
+    setClauses((prev) => {
+      const current = prev[key] ?? clauseOf(key);
+      return { ...prev, [key]: { ...current, [lang]: next } };
+    });
     setDirty(true);
   }
-  const move = (i: number, dir: -1 | 1) =>
-    mutate((list) => {
-      const j = i + dir;
-      if (j < 0 || j >= list.length) return list;
-      const next = [...list];
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
 
   function save() {
     startTransition(async () => {
-      const result = await saveTemplate({ templateId: template.id, blocks });
+      const result = await saveTemplate({ templateId: template.id, clauses });
       if (result.status === "error") {
         toast.error(result.message);
         return;
       }
-      toast.success(`Version ${result.version} enregistrée — c'est désormais la version utilisée.`);
+      toast.success(
+        `Version ${result.version} enregistrée — c'est désormais la version utilisée.`
+      );
       setDirty(false);
       router.refresh();
     });
@@ -122,96 +180,45 @@ export function TemplateEditor({
         ) : null}
       </div>
 
-      <ul className="space-y-2">
-        {blocks.map((b, i) => (
-          <li key={i} className="rounded-md border p-3">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="text-muted-foreground text-xs font-medium">
-                {BLOCK_KIND_LABELS[b.kind]}
-              </span>
-              {!isText(b) ? (
-                <span className="text-muted-foreground text-[10px]">
-                  rempli depuis la location — déplaçable, non modifiable
-                </span>
-              ) : null}
-              <span className="ml-auto flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-label="Monter"
-                  onClick={() => move(i, -1)}
-                  disabled={disabled || i === 0}
-                  className="text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-30"
-                >
-                  <ArrowUp aria-hidden="true" className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Descendre"
-                  onClick={() => move(i, 1)}
-                  disabled={disabled || i === blocks.length - 1}
-                  className="text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-30"
-                >
-                  <ArrowDown aria-hidden="true" className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Retirer"
-                  onClick={() => mutate((list) => list.filter((_, j) => j !== i))}
-                  disabled={disabled}
-                  className="text-muted-foreground hover:text-destructive ml-1 cursor-pointer disabled:opacity-30"
-                >
-                  <X aria-hidden="true" className="size-3.5" />
-                </button>
-              </span>
-            </div>
+      <p className="text-muted-foreground rounded-md border border-dashed px-3 py-2 text-xs">
+        Seul le texte des clauses se modifie ici. La mise en page, l&apos;ordre
+        des sections et les tableaux (parties, séjour, montants, signatures)
+        sont fixés par la maquette.
+        {variables.length > 0 ? (
+          <>
+            {" "}
+            Variables disponibles :{" "}
+            <span className="font-mono">
+              {variables.map((v) => `{{${v}}}`).join(" ")}
+            </span>
+          </>
+        ) : null}
+      </p>
 
-            {isText(b) ? (
-              <div className="space-y-1.5">
-                <TextArea
+      <ul className="space-y-4">
+        {fields.map((f) => {
+          const clause = clauseOf(f.key);
+          return (
+            <li key={f.key} className="rounded-md border p-3">
+              <p className="mb-2 text-xs font-medium">{f.label}</p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <LanguageColumn
                   lang="FR"
-                  value={b.fr}
+                  paragraphs={clause.fr}
                   disabled={disabled}
-                  onChange={(v) =>
-                    mutate((list) =>
-                      list.map((x, j) => (j === i ? { ...x, fr: v } : x))
-                    )
-                  }
+                  onChange={(next) => setClause(f.key, "fr", next)}
                 />
-                <TextArea
+                <LanguageColumn
                   lang="EN"
-                  value={b.en}
+                  paragraphs={clause.en}
                   disabled={disabled}
-                  onChange={(v) =>
-                    mutate((list) =>
-                      list.map((x, j) => (j === i ? { ...x, en: v } : x))
-                    )
-                  }
+                  onChange={(next) => setClause(f.key, "en", next)}
                 />
               </div>
-            ) : null}
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
-
-      {canEdit ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {TEXT_KINDS.map((k) => (
-            <Button
-              key={k}
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={disabled}
-              onClick={() =>
-                mutate((list) => [...list, { kind: k, fr: "", en: "" }])
-              }
-            >
-              <Plus aria-hidden="true" />
-              {BLOCK_KIND_LABELS[k]}
-            </Button>
-          ))}
-        </div>
-      ) : null}
 
       {canEdit ? (
         <div className="flex items-center gap-3 border-t pt-3">

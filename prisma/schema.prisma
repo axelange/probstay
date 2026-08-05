@@ -819,9 +819,9 @@ enum DocumentTemplateType {
 // versions: editing always creates a new version and moves currentVersion
 // forward — generation reads the current version only, older ones are kept
 // solely for traceability (a generated document records the version it
-// used). The design (fonts, layout) stays in code; the template holds the
-// ordered blocks: bilingual text (FR authoritative, EN courtesy) and data
-// slots the renderer fills from the rental.
+// used). The design (fonts, layout, section order and every data table)
+// stays in code; the template holds only the legal wording, clause by
+// clause, bilingual (FR authoritative, EN courtesy).
 model DocumentTemplate {
   id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   type           DocumentTemplateType @unique
@@ -844,7 +844,10 @@ model DocumentTemplateVersion {
   templateId String           @db.Uuid
   template   DocumentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   version    Int
-  // Ordered TemplateBlock[] (see features/documents/template-blocks.ts).
+  // The template's clauses: a map of clause key -> bilingual paragraphs
+  // (see features/documents/template-clauses.ts). Only the legal wording is
+  // editable; composition and layout stay in the template components. The
+  // column keeps its original name.
   blocks     Json
 
   createdAt   DateTime @default(now())
