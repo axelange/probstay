@@ -14,6 +14,8 @@ import { modeLabel } from "@/features/demandes/components/demande-labels";
 import { ContractCompletionForm } from "@/features/documents/components/contract-completion-form";
 import { buildCompletionData } from "@/features/documents/services/build-completion-data";
 import { documentReadiness } from "@/features/documents/services/document-readiness";
+import { listGeneratedDocuments } from "@/features/documents/services/generated-document-service";
+import { RentalDocuments } from "@/features/documents/components/rental-documents";
 import {
   canManageRental,
   getRentalDetail,
@@ -88,6 +90,24 @@ export default async function RentalDetailPage({
           buildCompletionData(rental.id, user),
         ])
       : [null, null];
+
+  // Generated documents are listed from the contract stage onward: they stay
+  // reachable after the contract is signed, which is when someone is most
+  // likely to need the file again.
+  const generated =
+    rental.bookingStatus === "CONTRACT" ||
+    rental.bookingStatus === "FINALISATION" ||
+    rental.bookingStatus === "CHECK_IN" ||
+    rental.bookingStatus === "CHECK_OUT"
+      ? await listGeneratedDocuments(rental.id, user)
+      : null;
+  const documentsStep = generated ? (
+    <RentalDocuments
+      rentalId={rental.id}
+      documents={generated}
+      canManage={canManage}
+    />
+  ) : undefined;
   const contractStep =
     readiness && completion ? (
       <ContractCompletionForm
@@ -174,6 +194,7 @@ export default async function RentalDetailPage({
             properties={properties}
             taxRatesByCity={taxRatesByCity}
             contractStep={contractStep}
+            documentsStep={documentsStep}
             contractReady={readiness?.complete ?? false}
             rental={{
               id: rental.id,

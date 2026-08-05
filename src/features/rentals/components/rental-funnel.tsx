@@ -157,6 +157,7 @@ export function RentalFunnel({
   properties,
   taxRatesByCity,
   contractStep,
+  documentsStep,
   contractReady = false,
 }: {
   rental: FunnelRental;
@@ -165,6 +166,8 @@ export function RentalFunnel({
   taxRatesByCity: Record<string, number>;
   /** The contract stage's completion form, server-assembled (RSC slot). */
   contractStep?: React.ReactNode;
+  /** Generation and the documents already produced, from the contract stage on. */
+  documentsStep?: React.ReactNode;
   /** Whether every field the documents require is filled. */
   contractReady?: boolean;
 }) {
@@ -639,14 +642,10 @@ export function RentalFunnel({
                   server-assembled and written back to contact/rental. */}
               {contractStep}
 
+              {documentsStep}
+
               {contractReady ? (
                 <>
-                  <p className="text-muted-foreground rounded-md border border-dashed px-3 py-2.5 text-xs">
-                    Génération des documents (Confirmation de location,
-                    Contrat de location saisonnière) — bientôt disponible ici.
-                    L&apos;aperçu est déjà consultable sur la page Documents.
-                  </p>
-
                   {/* The date-lock, optional: reserves the dates against
                       other agents, no longer required to advance. */}
                   {ownerConfirmed ? (

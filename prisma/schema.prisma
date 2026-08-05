@@ -176,6 +176,7 @@ model User {
   rentalsOwnerConfirmed Rental[]           @relation("RentalOwnerConfirmedBy")
   rentalsContractSigned Rental[]           @relation("RentalContractSignedBy")
   identityDocuments     IdentityDocument[] @relation("IdentityDocumentUploader")
+  documentsGenerated    GeneratedDocument[] @relation("GeneratedDocumentAuthor")
   touristTaxesUpdated   TouristTax[]       @relation("TouristTaxUpdatedBy")
   demandesCreated       Demande[]          @relation("DemandeCreatedBy")
   templateVersions      DocumentTemplateVersion[] @relation("TemplateVersionAuthor")
@@ -582,6 +583,8 @@ model Rental {
 
   tenants RentalTenant[]
 
+  generatedDocuments GeneratedDocument[]
+
   // First stage is INQUIRY, labelled "Informations" in the UI: a rental
   // only exists once a demande has been converted into one, so its
   // opening stage is where the booking's information is completed before
@@ -856,6 +859,46 @@ model DocumentTemplateVersion {
 
   @@unique([templateId, version])
   @@map("document_template_versions")
+}
+
+// A document actually produced for a rental, and the file it wrote.
+//
+// Immutable, and never overwritten: regenerating adds a row. A confirmation
+// or a contract may have been sent, signed, or relied on, so the question
+// "what exactly did the client receive on the 12th" has to stay answerable —
+// which it would not be if a later generation replaced the file in place.
+// That is also why the wording's version is recorded: the clauses can be
+// edited afterwards, and this pins which ones produced this document.
+model GeneratedDocument {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rentalId String @db.Uuid
+  rental   Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  type DocumentTemplateType
+
+  // The reference as printed on the document ("RC-0001240"), and the file
+  // name it was stored under. Both are snapshots: the rental's reference
+  // cannot change, but the tenant's name can, and the stored file keeps the
+  // name it was written with.
+  reference String
+  fileName  String
+
+  // Object key in the private `generated-documents` bucket. Unique because
+  // each generation writes its own object — nothing is ever replaced.
+  storagePath String @unique
+
+  // Which template version supplied the wording. Null when the document was
+  // generated from the wording shipped in code, before any template was
+  // saved — a real state, not a missing value.
+  templateVersion Int?
+
+  generatedById String? @db.Uuid
+  generatedBy   User?   @relation("GeneratedDocumentAuthor", fields: [generatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([rentalId, type, createdAt])
+  @@map("generated_documents")
 }
 
 // A property a demande is interested in. Many for a wide demande, one for
