@@ -473,12 +473,21 @@ model Property {
 
   url String?
 
-  // French only. APIMO has no description field — the text lives in
-  // comments[], one entry per language (en/fr/bg/ru), and the sync takes
-  // the French one. Null rather than another language if French is
-  // missing. If the other languages are ever needed (the public-site API,
-  // an owner or tenant portal), this becomes a one-to-many table.
-  description String?
+  // The property's description, per language. APIMO has no description
+  // field — the text lives in comments[], one entry per language
+  // (en/fr/bg/ru), and the sync takes each named one. Null rather than a
+  // substitute language when one is missing: a Russian description under a
+  // French heading is worse than none.
+  //
+  // Both are named for their language rather than one being an implicit
+  // default. The column used to be a bare `description` holding French, and
+  // the bilingual contract was written against it on the assumption it held
+  // whatever the document needed — the name is now the documentation.
+  //
+  // If the remaining languages are ever needed (the public-site API, an
+  // owner or tenant portal), this becomes a one-to-many table.
+  descriptionFr String?
+  descriptionEn String?
 
   notes String?
 

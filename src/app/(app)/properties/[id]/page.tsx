@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AgentAssignField } from "@/features/properties/components/agent-assign-field";
+import { DefaultSecurityDepositField } from "@/features/properties/components/default-security-deposit-field";
 import { IncludedServicesField } from "@/features/properties/components/included-services-field";
 import { MarketingNameField } from "@/features/properties/components/marketing-name-field";
 import { PropertyGallery } from "@/features/properties/components/property-gallery";
@@ -157,6 +158,21 @@ export default async function PropertyDetailPage({
 
           <Separator />
 
+          <Section title="Caution par défaut">
+            <p className="text-muted-foreground text-sm">
+              Le dépôt de garantie habituel de ce bien. Toute location créée
+              ensuite le reprend&nbsp;; c&apos;est la seule source de ce montant,
+              qu&apos;aucune location ne doit omettre.
+            </p>
+            <DefaultSecurityDepositField
+              propertyId={property.id}
+              initialValue={property.defaultSecurityDeposit?.toFixed(2) ?? null}
+              canEdit={canEditMarketingName}
+            />
+          </Section>
+
+          <Separator />
+
           <Section title="Caractéristiques">
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Field label="Pièces">
@@ -268,14 +284,14 @@ export default async function PropertyDetailPage({
         </div>
       </div>
 
-      {property.description ? (
+      {property.descriptionFr ? (
         <>
           <Separator />
           <Section title="Description">
             {/* APIMO's text carries its own line breaks; whitespace-pre-line
                 keeps them without trusting the source enough to render HTML. */}
             <p className="text-muted-foreground max-w-prose text-sm leading-relaxed whitespace-pre-line">
-              {property.description}
+              {property.descriptionFr}
             </p>
           </Section>
         </>

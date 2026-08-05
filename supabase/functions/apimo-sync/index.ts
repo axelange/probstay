@@ -58,25 +58,34 @@ const WORD_NUMBERS: Record<string, number> = {
 };
 
 /**
- * The French description.
+ * The description in one language.
  *
  * APIMO has no `description` field — the text lives in comments[], one
  * entry per language (en, fr, bg, ru here), under `comment`. Note
  * `comment_full` is null on every property, despite reading like the
  * fuller one.
  *
- * French only for now, since the interface is French. Returns null
- * rather than falling back to another language: a Russian description on
- * a French screen is worse than none, and silently mixing languages in
- * one column would hide that the choice was ever made. All 52 currently
- * carry French.
+ * Returns null rather than falling back to another language: a Russian
+ * description under a French heading is worse than none, and silently
+ * mixing languages in one column would hide that the choice was ever made.
+ *
+ * French and English are both stored now. French alone was enough while the
+ * text only fed a French admin screen; the bilingual Seasonal Rental
+ * Agreement prints the English above it, so dropping it here left the
+ * document with one voice and no way to recover the other.
  */
-function frenchDescription(property: ApimoProperty): string | null {
+function descriptionIn(
+  property: ApimoProperty,
+  language: string
+): string | null {
   const comments = Array.isArray(property?.comments) ? property.comments : [];
-  const fr = comments.find(
-    (c) => c?.language === "fr" && typeof c?.comment === "string" && c.comment.trim()
+  const match = comments.find(
+    (c) =>
+      c?.language === language &&
+      typeof c?.comment === "string" &&
+      c.comment.trim()
   );
-  return fr ? fr.comment.trim() : null;
+  return match ? match.comment.trim() : null;
 }
 
 /** Descriptions live in comments[], not a description field. */
@@ -626,7 +635,8 @@ async function syncProperty(
     tags: Array.isArray(p.tags) ? p.tags.map(Number) : [],
 
     url: p.url ?? null,
-    description: frenchDescription(p),
+    descriptionFr: descriptionIn(p, "fr"),
+    descriptionEn: descriptionIn(p, "en"),
     updatedAt: new Date(),
   };
 

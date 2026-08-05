@@ -41,6 +41,7 @@ export async function listProperties() {
       id: true,
       reference: true,
       marketingName: true,
+      defaultSecurityDeposit: true,
       city: true,
       zipcode: true,
       district: true,
