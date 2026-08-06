@@ -60,6 +60,18 @@ enum RentalBookingStatus {
   CANCELLED
 }
 
+/**
+ * Which mandates a user wants to see by default. A preference, not a
+ * permission: it seeds the Biens filter and nothing more, so an agent set to
+ * RENTALS can still switch the visible control and see a sale. Anything that
+ * must not be reached belongs in a permission or a query filter, never here.
+ */
+enum MandatePreference {
+  RENTALS
+  SALES
+  BOTH
+}
+
 enum IdentityDocumentType {
   PASSPORT
   ID_CARD
@@ -182,6 +194,15 @@ model User {
   templateVersions      DocumentTemplateVersion[] @relation("TemplateVersionAuthor")
   demandesAssigned      Demande[]          @relation("DemandeAssignedAgent")
   invitationsSent       UserInvitation[]
+  // The user's own preferences — theirs to set, needing no permission, and
+  // never load-bearing for access. Kept as columns rather than a JSON blob
+  // while there is one: a column is typed, migratable and greppable, and a
+  // second preference is cheaper to add than a blob is to unpick.
+  //
+  // The agency lets property; a mandat de vente is the exception, so the
+  // default shows rentals.
+  mandatePreference MandatePreference @default(RENTALS)
+
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   archivedAt      DateTime?

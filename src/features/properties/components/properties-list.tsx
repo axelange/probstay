@@ -81,6 +81,15 @@ const columns: ColumnDef<PropertyListItem>[] = [
   { accessorKey: "sleeps", filterFn: atLeast },
   { accessorKey: "bedrooms", filterFn: atLeast },
   {
+    // APIMO's category, i.e. the mandate held: 1 = vente, 3 = location
+    // saisonnière. Seeded from the user's preference — the agency lets
+    // property, and a flat for sale among them is the exception a reader
+    // should have to ask for.
+    id: "category",
+    accessorFn: (row) => String(row.category ?? ""),
+    filterFn: "equals",
+  },
+  {
     // The raw code, for filtering. Distinct from typeLabel below, which
     // exists so search matches the word rather than the number.
     id: "type",
@@ -93,6 +102,32 @@ const columns: ColumnDef<PropertyListItem>[] = [
     accessorFn: (row) => propertyTypeLabel(row.type) ?? "",
   },
 ];
+
+/**
+ * The mandate the agency holds on the property, from APIMO's category —
+ * a mandat de location saisonnière or a mandat de vente. "Transaction" is
+ * avoided deliberately: in French property parlance it names a sale, so it
+ * cannot head a control that also offers lettings.
+ *
+ * The list opens on whichever the user prefers (see /preferences), defaulting
+ * to seasonal rentals: a property for sale cannot be booked, and showing it
+ * beside the lettings is what let one be given a rental security deposit.
+ */
+const CATEGORY_OPTIONS = [
+  { value: "3", label: "Location saisonnière" },
+  { value: "1", label: "Vente" },
+];
+
+/**
+ * The user's preference, as a starting filter value. "Les deux" means no
+ * filter at all rather than a third option — the control then reads as
+ * unfiltered, which is what it is.
+ */
+const CATEGORY_FROM_PREFERENCE: Record<string, string> = {
+  RENTALS: "3",
+  SALES: "1",
+  BOTH: "",
+};
 
 const TYPE_OPTIONS = [
   { value: "2", label: "Villa" },
@@ -232,12 +267,21 @@ function PropertyRow({ property }: { property: PropertyListItem }) {
   );
 }
 
-export function PropertiesList({ data }: { data: PropertyListItem[] }) {
+export function PropertiesList({
+  data,
+  mandatePreference = "RENTALS",
+}: {
+  data: PropertyListItem[];
+  /** Seeds the Mandat filter. See /preferences — it hides nothing. */
+  mandatePreference?: string;
+}) {
+  const defaultCategory = CATEGORY_FROM_PREFERENCE[mandatePreference] ?? "3";
   const [sortId, setSortId] =
     React.useState<(typeof SORT_OPTIONS)[number]["id"]>("name");
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
+    // Opens on whatever the user prefers, not on everything.
+    defaultCategory ? [{ id: "category", value: defaultCategory }] : []
   );
 
   const sorting = React.useMemo<SortingState>(
@@ -285,11 +329,22 @@ export function PropertiesList({ data }: { data: PropertyListItem[] }) {
     (table.getColumn("priceValue")?.getFilterValue() as NumberRange) ??
     EMPTY_RANGE;
 
-  const activeFilterCount = columnFilters.length;
+  // Seasonal rentals are the resting state, not a filter someone applied, so
+  // the count and the reset button ignore it. Otherwise the list would open
+  // claiming a filter is active and offering to clear it.
+  const isDefaultCategory = (f: { id: string; value: unknown }) =>
+    f.id === "category" && f.value === defaultCategory;
+  const activeFilterCount = columnFilters.filter(
+    (f) => !isDefaultCategory(f)
+  ).length;
   const hasAnyFilter = activeFilterCount > 0 || globalFilter !== "";
 
+  // Back to seasonal rentals, not to everything: clearing filters should not
+  // quietly surface properties that are for sale.
   function reset() {
-    setColumnFilters([]);
+    setColumnFilters(
+      defaultCategory ? [{ id: "category", value: defaultCategory }] : []
+    );
     setGlobalFilter("");
   }
 
@@ -349,6 +404,12 @@ export function PropertiesList({ data }: { data: PropertyListItem[] }) {
                 .getColumn("city")
                 ?.setFilterValue(next.length ? next : undefined)
             }
+          />
+          <SingleSelectFilter
+            label="Mandat"
+            options={CATEGORY_OPTIONS}
+            value={filterValue("category")}
+            onChange={(v) => setFilter("category", v)}
           />
           <SingleSelectFilter
             label="Type"

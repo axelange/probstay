@@ -1,9 +1,14 @@
+import { redirect } from "next/navigation";
 import { PropertiesList } from "@/features/properties/components/properties-list";
 import { listProperties } from "@/features/properties/services/property-service";
+import { getCurrentUser } from "@/lib/auth";
 
 export const metadata = { title: "Biens — BSTAY PRO" };
 
 export default async function PropertiesPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   const properties = await listProperties();
 
   return (
@@ -15,7 +20,12 @@ export default async function PropertiesPage() {
         </p>
       </div>
 
-      <PropertiesList data={properties} />
+      {/* The preference seeds the Mandat filter; it does not withhold rows,
+          so the control still shows what is applied and can be changed. */}
+      <PropertiesList
+        data={properties}
+        mandatePreference={user.mandatePreference}
+      />
     </div>
   );
 }

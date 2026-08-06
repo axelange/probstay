@@ -1,14 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, SlidersHorizontal } from "lucide-react";
 import { NAV_SECTIONS } from "@/lib/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
@@ -86,6 +89,17 @@ export function AppTopbar({
                 </span>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {/* A link to the page, not the controls themselves: preferences
+                will multiply, and a menu that grows radio groups stops being
+                a menu. */}
+            <DropdownMenuItem
+              nativeButton={false}
+              render={<Link href="/preferences" />}
+            >
+              <SlidersHorizontal aria-hidden="true" />
+              Préférences
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
