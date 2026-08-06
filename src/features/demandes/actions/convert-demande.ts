@@ -5,7 +5,10 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { canBookProperty } from "@/features/rentals/services/rental-service";
+import {
+  canBookProperty,
+  isLettableProperty,
+} from "@/features/rentals/services/rental-service";
 
 const schema = z.object({
   demandeId: z.uuid(),
@@ -82,13 +85,24 @@ export async function convertDemande(
   // any for an admin. Not limited to the demande's properties of interest.
   const property = await prisma.property.findFirst({
     where: { id: data.propertyId, archivedAt: null },
-    select: { id: true, agentId: true, defaultSecurityDeposit: true },
+    select: {
+      id: true,
+      agentId: true,
+      category: true,
+      defaultSecurityDeposit: true,
+    },
   });
   if (!property) {
     return { status: "error", message: "Ce bien n'existe plus." };
   }
   if (!canBookProperty(user, property)) {
     return { status: "error", message: "Vous ne gérez pas ce bien." };
+  }
+  if (!isLettableProperty(property)) {
+    return {
+      status: "error",
+      message: "Ce bien est en vente et ne peut pas être loué.",
+    };
   }
 
   // Co-agents: the demande's agent handled the tenant side; the property's

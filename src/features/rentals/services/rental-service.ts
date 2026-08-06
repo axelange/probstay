@@ -114,6 +114,31 @@ export function canBookProperty(
   return property.agentId === user.id;
 }
 
+/**
+ * APIMO's category for a seasonal rental. 1 is a sale, and the agency also
+ * holds the odd mandat de vente — a flat priced at 485 000 € to buy, not per
+ * week.
+ */
+export const SEASONAL_RENTAL_CATEGORY = 3;
+
+/**
+ * Whether the property can be let at all.
+ *
+ * Deliberately separate from `canBookProperty`, which answers who may act.
+ * This asks whether the act makes sense: a property under a mandat de vente
+ * has no nightly rate, no security deposit and cannot be occupied for a week,
+ * so booking one produces an agreement quoting its sale price as rent.
+ *
+ * Kept apart so the two failures can be told apart — "not yours to book" and
+ * "this one is for sale" are different problems, and one error message for
+ * both sends an agent looking in the wrong place.
+ */
+export function isLettableProperty(property: {
+  category: number | null;
+}): boolean {
+  return property.category === SEASONAL_RENTAL_CATEGORY;
+}
+
 export type RentalDetail = NonNullable<Awaited<ReturnType<typeof getRentalDetail>>>;
 
 export async function getRentalDetail(id: string, user: CurrentUser) {
@@ -286,7 +311,9 @@ export async function findOverlappingRentals(
  */
 export async function listBookableProperties() {
   return prisma.property.findMany({
-    where: { archivedAt: null },
+    // Only properties under a rental mandate: a sale cannot be booked, so
+    // offering one in the picker is an invitation to a mistake.
+    where: { archivedAt: null, category: SEASONAL_RENTAL_CATEGORY },
     select: {
       id: true,
       marketingName: true,

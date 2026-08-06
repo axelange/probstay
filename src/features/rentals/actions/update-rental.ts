@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { updateRentalSchema } from "@/features/rentals/schemas/update-rental-schema";
 import {
   canBookProperty,
+  isLettableProperty,
   canManageRental,
 } from "@/features/rentals/services/rental-service";
 import { missingToReach } from "@/features/rentals/utils/rental-gates";
@@ -93,7 +94,7 @@ export async function updateRental(
   if (isEnquiry && data.propertyId && data.propertyId !== rental.property.id) {
     const property = await prisma.property.findFirst({
       where: { id: data.propertyId, archivedAt: null },
-      select: { id: true, agentId: true },
+      select: { id: true, agentId: true, category: true },
     });
     if (!property) {
       return { status: "error", message: "Ce bien n'existe plus." };
@@ -101,6 +102,12 @@ export async function updateRental(
     // An agent may only move the booking onto a property they manage.
     if (!canBookProperty(user, property)) {
       return { status: "error", message: "Vous ne gérez pas ce bien." };
+    }
+    if (!isLettableProperty(property)) {
+      return {
+        status: "error",
+        message: "Ce bien est en vente et ne peut pas être loué.",
+      };
     }
     targetPropertyId = property.id;
   }

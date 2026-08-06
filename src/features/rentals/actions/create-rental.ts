@@ -5,7 +5,10 @@ import { Prisma } from "@/generated/prisma/client";
 import type { ContactType } from "@/generated/prisma/enums";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canBookProperty } from "@/features/rentals/services/rental-service";
+import {
+  canBookProperty,
+  isLettableProperty,
+} from "@/features/rentals/services/rental-service";
 import { createRentalSchema } from "@/features/rentals/schemas/create-rental-schema";
 
 export type CreateRentalResult =
@@ -55,13 +58,19 @@ export async function createRental(
   // MANAGE_RENTALS. The same gate a conversion uses.
   const property = await prisma.property.findFirst({
     where: { id: data.propertyId, archivedAt: null },
-    select: { id: true, agentId: true },
+    select: { id: true, agentId: true, category: true },
   });
   if (!property) {
     return { status: "error", message: "Ce bien n'existe plus." };
   }
   if (!canBookProperty(user, property)) {
     return { status: "error", message: "Vous ne gérez pas ce bien." };
+  }
+  if (!isLettableProperty(property)) {
+    return {
+      status: "error",
+      message: "Ce bien est en vente et ne peut pas être loué.",
+    };
   }
 
   // Resolve the tenant to a contact (reading only). Writes happen in the

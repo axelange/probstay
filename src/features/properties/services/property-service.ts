@@ -41,6 +41,10 @@ export async function listProperties() {
       id: true,
       reference: true,
       marketingName: true,
+      // APIMO's category, i.e. the mandate held: 1 = vente, 3 = location
+      // saisonnière. Synced all along and never read, which is how a flat for
+      // sale sat in the list looking like a rental.
+      category: true,
       defaultSecurityDeposit: true,
       city: true,
       zipcode: true,
