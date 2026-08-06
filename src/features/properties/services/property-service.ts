@@ -45,7 +45,6 @@ export async function listProperties() {
       // saisonnière. Synced all along and never read, which is how a flat for
       // sale sat in the list looking like a rental.
       category: true,
-      defaultSecurityDeposit: true,
       city: true,
       zipcode: true,
       district: true,
