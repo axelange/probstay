@@ -19,6 +19,7 @@ import {
   formatPrice,
   propertyTypeLabel,
 } from "@/features/properties/utils/apimo-labels";
+import { descriptionParagraphs } from "@/features/properties/utils/description";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
@@ -82,6 +83,7 @@ export default async function PropertyDetailPage({
   if (!property) notFound();
 
   const typeLabel = propertyTypeLabel(property.type);
+  const descriptionFr = descriptionParagraphs(property.descriptionFr);
   // Decided here rather than in the client component: the same check runs
   // again inside the action, since rendering an input is not permission.
   const canEditMarketingName = hasPermission(user, "MANAGE_PROPERTIES");
@@ -284,15 +286,24 @@ export default async function PropertyDetailPage({
         </div>
       </div>
 
-      {property.descriptionFr ? (
+      {descriptionFr.length > 0 ? (
         <>
           <Separator />
           <Section title="Description">
-            {/* APIMO's text carries its own line breaks; whitespace-pre-line
-                keeps them without trusting the source enough to render HTML. */}
-            <p className="text-muted-foreground max-w-prose text-sm leading-relaxed whitespace-pre-line">
-              {property.descriptionFr}
-            </p>
+            {/* Paragraphs, not the raw text. APIMO's is wrapped by hand, so
+                whitespace-pre-line reproduced breaks that fall mid-sentence —
+                which reads as a fault in the page rather than in the source.
+                Still no HTML: the text is never trusted that far. */}
+            <div className="space-y-2">
+              {descriptionFr.map((para, i) => (
+                <p
+                  key={i}
+                  className="text-muted-foreground text-sm leading-relaxed"
+                >
+                  {para}
+                </p>
+              ))}
+            </div>
           </Section>
         </>
       ) : null}

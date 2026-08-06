@@ -8,6 +8,7 @@ import { documentReference } from "@/features/documents/reference";
 import { currentTemplateClauses } from "@/features/documents/services/template-service";
 import { resolveClause } from "@/features/documents/template-clauses";
 import { idDocLabel } from "@/features/documents/identity";
+import { descriptionParagraphs } from "@/features/properties/utils/description";
 import type { ContratData } from "@/features/documents/templates/contrat-location-saisonniere";
 
 const MONEY = new Intl.NumberFormat("fr-FR", {
@@ -51,15 +52,6 @@ const dueLine = (computed: Date, signature: Date): string =>
 const nights = (a: Date, b: Date) =>
   Math.max(1, Math.round((b.getTime() - a.getTime()) / 86_400_000));
 
-/**
- * Splits synced description text into paragraphs. Blank lines separate
- * paragraphs; a single newline is wrapping from the source, not structure.
- */
-const paragraphs = (text: string | null): string[] =>
-  (text ?? "")
-    .split(/\n\s*\n/)
-    .map((para) => para.replace(/\s*\n\s*/g, " ").trim())
-    .filter(Boolean);
 
 const fullName = (c: { firstName: string | null; lastName: string } | null) =>
   c ? [c.firstName, c.lastName].filter(Boolean).join(" ") : "—";
@@ -274,8 +266,8 @@ export async function buildContratData(
     // Blank lines separate paragraphs in the synced text; single newlines are
     // wrapping, not structure, so only blank lines split.
     description: {
-      en: paragraphs(p.descriptionEn),
-      fr: paragraphs(p.descriptionFr),
+      en: descriptionParagraphs(p.descriptionEn),
+      fr: descriptionParagraphs(p.descriptionFr),
     },
   };
   const stay = {
