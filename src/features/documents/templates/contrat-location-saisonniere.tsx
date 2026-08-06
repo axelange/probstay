@@ -14,6 +14,7 @@ import {
   Section,
   SubHeading,
   Tick,
+  TitledBlock,
   h,
   black,
   cardBg,
@@ -329,7 +330,7 @@ function Instalment({
   dueDate: string;
 }) {
   return (
-    <View style={[h.card, { marginTop: PAIR_GAP }]} wrap={false}>
+    <View style={[h.card, { marginTop: GAP }]} wrap={false}>
       <View
         style={{
           flexDirection: "row",
@@ -465,13 +466,13 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           <Section first en="1 - Parties" />
         </View>
 
-        <SubHeading en="1.1 The Agent" fr="Le Mandataire" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <SubHeading first en="1.1 The Agent" fr="Le Mandataire" />
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.agent} />
         </View>
 
         <SubHeading en="1.2 The Tenant" fr="Le Locataire" />
-        <View style={[h.card, { marginTop: PAIR_GAP }]} wrap={false}>
+        <View style={[h.card, { marginTop: GAP }]} wrap={false}>
           <Cap en="Full name" fr="Nom complet" />
           <Text style={h.name}>{t.name}</Text>
           <View style={{ marginTop: GAP }}>
@@ -481,27 +482,29 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           </View>
         </View>
 
-        <Section en="2 - The Property" fr="Le bien" />
-        <SubHeading en="2.1 Property informations" fr="Informations du bien" />
-        <View style={[h.card, { marginTop: PAIR_GAP }]} wrap={false}>
-          <View style={{ flexDirection: "row", gap: GAP }}>
-            <View style={{ flexShrink: 1 }}>
-              <Cap en="Type & reference" fr="Type & référence" />
-              <Text style={h.name}>{data.property.name}</Text>
+        <Section en="2 - The Property" fr="Le bien">
+          <TitledBlock first en="2.1 Property informations" fr="Informations du bien">
+            <View style={[h.card, { marginTop: GAP }]} wrap={false}>
+              <View style={{ flexDirection: "row", gap: GAP }}>
+                <View style={{ flexShrink: 1 }}>
+                  <Cap en="Type & reference" fr="Type & référence" />
+                  <Text style={h.name}>{data.property.name}</Text>
+                </View>
+                <View style={{ flex: 1, alignItems: "flex-end", justifyContent: "center" }}>
+                  <Cap en="Property address" fr="Adresse de la propriété" />
+                  <Text style={[h.infoValue, { marginTop: LABEL_GAP, textAlign: "right" }]}>
+                    {data.property.address}
+                  </Text>
+                </View>
+              </View>
+              <View style={{ marginTop: GAP }}>
+                {data.property.details.map((d, i) => (
+                  <InfoRow key={i} label={d.label} value={d.value} />
+                ))}
+              </View>
             </View>
-            <View style={{ flex: 1, alignItems: "flex-end", justifyContent: "center" }}>
-              <Cap en="Property address" fr="Adresse de la propriété" />
-              <Text style={[h.infoValue, { marginTop: LABEL_GAP, textAlign: "right" }]}>
-                {data.property.address}
-              </Text>
-            </View>
-          </View>
-          <View style={{ marginTop: GAP }}>
-            {data.property.details.map((d, i) => (
-              <InfoRow key={i} label={d.label} value={d.value} />
-            ))}
-          </View>
-        </View>
+          </TitledBlock>
+        </Section>
 
         <Footer a={a} />
       </Page>
@@ -509,22 +512,22 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
       {/* Page 3 — the property described */}
       <Page size="A4" style={h.page}>
         <SubHeading en="2.2 Property description" fr="Description du bien" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Description description={data.property.description} />
         </View>
 
         <SubHeading en="2.3 Use of the property" fr="Destination des lieux" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.use} />
         </View>
 
         <SubHeading en="2.4 Standard of equipment" fr="Standing de l'équipement" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.equipment} />
         </View>
 
         <SubHeading en="2.5 Photographs" fr="Photographies" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.photographs} />
         </View>
 
@@ -559,52 +562,55 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           </View>
         </View>
 
-        <Section en="4 - Rental terms" fr="Conditions de location" />
-        <SubHeading en="4.1 Duration" fr="Durée" />
-        <View style={[h.card, { marginTop: PAIR_GAP }]} wrap={false}>
-          <Cap en="Rental period" fr="Période de location" />
-          <View style={{ marginTop: PAIR_GAP }}>
-            <View style={{ flexDirection: "row", gap: GAP }}>
-              <InfoRow label={{ en: "From", fr: "Du" }} value={data.stay.checkIn} />
-              <InfoRow
-                label={{ en: "Check-in from", fr: "À partir de" }}
-                value={data.stay.checkInTime}
-              />
+        <Section en="4 - Rental terms" fr="Conditions de location">
+          <TitledBlock first en="4.1 Duration" fr="Durée">
+            <View style={[h.card, { marginTop: GAP }]} wrap={false}>
+              <Cap en="Rental period" fr="Période de location" />
+              <View style={{ marginTop: GAP }}>
+                <View style={{ flexDirection: "row", gap: GAP }}>
+                  <InfoRow label={{ en: "From", fr: "Du" }} value={data.stay.checkIn} />
+                  <InfoRow
+                    label={{ en: "Check-in from", fr: "À partir de" }}
+                    value={data.stay.checkInTime}
+                  />
+                </View>
+                <View style={{ flexDirection: "row", gap: GAP }}>
+                  <InfoRow label={{ en: "To", fr: "Au" }} value={data.stay.checkOut} />
+                  <InfoRow
+                    label={{ en: "Check-out no later than", fr: "Départ au plus tard à" }}
+                    value={data.stay.checkOutTime}
+                  />
+                </View>
+                <InfoRow
+                  label={{ en: "Number of nights", fr: "Nuitées" }}
+                  value={data.stay.nights}
+                />
+                <InfoRow
+                  label={{ en: "Number of guests", fr: "Nombre d'occupants" }}
+                  value={data.stay.guests}
+                />
+              </View>
             </View>
-            <View style={{ flexDirection: "row", gap: GAP }}>
-              <InfoRow label={{ en: "To", fr: "Au" }} value={data.stay.checkOut} />
-              <InfoRow
-                label={{ en: "Check-out no later than", fr: "Départ au plus tard à" }}
-                value={data.stay.checkOutTime}
-              />
-            </View>
-            <InfoRow
-              label={{ en: "Number of nights", fr: "Nuitées" }}
-              value={data.stay.nights}
-            />
-            <InfoRow
-              label={{ en: "Number of guests", fr: "Nombre d'occupants" }}
-              value={data.stay.guests}
-            />
-          </View>
-        </View>
+          </TitledBlock>
+        </Section>
 
-        <SubHeading en="4.2 Rent" fr="Loyer" />
-        <View style={[h.card, { marginTop: PAIR_GAP }]} wrap={false}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Cap en="Total rent price" fr="Prix total du séjour" />
-            <Text style={h.infoValue}>{data.money.rent}</Text>
+        <TitledBlock en="4.2 Rent" fr="Loyer">
+          <View style={[h.card, { marginTop: GAP }]} wrap={false}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Cap en="Total rent price" fr="Prix total du séjour" />
+              <Text style={h.infoValue}>{data.money.rent}</Text>
+            </View>
+            <View style={{ marginTop: GAP }}>
+              <Prose clause={data.clauses.rent} />
+            </View>
           </View>
-          <View style={{ marginTop: GAP }}>
-            <Prose clause={data.clauses.rent} />
-          </View>
-        </View>
+        </TitledBlock>
 
         {data.money.deposit ? (
           <Instalment
@@ -626,7 +632,7 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
         />
 
         <SubHeading en="4.3 Charges" />
-        <View style={[h.row, { marginTop: PAIR_GAP }]} wrap={false}>
+        <View style={[h.row, { marginTop: GAP }]} wrap={false}>
           {/* Only when the property actually lists them; a heading over an
               empty card reads as an omission rather than "nothing included". */}
           {data.property.includedCharges.length > 0 ? (
@@ -678,17 +684,17 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
         </View>
 
         <SubHeading en="4.5 Payment terms" fr="Modalités de paiement" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.paymentTerms} />
         </View>
 
         <SubHeading en="Bank details" fr="Informations bancaires" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.bankDetails} />
         </View>
         <View style={[h.card, { marginTop: GAP }]} wrap={false}>
           <Cap en="Transfer details" fr="Détails de virement" />
-          <View style={{ marginTop: PAIR_GAP }}>
+          <View style={{ marginTop: GAP }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", gap: GAP }}>
               <InfoRow label={{ en: "Bank", fr: "Banque" }} value={a.bankName} />
               <InfoRow
@@ -704,117 +710,117 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
         </View>
 
         <SubHeading en="Important security notice" fr="Avis de sécurité important" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.securityNotice} />
         </View>
 
         <SubHeading en="Bank fees" fr="Frais bancaires" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.bankFees} />
         </View>
 
         <SubHeading en="4.6 Financial summary" fr="Récapitulatif financier" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.financialSummary} />
         </View>
 
-        <SubHeading en="Stay amount" fr="Montant du séjour" />
-        <View style={{ marginTop: PAIR_GAP }} wrap={false}>
-          <MoneyRow en="Rent" fr="Loyer" amount={data.money.rent} />
-          {data.money.vat ? (
+        <TitledBlock en="Stay amount" fr="Montant du séjour">
+          <View style={{ marginTop: GAP }} wrap={false}>
+            <MoneyRow en="Rent" fr="Loyer" amount={data.money.rent} />
+            {data.money.vat ? (
+              <MoneyRow
+                en="of which VAT 10 %"
+                fr="dont TVA 10 % (parahôtellerie)"
+                amount={data.money.vat}
+              />
+            ) : null}
+            {/* Billed extras carry the asterisk the footnote explains. */}
+            {data.money.services.map((sv, i) => (
+              <MoneyRow key={i} en={sv.label} note="*" amount={sv.amount} />
+            ))}
             <MoneyRow
-              en="of which VAT 10 %"
-              fr="dont TVA 10 % (parahôtellerie)"
-              amount={data.money.vat}
+              en="Tourist tax"
+              fr="Taxe de séjour"
+              {...(data.money.touristTaxBasis
+                ? { note: `(${data.money.touristTaxBasis})` }
+                : {})}
+              amount={data.money.touristTax}
             />
-          ) : null}
-          {/* Billed extras carry the asterisk the footnote explains. */}
-          {data.money.services.map((sv, i) => (
-            <MoneyRow key={i} en={sv.label} note="*" amount={sv.amount} />
-          ))}
-          <MoneyRow
-            en="Tourist tax"
-            fr="Taxe de séjour"
-            {...(data.money.touristTaxBasis
-              ? { note: `(${data.money.touristTaxBasis})` }
-              : {})}
-            amount={data.money.touristTax}
-          />
-          <MoneyTotal
-            en="Total stay amount (excluding security deposit)"
-            fr="Total (sans caution)"
-            amount={data.money.total}
-          />
-        </View>
+            <MoneyTotal
+              en="Total stay amount (excluding security deposit)"
+              fr="Total (sans caution)"
+              amount={data.money.total}
+            />
+          </View>
+        </TitledBlock>
         {data.money.services.length > 0 ? (
-          <Text style={[s.para, { marginTop: PAIR_GAP }]}>
+          <Text style={[s.para, { marginTop: GAP }]}>
             * Additional cost{" "}
             <Text style={s.itemFr}>/ Frais complémentaire</Text>
           </Text>
         ) : null}
 
-        <SubHeading
-          en="Security deposit amount"
-          fr="Montant du dépôt de garantie"
-        />
-        <View style={{ marginTop: PAIR_GAP }} wrap={false}>
-          <MoneyRow
-            en="Security deposit"
-            fr="Dépôt de garantie"
-            amount={data.money.securityDeposit}
-          />
-          <MoneyTotal en="Total" amount={data.money.securityDeposit} />
-        </View>
-
-        <SubHeading en="Operation summary" fr="Résumé des opérations" />
-        <View style={{ marginTop: PAIR_GAP }} wrap={false}>
-          {data.money.deposit ? (
+        <TitledBlock en="Security deposit amount" fr="Montant du dépôt de garantie">
+          <View style={{ marginTop: GAP }} wrap={false}>
             <MoneyRow
-              en="Deposit"
-              fr={`Acompte${data.money.depositPercent ? ` (${data.money.depositPercent})` : ""}`}
-              amount={data.money.deposit}
+              en="Security deposit"
+              fr="Dépôt de garantie"
+              amount={data.money.securityDeposit}
             />
-          ) : null}
-          <MoneyRow
-            en="Balance"
-            fr={`Solde${data.money.balancePercent ? ` (${data.money.balancePercent})` : ""}`}
-            amount={data.money.balance}
-          />
-          <MoneyRow
-            en="Security deposit"
-            fr="Dépôt de garantie"
-            amount={data.money.securityDeposit}
-          />
-        </View>
+            <MoneyTotal en="Total" amount={data.money.securityDeposit} />
+          </View>
+        </TitledBlock>
+
+        <TitledBlock en="Operation summary" fr="Résumé des opérations">
+          <View style={{ marginTop: GAP }} wrap={false}>
+            {data.money.deposit ? (
+              <MoneyRow
+                en="Deposit"
+                fr={`Acompte${data.money.depositPercent ? ` (${data.money.depositPercent})` : ""}`}
+                amount={data.money.deposit}
+              />
+            ) : null}
+            <MoneyRow
+              en="Balance"
+              fr={`Solde${data.money.balancePercent ? ` (${data.money.balancePercent})` : ""}`}
+              amount={data.money.balance}
+            />
+            <MoneyRow
+              en="Security deposit"
+              fr="Dépôt de garantie"
+              amount={data.money.securityDeposit}
+            />
+          </View>
+        </TitledBlock>
 
         <Section en="5 - General conditions" fr="Conditions générales" />
-        <SubHeading en="5.1 Use of the property" fr="Usage du bien" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <SubHeading first en="5.1 Use of the property" fr="Usage du bien" />
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.generalUse} />
         </View>
 
         <SubHeading en="5.2 Occupancy" fr="Occupation" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.occupancy} />
         </View>
 
         <SubHeading en="5.3 Condition of the property" fr="État du bien" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.condition} />
         </View>
 
         <SubHeading en="5.4 Keys and access" fr="Clés et accès" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.keysAccess} />
         </View>
 
         <SubHeading en="5.5 Liability" fr="Responsabilité" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.liability} />
         </View>
 
         <SubHeading en="5.6 Additional services" fr="Prestations complémentaires" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.additionalServices} />
         </View>
 
@@ -822,39 +828,39 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           en="5.7 Non-circumvention and purchase"
           fr="Non-contournement et acquisition"
         />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.nonCircumvention} />
         </View>
 
         <Section en="6 - Cancellation conditions" fr="Conditions d'annulation" />
-        <SubHeading en="6.1 Cancellation by the Tenant" fr="Annulation par le locataire" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <SubHeading first en="6.1 Cancellation by the Tenant" fr="Annulation par le locataire" />
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.cancellationTenant} />
         </View>
 
         <SubHeading en="6.2 Cancellation by the Owner" fr="Annulation par le propriétaire" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.cancellationOwner} />
         </View>
 
         <SubHeading en="6.3 Force majeure" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.forceMajeure} />
         </View>
 
         <Section en="7 - Legal provisions" fr="Dispositions juridiques" />
-        <SubHeading en="7.1 Data protection" fr="Données personnelles" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <SubHeading first en="7.1 Data protection" fr="Données personnelles" />
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.dataProtection} />
         </View>
 
         <SubHeading en="7.2 Non-discrimination" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.nonDiscrimination} />
         </View>
 
         <SubHeading en="7.3 Validity" fr="Validité partielle" />
-        <View style={{ marginTop: PAIR_GAP }}>
+        <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.validity} />
         </View>
 
@@ -893,7 +899,7 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
               <View style={{ marginTop: LABEL_GAP }}>
                 <Cap en="Represented by" fr="Représenté par" />
               </View>
-              <Text style={[h.infoValue, { marginTop: PAIR_GAP }]}>
+              <Text style={[h.infoValue, { marginTop: GAP }]}>
                 {a.representedBy}, {a.capacity}
               </Text>
             </View>

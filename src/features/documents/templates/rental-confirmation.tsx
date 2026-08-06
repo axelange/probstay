@@ -119,7 +119,10 @@ const LH = 1.2;
 const s = StyleSheet.create({
   page: {
     paddingTop: 50,
-    paddingBottom: 99, // meets the fixed footer's top edge, 99 pt off the bottom
+    // The fixed footer's top edge is 99 pt off the bottom. Content stops 10 pt
+    // (20 px) above it rather than against it, so a last line never sits on
+    // the gold rule.
+    paddingBottom: 109,
     paddingHorizontal: 50,
     fontFamily: SANS,
     fontWeight: 400,
@@ -376,7 +379,14 @@ function Section({
   first?: boolean;
 }) {
   return (
-    <View style={first ? undefined : s.section} wrap={false}>
+    <View
+      style={first ? undefined : s.section}
+      wrap={false}
+      // A heading alone at the foot of a page announces something the reader
+      // has to turn over to find. Only bites when content has overflowed its
+      // frame, since each section here opens a page of its own.
+      minPresenceAhead={60}
+    >
       <View style={s.sectionRow}>
         <Text style={s.sectionEn}>{en}</Text>
         <Text style={s.sectionFr}>{fr}</Text>

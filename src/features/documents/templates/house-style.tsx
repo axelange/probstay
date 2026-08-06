@@ -45,6 +45,18 @@ export const PAIR_GAP = 5;
 export const LH = 1.2;
 
 /**
+ * Room a heading needs below it to stay on the page, in points.
+ *
+ * Roughly the heading itself plus five lines of the clause it introduces — so
+ * a title never sits alone at the foot of a page with its text overleaf. It is
+ * a floor, not a guarantee: where the block that follows has a known height,
+ * bind it with `TitledBlock` or `Section`'s children instead. Set
+ * on both the section marker and the sub-heading; react-pdf moves the element
+ * to the next page when less than this remains.
+ */
+export const ORPHAN_GUARD = 90;
+
+/**
  * Bundled images. On the server read from disk (absolute path); in the browser
  * served from /public. No node import, so this also bundles for the preview.
  */
@@ -59,7 +71,10 @@ export const MONOGRAM = asset("LogoMonogramme.png");
 export const h = StyleSheet.create({
   page: {
     paddingTop: 50,
-    paddingBottom: 99, // meets the fixed footer's top edge, 99 pt off the bottom
+    // The fixed footer's top edge is 99 pt off the bottom. Content stops 10 pt
+    // (20 px) above it rather than against it, so a last line never sits on
+    // the gold rule.
+    paddingBottom: 109,
     paddingHorizontal: 50,
     fontFamily: SANS,
     fontWeight: 400,
@@ -119,6 +134,15 @@ export const h = StyleSheet.create({
     color: black,
     lineHeight: LH,
     marginTop: GAP,
+  },
+  // The section rule already carries the 20 px that follows a gold line. A
+  // sub-heading opening a section adds nothing on top, or the two margins
+  // stack into 40 px where the master has 20.
+  subHeadingFirst: {
+    fontSize: 10,
+    fontWeight: 500,
+    color: black,
+    lineHeight: LH,
   },
   subHeadingFr: { fontWeight: 400, fontStyle: "italic" },
 
@@ -239,18 +263,36 @@ export function Section({
   en,
   fr,
   first,
+  children,
 }: {
   en: string;
   fr?: string;
   first?: boolean;
+  /**
+   * The section's opening block, when it has a bounded height. Passing it here
+   * makes the marker and that block indivisible, which the guard alone cannot
+   * do — it keeps the marker whenever *some* room follows, without knowing how
+   * much the block needs. Omit for a section that opens on long prose.
+   */
+  children?: React.ReactNode;
 }) {
   return (
-    <View style={first ? undefined : h.section} wrap={false}>
+    <View
+      style={first ? undefined : h.section}
+      wrap={false}
+      // A heading alone at the foot of a page is not a heading — it announces
+      // something the reader has to turn over to find. The guard applies only
+      // to a bare marker: once an opening block is bound in, `wrap={false}`
+      // already keeps them together, and asking for room *after* the pair as
+      // well would push a section that fits onto the next page.
+      {...(children ? {} : { minPresenceAhead: ORPHAN_GUARD })}
+    >
       <View style={h.sectionRow}>
         <Text style={h.sectionEn}>{en}</Text>
         {fr ? <Text style={h.sectionFr}>{fr}</Text> : null}
       </View>
       <View style={h.sectionRule} />
+      {children}
     </View>
   );
 }
@@ -268,6 +310,41 @@ export function Tick({ en, fr }: { en: string; fr: string }) {
 }
 
 /**
+ * A sub-heading bound to the block it introduces, so the two cannot be split
+ * across a page.
+ *
+ * `minPresenceAhead` alone is a guess: it keeps the heading only when some
+ * room follows, but cannot know how much the block actually needs — which is
+ * how "Security deposit amount" ended a page while its table began the next.
+ * For content of bounded height (a card, a short money table) the honest fix
+ * is to make the pair indivisible.
+ *
+ * Only for blocks that comfortably fit a page. Long prose should still break,
+ * so it keeps the sub-heading and the guard instead.
+ */
+export function TitledBlock({
+  en,
+  fr,
+  first,
+  children,
+}: {
+  en: string;
+  fr?: string;
+  first?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    // No guard: `wrap={false}` already keeps the heading with its block, and
+    // minPresenceAhead would additionally demand that much room *after* the
+    // pair — pushing a block that fits perfectly well onto the next page.
+    <View wrap={false}>
+      <SubHeading en={en} fr={fr} first={first} />
+      {children}
+    </View>
+  );
+}
+
+/**
  * A numbered sub-heading inside a section ("1.1 The Agent / Le Mandataire").
  *
  * The master sets these in SemiBold, which the licensed family does not
@@ -275,12 +352,25 @@ export function Tick({ en, fr }: { en: string; fr: string }) {
  * regular weight because only the 400 italic exists, and asking react-pdf for
  * a medium italic it was never given crashes the render.
  */
-export function SubHeading({ en, fr }: { en: string; fr?: string }) {
+export function SubHeading({
+  en,
+  fr,
+  first,
+}: {
+  en: string;
+  fr?: string;
+  /** Set when this opens a section, so it does not add to the rule's gap. */
+  first?: boolean;
+}) {
   return (
-    <Text style={h.subHeading}>
-      {en}
-      {fr ? <Text style={h.subHeadingFr}> / {fr}</Text> : null}
-    </Text>
+    // Same orphan rule as a section marker: a sub-heading stranded at the foot
+    // of a page separates a clause from its title.
+    <View wrap={false} minPresenceAhead={ORPHAN_GUARD}>
+      <Text style={first ? h.subHeadingFirst : h.subHeading}>
+        {en}
+        {fr ? <Text style={h.subHeadingFr}> / {fr}</Text> : null}
+      </Text>
+    </View>
   );
 }
 
