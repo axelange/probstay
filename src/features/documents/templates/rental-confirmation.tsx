@@ -99,8 +99,9 @@ const asset = (name: string) =>
   typeof window === "undefined"
     ? `${process.cwd()}/public/img/${name}`
     : `/img/${name}`;
-const LOGO_VERTICAL = asset("LogoVertical.png");
-const MONOGRAM = asset("LogoMonogramme.png");
+// The marks are drawn as vector, not placed as PNGs — the lettering is
+// hairline and a raster of it goes grey at these sizes. See ./logo.
+import { LogoVertical, Monogram } from "@/features/documents/templates/logo";
 
 // The frame's spacing scale, halved: 40 px gaps between top-level blocks, 20 px
 // inside a section, 14 px between a label and its value, 10 px between the two
@@ -471,7 +472,7 @@ function Footer({ a }: { a: ConfirmationData["agency"] }) {
         };
         return (
           <>
-            <Image src={MONOGRAM} style={s.footMono} />
+            <Monogram width={33} height={40} />
             <View>
               <Text style={s.footLine}>
                 {a.legalName} — {a.address}
@@ -519,7 +520,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
       <Page size="A4" style={s.page}>
         {/* Masthead (page 1, in flow) */}
         <View style={s.logoWrap}>
-          <Image src={LOGO_VERTICAL} style={s.logo} />
+          <LogoVertical width={75} height={82.5} />
         </View>
         <View style={s.head}>
           <View>

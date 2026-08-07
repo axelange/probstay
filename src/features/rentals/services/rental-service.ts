@@ -152,6 +152,10 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
       checkIn: true,
       checkOut: true,
       guests: true,
+      children: true,
+      checkInTime: true,
+      checkOutTime: true,
+      presentation: true,
       bookingStatus: true,
       depositStatus: true,
       securityDepositStatus: true,
@@ -159,6 +163,8 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
       netOwnerAmount: true,
       grossAmount: true,
       depositAmount: true,
+      depositBasis: true,
+      depositPercent: true,
       securityDepositAmount: true,
       commissionAmount: true,
       commissionRate: true,
@@ -184,6 +190,9 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
           // the contract is signed and the real owner snapshot is frozen.
           owner: { select: { id: true, firstName: true, lastName: true } },
           includedServices: true,
+          // The hours the stay falls back to when the rental overrides neither.
+          checkInTime: true,
+          checkOutTime: true,
         },
       },
       services: {
@@ -253,6 +262,7 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
     netOwnerAmount: toNumber(rental.netOwnerAmount),
     grossAmount: toNumber(rental.grossAmount),
     depositAmount: toNumber(rental.depositAmount),
+    depositPercent: rental.depositPercent.toNumber(),
     securityDepositAmount: toNumber(rental.securityDepositAmount),
     commissionAmount: toNumber(rental.commissionAmount),
     commissionRate: toNumber(rental.commissionRate),
@@ -310,7 +320,7 @@ export async function findOverlappingRentals(
  * picks a different property, before saving.
  */
 export async function listBookableProperties() {
-  return prisma.property.findMany({
+  const rows = await prisma.property.findMany({
     // Only properties under a rental mandate: a sale cannot be booked, so
     // offering one in the picker is an invitation to a mistake.
     where: { archivedAt: null, category: SEASONAL_RENTAL_CATEGORY },
@@ -322,9 +332,24 @@ export async function listBookableProperties() {
       agentId: true,
       ownerId: true,
       includedServices: true,
+      // The hours a rental on this property starts from; the funnel shows them
+      // as the placeholder its override is measured against.
+      checkInTime: true,
+      checkOutTime: true,
+      // What a new rental's caution is seeded with. The funnel offers it to a
+      // booking that has none, so the one-way copy still happens for rentals
+      // created before the property carried a default.
+      defaultSecurityDeposit: true,
     },
     orderBy: [{ marketingName: "asc" }],
   });
+
+  // Decimal cannot cross into a Client Component, and this list is handed
+  // straight to the funnel.
+  return rows.map((p) => ({
+    ...p,
+    defaultSecurityDeposit: p.defaultSecurityDeposit?.toNumber() ?? null,
+  }));
 }
 
 /** Tourist-tax rate per city (lowercased key), for the funnel's live tax. */

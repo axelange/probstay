@@ -167,6 +167,10 @@ export async function documentReadiness(
   add("stay.checkIn", "Séjour — arrivée", "location", rental.checkIn);
   add("stay.checkOut", "Séjour — départ", "location", rental.checkOut);
   add("stay.guests", "Séjour — occupants", "location", rental.guests);
+  // Not listed: the column is NOT NULL and defaults to REMOTE, so there is no
+  // state in which it is missing. The agent changes it on the contract stage
+  // and it saves on the click; a required field nobody could ever fail was
+  // only ever an alert with nothing behind it.
   // Amounts, not merely present but non-zero. The caution is required of every
   // rental (agency rule); the acompte is not, since a client may settle the
   // balance directly, so it is not listed here at all.

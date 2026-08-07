@@ -21,8 +21,12 @@ export type NavItem = {
   href: string;
   label: string;
   icon: NavIcon;
-  /** Omitted means any signed-in user may see it. */
-  permission?: Permission;
+  /**
+   * Omitted means any signed-in user may see it. Several means any one of
+   * them is enough — Paramètres holds two unrelated sections, and someone
+   * granted either should find the page.
+   */
+  permission?: Permission | Permission[];
 };
 
 export type NavSection = {
@@ -85,7 +89,7 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/settings",
         label: "Paramètres",
         icon: "settings",
-        permission: "MANAGE_USERS",
+        permission: ["MANAGE_USERS", "MANAGE_AGENCY"],
       },
     ],
   },

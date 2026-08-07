@@ -3,12 +3,13 @@ import "server-only";
 import type { CurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { AGENCY } from "@/features/documents/agency";
+import { getAgency } from "@/features/documents/agency";
 import { documentReference } from "@/features/documents/reference";
 import { currentTemplateClauses } from "@/features/documents/services/template-service";
 import { resolveClause } from "@/features/documents/template-clauses";
 import { idDocLabel } from "@/features/documents/identity";
-import { descriptionParagraphs } from "@/features/properties/utils/description";
+import { apimoImageWidth } from "@/features/properties/utils/apimo-image";
+import { descriptionForContract } from "@/features/properties/utils/description";
 import type { ContratData } from "@/features/documents/templates/contrat-location-saisonniere";
 
 const MONEY = new Intl.NumberFormat("fr-FR", {
@@ -53,6 +54,27 @@ const nights = (a: Date, b: Date) =>
   Math.max(1, Math.round((b.getTime() - a.getTime()) / 86_400_000));
 
 
+/**
+ * Widths for the cover photographs, in source pixels.
+ *
+ * The images are embedded in the PDF, so whatever is fetched is carried in the
+ * file forever. These are sized to what the page prints rather than to what
+ * the sync happens to store:
+ *
+ *   hero    495 pt wide  → 1440 px ≈ 209 dpi
+ *   thumbs  162 pt wide  →  400 px ≈ 178 dpi
+ *
+ * Both stay above the ~200 dpi a photograph needs to print cleanly, and well
+ * above the 144 dpi the Figma masters were drawn at. The thumbnails are where
+ * the waste was: at the stored 1920 px they were being embedded at some 850
+ * dpi, five times more than the frame can resolve.
+ *
+ * Raising the hero to 1920 restores 279 dpi at a cost of ~145 KB per document,
+ * if these are ever printed as presentation pieces rather than read and signed.
+ */
+const COVER_HERO_WIDTH = 1440;
+const COVER_THUMB_WIDTH = 400;
+
 const fullName = (c: { firstName: string | null; lastName: string } | null) =>
   c ? [c.firstName, c.lastName].filter(Boolean).join(" ") : "—";
 
@@ -73,6 +95,10 @@ export async function buildContratData(
       checkIn: true,
       checkOut: true,
       guests: true,
+      children: true,
+      checkInTime: true,
+      checkOutTime: true,
+      presentation: true,
       netOwnerAmount: true,
       commissionAmount: true,
       touristTaxAmount: true,
@@ -102,6 +128,8 @@ export async function buildContratData(
           zipcode: true,
           areaValue: true,
           includedServices: true,
+          checkInTime: true,
+          checkOutTime: true,
           descriptionFr: true,
           descriptionEn: true,
           rooms: true,
@@ -188,6 +216,11 @@ export async function buildContratData(
   // pre-signature preview.
   const stayNights = nights(rental.checkIn, rental.checkOut);
   const guests = rental.guests ?? 0;
+  const children = rental.children ?? 0;
+  // Minors are exempt from the taxe de séjour, so it is charged on the adults
+  // only. Clamped: a stored children count above the headcount would otherwise
+  // produce a negative tax.
+  const taxableGuests = Math.max(0, guests - children);
   let taxRate: number | null;
   let touristTax: number;
   if (rental.touristTaxAmount !== null) {
@@ -201,7 +234,9 @@ export async function buildContratData(
       : [];
     taxRate = taxRow[0]?.amount ?? null;
     touristTax =
-      taxRate !== null && guests > 0 ? taxRate * guests * stayNights : 0;
+      taxRate !== null && taxableGuests > 0
+        ? taxRate * taxableGuests * stayNights
+        : 0;
   }
 
   const owner = rental.owner ?? p.owner;
@@ -259,24 +294,35 @@ export async function buildContratData(
       ? `${p.rooms} pièces${bedrooms ? ` dont ${bedrooms} chambres` : ""}`
       : "plusieurs pièces",
     sleeps: `jusqu'à ${sleeps || guests || "—"} personnes`,
-    photos: p.pictures.map((pic) => pic.url),
+    // Fetched at the width the cover prints them at, not the 1920 px the sync
+    // stores. See COVER_HERO_WIDTH for the arithmetic.
+    photos: p.pictures.map((pic, i) =>
+      apimoImageWidth(pic.url, i === 0 ? COVER_HERO_WIDTH : COVER_THUMB_WIDTH)
+    ),
     details: propertyDetails,
     // What the stay includes, as the agency maintains it on the property.
     includedCharges: p.includedServices,
     // Blank lines separate paragraphs in the synced text; single newlines are
     // wrapping, not structure, so only blank lines split.
     description: {
-      en: descriptionParagraphs(p.descriptionEn),
-      fr: descriptionParagraphs(p.descriptionFr),
+      en: descriptionForContract(p.descriptionEn),
+      fr: descriptionForContract(p.descriptionFr),
     },
   };
   const stay = {
     checkIn: shortDate(rental.checkIn),
     checkOut: shortDate(rental.checkOut),
     nights: `${stayNights} nuits`,
-    guests: `${guests || "—"} personnes`,
-    checkInTime: AGENCY.checkInTime,
-    checkOutTime: AGENCY.checkOutTime,
+    // "6 personnes, dont 2 enfants" — the total is what the tenant agrees to;
+    // the split is stated only when there are children.
+    guests: children > 0
+      ? `${guests || "—"} personnes, dont ${children} enfant${children > 1 ? "s" : ""}`
+      : `${guests || "—"} personnes`,
+    // The rental's own hours win: the property carries what it normally turns
+    // over on, the rental carries what was agreed for this tenant. Null on the
+    // rental is the ordinary case and means "as the property".
+    checkInTime: rental.checkInTime ?? p.checkInTime,
+    checkOutTime: rental.checkOutTime ?? p.checkOutTime,
   };
   // Échéances. Anchored on the signature, or today while it is unsigned and
   // the document is only a draft.
@@ -316,8 +362,8 @@ export async function buildContratData(
     // amount: rate × guests × nights. Absent when the town has no rate on
     // file, rather than showing a formula that resolves to nothing.
     touristTaxBasis:
-      taxRate !== null && guests > 0
-        ? `${taxRate.toString().replace(".", ",")} × ${guests} pers × ${stayNights} nuits`
+      taxRate !== null && taxableGuests > 0
+        ? `${taxRate.toString().replace(".", ",")} × ${taxableGuests} pers${children > 0 ? " (hors enfants)" : ""} × ${stayNights} nuits`
         : undefined,
     services: billed.map((sv) => ({
       label: sv.label,
@@ -333,6 +379,7 @@ export async function buildContratData(
   // The articles name the property, the dates and the deposit inline, so the
   // template's wording is interpolated from the very values printed elsewhere
   // on the page — the article and the table can never disagree.
+  const agency = await getAgency();
   const { clauses } = await currentTemplateClauses("SEASONAL_RENTAL_CONTRACT");
   const variables: Record<string, string | undefined> = {
     "property.name": property.name,
@@ -430,10 +477,11 @@ export async function buildContratData(
 
   return {
     reference: documentReference("CONTRAT", rental.reference),
+    presentation: rental.presentation,
     clauses: resolvedClauses,
-    place: p.city ?? AGENCY.address,
+    place: p.city ?? agency.address,
     date: date(new Date()),
-    agency: { ...AGENCY },
+    agency,
     owner: {
       name: fullName(owner),
       detail: owner?.address

@@ -29,6 +29,14 @@ enum Permission {
   // SUPER_ADMIN and ADMIN; refused to Moderators by default but grantable
   // per-user through the user_permissions override.
   MANAGE_DOCUMENT_TEMPLATES
+  // Editing the agency's own record — legal identity, professional licence,
+  // signatory and bank details. Same default as the templates: SUPER_ADMIN
+  // and ADMIN, refused to Moderators, grantable per-user.
+  //
+  // Deliberately not folded into MANAGE_USERS. Managing colleagues and
+  // changing the IBAN printed on every contract are different powers, and one
+  // should not carry the other.
+  MANAGE_AGENCY
 }
 
 // The booking pipeline. Terminal states are CHECK_OUT and CANCELLED.
@@ -70,6 +78,26 @@ enum MandatePreference {
   RENTALS
   SALES
   BOTH
+}
+
+/**
+ * How the property was presented to the tenant before signing — the agent
+ * records it, and the tenant accepts it by signing the agreement, which is why
+ * the contract prints the chosen one rather than three empty boxes.
+ */
+/**
+ * Whether the acompte was entered as a figure or as a share of the client
+ * total. Only the funnel reads it — every document reads the resolved amount.
+ */
+enum DepositBasis {
+  AMOUNT
+  PERCENT
+}
+
+enum PropertyPresentation {
+  IN_PERSON
+  THIRD_PARTY
+  REMOTE
 }
 
 enum IdentityDocumentType {
@@ -189,7 +217,9 @@ model User {
   rentalsContractSigned Rental[]           @relation("RentalContractSignedBy")
   identityDocuments     IdentityDocument[] @relation("IdentityDocumentUploader")
   documentsGenerated    GeneratedDocument[] @relation("GeneratedDocumentAuthor")
+  documentsSigned       SignedDocument[]    @relation("SignedDocumentUploader")
   touristTaxesUpdated   TouristTax[]       @relation("TouristTaxUpdatedBy")
+  agencyUpdates         Agency[]           @relation("AgencyUpdatedBy")
   demandesCreated       Demande[]          @relation("DemandeCreatedBy")
   templateVersions      DocumentTemplateVersion[] @relation("TemplateVersionAuthor")
   demandesAssigned      Demande[]          @relation("DemandeAssignedAgent")
@@ -492,6 +522,13 @@ model Property {
   // revising the property's default must never rewrite what a tenant signed.
   defaultSecurityDeposit Decimal? @db.Decimal(12, 2)
 
+  // Arrival and departure times for this property, printed in the agreement's
+  // rental terms. Per-property rather than agency-wide: a villa with a
+  // caretaker and a flat with a keybox do not turn over at the same hour.
+  // Stored as they are written on the document.
+  checkInTime  String @default("16h00")
+  checkOutTime String @default("10h00")
+
   // Services included with a stay, shown on the rental as "services
   // inclus". BSTAY's own field — plain labels typed by the agency, not
   // APIMO's `services` codes above (pool, aircon…). The sync never
@@ -663,6 +700,8 @@ model Rental {
   securityDepositReturnedAt DateTime?
 
   identityDocuments IdentityDocument[]
+  // The copies that came back signed, one row per upload.
+  signedDocuments   SignedDocument[]
   // Extra services the agent adds and prices for this booking, on top of
   // the stay amount and the property's own included services.
   services          RentalService[]
@@ -682,6 +721,26 @@ model Rental {
   // enquiry may not know it yet.
   guests Int?
 
+  // Of those guests, how many are children. The agreement reads "N occupants,
+  // dont M enfants", and the split is not only wording: tourist tax generally
+  // exempts minors, so a headcount alone bills for people who owe nothing.
+  // Counted within `guests`, never on top. A rental has at least one adult, so
+  // this is strictly below the headcount — enforced by the
+  // `rentals_at_least_one_adult` CHECK as well as by the funnel's schema.
+  children Int?
+
+  // Arrival and departure hours for this stay only. Null means the property's
+  // own hours, which is what almost every booking means; a value here is an
+  // override agreed for this tenant (a late check-out, a dawn arrival) and is
+  // what the contract prints.
+  checkInTime  String?
+  checkOutTime String?
+
+  // How the property was shown before signing. Chosen by the agent, accepted
+  // by the tenant's signature — so the contract prints the one that applies
+  // rather than three boxes for someone to tick by hand.
+  presentation PropertyPresentation @default(REMOTE)
+
   // grossAmount is the rental revenue. securityDepositAmount is held
   // separately and is never agency revenue — the two must never be
   // conflated. The outstanding balance is derived (gross - deposit),
@@ -699,6 +758,13 @@ model Rental {
   grossAmount           Decimal? @db.Decimal(12, 2)
   depositAmount         Decimal? @db.Decimal(12, 2)
   securityDepositAmount Decimal? @db.Decimal(12, 2)
+
+  // How the acompte was decided. `depositAmount` remains the single figure the
+  // documents read; these record the intent behind it, so "half up front"
+  // survives a change to the total instead of having to be recomputed by hand.
+  // A percentage is resolved into the amount when the funnel saves.
+  depositBasis   DepositBasis @default(PERCENT)
+  depositPercent Decimal      @default(50) @db.Decimal(5, 2)
 
   // Resolved output of the commission engine, stored per-rental so the
   // rules can change without rewriting history. Never a hardcoded rate.
@@ -939,6 +1005,100 @@ model GeneratedDocument {
 
   @@index([rentalId, type, createdAt])
   @@map("generated_documents")
+}
+
+// What came back with signatures on it.
+//
+// GeneratedDocument records what the agency produced; this records what the
+// parties actually signed — the copy that counts if the booking is ever
+// disputed. Append-only for the same reason: a second upload of a type
+// supersedes the previous one and both stay, so replacing a signed document
+// always leaves a trace.
+/**
+ * Whether an upload is the signed copy of a document or an amendment to it.
+ *
+ * An avenant does not replace what it amends — both stay in force — so it is a
+ * second axis rather than another upload of the same kind, which would
+ * supersede the copy it modifies.
+ */
+enum SignedDocumentKind {
+  SIGNED
+  AMENDMENT
+}
+
+model SignedDocument {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rentalId String @db.Uuid
+  rental   Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  type DocumentTemplateType
+  kind SignedDocumentKind @default(SIGNED)
+
+  // The name as uploaded — kept for the download and for telling two scans
+  // apart. Storage keys stay opaque.
+  fileName  String
+  mimeType  String
+  sizeBytes Int
+
+  // Object key in the private `signed-documents` bucket. Unique because each
+  // upload writes its own object; nothing is ever overwritten.
+  storagePath String @unique
+
+  uploadedById String? @db.Uuid
+  uploadedBy   User?   @relation("SignedDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  uploadedAt DateTime @default(now())
+
+  @@index([rentalId, type, kind, uploadedAt])
+  @@map("signed_documents")
+}
+
+/**
+ * The agency's own record: what every document prints about BSTAY itself.
+ *
+ * A single row — `id` is fixed at 1 by a CHECK — because there is one agency.
+ * It replaces a block of constants in code, which meant the footer's address
+ * could only be corrected by a deploy, and had drifted: the documents printed
+ * Saint-Tropez while the Figma masters said Cannes.
+ *
+ * Editing needs MANAGE_AGENCY. The bank details are the reason that is its own
+ * permission rather than MANAGE_USERS: whoever can change them changes where
+ * every tenant sends their money.
+ */
+model Agency {
+  id Int @id @default(1)
+
+  // Identity as it appears in the masthead and the parties clause.
+  name        String
+  tagline     String
+  legalName   String
+  legalForm   String
+  capital     String
+  address     String
+  rcs         String
+  cartePro    String
+  garantieFinanciere String
+  rcp         String
+  web         String
+  phone       String
+
+  // Who signs, and in what capacity.
+  representedBy String
+  capacity      String
+
+  // Printed in the agreement's transfer details. See the security notice
+  // beside them in the document: a change arriving by email is precisely the
+  // fraud that warns against, so these are edited here and nowhere else.
+  bankName        String
+  bankAccountName String
+  bankIban        String
+  bankBic         String
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("AgencyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("agency")
 }
 
 // A property a demande is interested in. Many for a wide demande, one for

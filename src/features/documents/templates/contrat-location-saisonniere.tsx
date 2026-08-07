@@ -108,7 +108,7 @@ export type ContratData = {
     checkOut: string;
     nights: string;
     guests: string;
-    /** Agency-standard arrival and departure times, not per-rental. */
+    /** Arrival and departure times, from the property. */
     checkInTime: string;
     checkOutTime: string;
   };
@@ -117,6 +117,8 @@ export type ContratData = {
    * page 2 prints both languages side by side, the articles print French.
    */
   clauses: Record<string, { en: string[]; fr: string[] }>;
+  /** Which presentation the agent recorded; the matching box is ticked. */
+  presentation: "IN_PERSON" | "THIRD_PARTY" | "REMOTE" | null;
   money: {
     rent: string;
     balance: string;
@@ -544,18 +546,22 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
             en="The tenant acknowledges that the property has been"
             fr="Le locataire reconnaît que le bien a été"
           />
-          {/* Left unticked: which mode applied is settled on paper at
-              signature, and the app records nothing about it. */}
+          {/* The agent records which applied on the rental; the tenant accepts
+              it by signing. All three are printed so what was declared is
+              visible, with the one that applies ticked. */}
           <View style={{ marginTop: GAP, gap: LABEL_GAP }}>
             <Tick
+              checked={data.presentation === "IN_PERSON"}
               en="Visited in person by the Tenant"
               fr="Visité en personne par le Locataire"
             />
             <Tick
+              checked={data.presentation === "THIRD_PARTY"}
               en="Visited by a third party on behalf of the Tenant"
               fr="Visité par un tiers agissant pour le compte du Locataire"
             />
             <Tick
+              checked={data.presentation === "REMOTE"}
               en="Presented remotely (including through the marketing materials and photographs)"
               fr="Présenté à distance (notamment via les supports de commercialisation et photographies)"
             />

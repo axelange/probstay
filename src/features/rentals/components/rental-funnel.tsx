@@ -14,7 +14,11 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { RentalBookingStatus } from "@/generated/prisma/enums";
+import type {
+  DepositBasis,
+  PropertyPresentation,
+  RentalBookingStatus,
+} from "@/generated/prisma/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { setRentalPresentation } from "@/features/rentals/actions/set-rental-presentation";
 import { updateRental } from "@/features/rentals/actions/update-rental";
 import {
   checkOverlaps,
@@ -58,12 +63,167 @@ function villaLabel(p: {
     .join(" — ");
 }
 
+/**
+ * How the property was shown to the tenant before signature.
+ *
+ * The contract prints all three and ticks this one. It is the agent's to
+ * record and the tenant's to accept by signing the last page, so it is asked
+ * here rather than left as three empty boxes for someone to fill in by hand.
+ */
+const PRESENTATIONS: { value: PropertyPresentation; label: string }[] = [
+  { value: "IN_PERSON", label: "Visité en personne par le locataire" },
+  {
+    value: "THIRD_PARTY",
+    label: "Visité par un tiers pour le compte du locataire",
+  },
+  {
+    value: "REMOTE",
+    label: "Présenté à distance (supports de commercialisation, photographies)",
+  },
+];
+
+/**
+ * The hours this stay starts and ends on.
+ *
+ * Pre-filled from the property as a placeholder rather than as a value: an
+ * empty field means "as the property", so editing the villa's hours still
+ * reaches every booking that never asked for anything different. Typing here
+ * is an override, and it is what the contract prints.
+ */
+function StayTimes({
+  checkInTime,
+  checkOutTime,
+  onCheckInTime,
+  onCheckOutTime,
+  propertyCheckInTime,
+  propertyCheckOutTime,
+  disabled,
+}: {
+  checkInTime: string;
+  checkOutTime: string;
+  onCheckInTime: (next: string) => void;
+  onCheckOutTime: (next: string) => void;
+  propertyCheckInTime: string;
+  propertyCheckOutTime: string;
+  disabled: boolean;
+}) {
+  const overridden = checkInTime !== "" || checkOutTime !== "";
+
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">Horaires du séjour</legend>
+      <div className="flex flex-wrap items-end gap-3">
+        <Field label="Arrivée à partir de">
+          <Input
+            value={checkInTime}
+            onChange={(e) => onCheckInTime(e.target.value)}
+            disabled={disabled}
+            placeholder={propertyCheckInTime}
+            className="w-28 tabular-nums"
+          />
+        </Field>
+        <Field label="Départ avant">
+          <Input
+            value={checkOutTime}
+            onChange={(e) => onCheckOutTime(e.target.value)}
+            disabled={disabled}
+            placeholder={propertyCheckOutTime}
+            className="w-28 tabular-nums"
+          />
+        </Field>
+        {overridden ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={disabled}
+            onClick={() => {
+              onCheckInTime("");
+              onCheckOutTime("");
+            }}
+          >
+            Reprendre les horaires du bien
+          </Button>
+        ) : null}
+      </div>
+      <p className="text-muted-foreground text-xs">
+        {overridden
+          ? `Le contrat imprimera ces horaires. Le bien est réglé sur ${propertyCheckInTime} / ${propertyCheckOutTime}.`
+          : `Vide : le contrat reprend les horaires du bien (${propertyCheckInTime} / ${propertyCheckOutTime}).`}
+      </p>
+    </fieldset>
+  );
+}
+
+function PresentationChoice({
+  rentalId,
+  initial,
+  disabled,
+}: {
+  rentalId: string;
+  initial: PropertyPresentation;
+  disabled: boolean;
+}) {
+  const router = useRouter();
+  const [value, setValue] = React.useState<PropertyPresentation>(initial);
+  const [isSaving, startSaving] = React.useTransition();
+
+  function choose(next: PropertyPresentation) {
+    const previous = value;
+    setValue(next);
+    startSaving(async () => {
+      const result = await setRentalPresentation({ rentalId, presentation: next });
+      if (result.status === "error") {
+        // Put the radio back where it was: leaving it on a choice that was
+        // never stored is worse than not moving at all.
+        setValue(previous);
+        toast.error(result.message);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">Présentation du bien</legend>
+      <p className="text-muted-foreground text-xs">
+        Coché sur le contrat, à l&apos;article 2.5. Le locataire l&apos;accepte
+        en signant la dernière page. Enregistré dès la sélection.
+      </p>
+      <div className="space-y-1.5">
+        {PRESENTATIONS.map((option) => (
+          <label
+            key={option.value}
+            className="flex items-start gap-2 text-sm leading-snug"
+          >
+            <input
+              type="radio"
+              name="presentation"
+              className="mt-0.5"
+              value={option.value}
+              checked={value === option.value}
+              onChange={() => choose(option.value)}
+              disabled={disabled || isSaving}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 export type FunnelProperty = {
   id: string;
   marketingName: string | null;
   city: string | null;
   reference: number | null;
   includedServices: string[];
+  checkInTime: string;
+  checkOutTime: string;
+  /** What a new rental's caution is seeded with, in euros. */
+  defaultSecurityDeposit: number | null;
 };
 
 export type FunnelRental = {
@@ -73,6 +233,12 @@ export type FunnelRental = {
   checkIn: string;
   checkOut: string;
   guests: number | null;
+  children: number | null;
+  /** Null means the property's own hours — the ordinary case. */
+  checkInTime: string | null;
+  checkOutTime: string | null;
+  /** Always set: the column defaults to REMOTE and is not nullable. */
+  presentation: PropertyPresentation;
   netOwnerAmount: number | null;
   commissionAmount: number | null;
   /** Frozen at contract signature; null before. */
@@ -80,6 +246,8 @@ export type FunnelRental = {
   touristTaxRate: number | null;
   grossAmount: number | null;
   depositAmount: number | null;
+  depositBasis: DepositBasis;
+  depositPercent: number;
   securityDepositAmount: number | null;
   depositStatus: string;
   balanceStatus: string;
@@ -158,7 +326,10 @@ export function RentalFunnel({
   taxRatesByCity,
   contractStep,
   documentsStep,
+  signedStep,
   contractReady = false,
+  hasSignedConfirmation = false,
+  hasSignedContract = false,
 }: {
   rental: FunnelRental;
   canManage: boolean;
@@ -168,6 +339,14 @@ export function RentalFunnel({
   contractStep?: React.ReactNode;
   /** Generation and the documents already produced, from the contract stage on. */
   documentsStep?: React.ReactNode;
+  /** The signed copies that came back, uploaded against this rental. */
+  signedStep?: React.ReactNode;
+  /**
+   * Which documents have a signed copy on file. Both of them present is the
+   * evidence behind gate 2, and satisfies it on its own.
+   */
+  hasSignedConfirmation?: boolean;
+  hasSignedContract?: boolean;
   /** Whether every field the documents require is filled. */
   contractReady?: boolean;
 }) {
@@ -177,29 +356,47 @@ export function RentalFunnel({
   const [checkIn, setCheckIn] = React.useState(rental.checkIn);
   const [checkOut, setCheckOut] = React.useState(rental.checkOut);
   const [guests, setGuests] = React.useState(rental.guests?.toString() ?? "");
+  const [children, setChildren] = React.useState(
+    rental.children?.toString() ?? ""
+  );
+  // Left blank unless this stay departs from the property's hours, so a
+  // correction on the property still reaches the bookings nobody overrode.
+  const [checkInTime, setCheckInTime] = React.useState(
+    rental.checkInTime ?? ""
+  );
+  const [checkOutTime, setCheckOutTime] = React.useState(
+    rental.checkOutTime ?? ""
+  );
   const [netOwner, setNetOwner] = React.useState(
     rental.netOwnerAmount?.toString() ?? ""
   );
   const [commission, setCommission] = React.useState(
     rental.commissionAmount?.toString() ?? ""
   );
-  // The acompte defaults to 50% of the client total (what the tenant owes), and
-  // the agent can change it before generating the documents. Pre-filled once
-  // from the stored figures; an existing deposit is kept as-is.
-  const [depositAmount, setDepositAmount] = React.useState(() => {
-    if (rental.depositAmount !== null) return rental.depositAmount.toString();
-    const extrasTotal = rental.additionalServices
-      .filter((s) => !s.includedInStay)
-      .reduce((sum, s) => sum + s.amount, 0);
-    const t =
-      (rental.netOwnerAmount ?? 0) +
-      (rental.commissionAmount ?? 0) +
-      extrasTotal +
-      (rental.touristTaxAmount ?? 0);
-    return t > 0 ? (Math.round(t * 50) / 100).toString() : "";
-  });
+  // The acompte is either a figure or a share of the client total, defaulting
+  // to half. A share is resolved into an amount when the funnel saves, so it
+  // follows the total while the booking is still moving and the documents
+  // still read one settled figure.
+  const [depositBasis, setDepositBasis] = React.useState<DepositBasis>(
+    rental.depositBasis
+  );
+  const [depositPercent, setDepositPercent] = React.useState(
+    rental.depositPercent.toString()
+  );
+  const [depositAmount, setDepositAmount] = React.useState(
+    rental.depositAmount?.toString() ?? ""
+  );
+  // The caution the rental carries, or the property's default offered to a
+  // booking that has none — the one-way copy, for rentals created before the
+  // property had a default or before the seeding existed. Pre-filled, not
+  // silently applied: it becomes the rental's own figure only once saved.
   const [securityDepositAmount, setSecurityDepositAmount] = React.useState(
-    rental.securityDepositAmount?.toString() ?? ""
+    () =>
+      rental.securityDepositAmount?.toString() ??
+      properties
+        .find((p) => p.id === rental.propertyId)
+        ?.defaultSecurityDeposit?.toString() ??
+      ""
   );
   const [extras, setExtras] = React.useState<ServiceDraft[]>(
     rental.additionalServices.map((s) => ({
@@ -214,15 +411,17 @@ export function RentalFunnel({
   const [securityDepositStatus, setSecurityDepositStatus] = React.useState(
     rental.securityDepositStatus
   );
-  const [confirmOwner, setConfirmOwner] = React.useState(false);
   const [signContract, setSignContract] = React.useState(false);
   const [returnSecurityDeposit, setReturnSecurityDeposit] =
     React.useState(false);
   const [isPending, startTransition] = React.useTransition();
 
   const stage = rental.bookingStatus;
-  const ownerConfirmed = rental.ownerConfirmedAt !== null;
   const contractSigned = rental.contractSignedAt !== null;
+  // Both signed copies on file is the signature itself, so it satisfies gate 2
+  // without a checkbox: an agent who has attached the paperwork has already
+  // said everything ticking a box would say.
+  const bothSigned = hasSignedConfirmation && hasSignedContract;
   const returned = rental.securityDepositReturnedAt !== null;
 
   const selectedProperty =
@@ -235,6 +434,10 @@ export function RentalFunnel({
       ? countNights(new Date(checkIn), new Date(checkOut))
       : 0;
   const guestCount = Number(guests) || 0;
+  // Children are exempt from the taxe de séjour, so it is charged on the
+  // adults only. Clamped at zero: more children than occupants is refused on
+  // save, but the figure on screen must not go negative on the way there.
+  const taxableGuests = Math.max(0, guestCount - (Number(children) || 0));
   // Frozen at contract signature — after that the stored figures are
   // authoritative and a rate change in settings must not move the total.
   const frozen = rental.touristTaxAmount !== null;
@@ -244,8 +447,8 @@ export function RentalFunnel({
   const taxRate = frozen ? rental.touristTaxRate : liveRate;
   const touristTax = frozen
     ? rental.touristTaxAmount
-    : taxRate !== null && guestCount > 0 && nights > 0
-      ? taxRate * guestCount * nights
+    : taxRate !== null && taxableGuests > 0 && nights > 0
+      ? taxRate * taxableGuests * nights
       : null;
 
   // The stay amount ("Loyer") is the owner's net plus the commission. A
@@ -298,9 +501,16 @@ export function RentalFunnel({
         checkIn,
         checkOut,
         guests,
+        children,
+        checkInTime,
+        checkOutTime,
         netOwnerAmount: netOwner,
         commissionAmount: commission,
-        depositAmount,
+        // The resolved figure, not the percentage: everything downstream wants
+        // one amount, and it is the one on screen at the moment of saving.
+        depositAmount: deposit > 0 ? deposit.toString() : "",
+        depositBasis,
+        depositPercent,
         securityDepositAmount,
         additionalServices: extras
           .filter((s) => s.label.trim() !== "")
@@ -313,8 +523,10 @@ export function RentalFunnel({
         depositStatus,
         balanceStatus,
         securityDepositStatus,
-        confirmOwner,
-        signContract,
+        // The uploads stand in for the checkbox, and go through the same
+        // server path — so the owner/agent snapshot and the tourist tax are
+        // frozen the one way, whichever satisfied the gate.
+        signContract: signContract || bothSigned,
         returnSecurityDeposit,
         notes,
       });
@@ -325,7 +537,6 @@ export function RentalFunnel({
       toast.success(
         target === stage ? "Enregistré." : `${bookingStatusLabel(target)}.`
       );
-      setConfirmOwner(false);
       setSignContract(false);
       setReturnSecurityDeposit(false);
       router.refresh();
@@ -335,12 +546,19 @@ export function RentalFunnel({
   const next = NEXT[stage];
   const missing = next
     ? missingToReach(next, {
-        contractSigned: contractSigned || signContract,
+        contractSigned: contractSigned || signContract || bothSigned,
         hasAmount,
       })
     : [];
 
-  const deposit = Number(depositAmount) || 0;
+  // What the tenant pays up front, whichever way it was decided. This is the
+  // figure that gets stored and that both documents quote.
+  const deposit =
+    depositBasis === "PERCENT"
+      ? total !== null && total > 0
+        ? Math.round(total * (Number(depositPercent) || 0)) / 100
+        : 0
+      : Number(depositAmount) || 0;
   // Solde = total client − acompte, matching the tenant's Contrat.
   const balance = total !== null ? total - deposit : null;
 
@@ -403,7 +621,7 @@ export function RentalFunnel({
                 </Select>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Field label="Arrivée">
                   <Input
                     type="date"
@@ -422,6 +640,15 @@ export function RentalFunnel({
                 </Field>
                 <Field label="Personnes">
                   <NumberInput value={guests} onChange={setGuests} disabled={isPending} />
+                </Field>
+                {/* Counted within the total above, not added to it — the
+                    contract prints "6 personnes, dont 2 enfants". */}
+                <Field label="dont enfants">
+                  <NumberInput
+                    value={children}
+                    onChange={setChildren}
+                    disabled={isPending}
+                  />
                 </Field>
               </div>
 
@@ -596,7 +823,8 @@ export function RentalFunnel({
                     Taxe de séjour
                     {taxRate !== null ? (
                       <span className="text-muted-foreground ml-1 text-xs font-normal">
-                        ({taxRate.toFixed(2)} € × {guestCount || "?"} pers. ×{" "}
+                        ({taxRate.toFixed(2)} € × {taxableGuests || "?"} pers.
+                        {Number(children) > 0 ? " hors enfants" : ""} ×{" "}
                         {nights || "?"} nuits)
                       </span>
                     ) : null}
@@ -627,6 +855,25 @@ export function RentalFunnel({
                 ) : null}
               </div>
 
+              {/* The split of that total. Settled here, not at finalisation:
+                  the contract quotes the acompte and its share of the total,
+                  and it is generated at the step before — so an amount entered
+                  later would print as a document with no deposit at all. */}
+              <SplitFields
+                depositBasis={depositBasis}
+                setDepositBasis={setDepositBasis}
+                depositPercent={depositPercent}
+                setDepositPercent={setDepositPercent}
+                depositAmount={depositAmount}
+                setDepositAmount={setDepositAmount}
+                deposit={deposit}
+                securityDepositAmount={securityDepositAmount}
+                setSecurityDepositAmount={setSecurityDepositAmount}
+                total={total}
+                balance={balance}
+                disabled={isPending}
+              />
+
               <OverlapWarning overlap={overlap} />
             </>
           ) : null}
@@ -638,32 +885,51 @@ export function RentalFunnel({
                 hint="Les informations des parties, la génération des documents, puis la signature."
               />
 
+              <StayTimes
+                checkInTime={checkInTime}
+                checkOutTime={checkOutTime}
+                onCheckInTime={setCheckInTime}
+                onCheckOutTime={setCheckOutTime}
+                propertyCheckInTime={selectedProperty?.checkInTime ?? "16h00"}
+                propertyCheckOutTime={selectedProperty?.checkOutTime ?? "10h00"}
+                disabled={isPending}
+              />
+
+              <PresentationChoice
+                rentalId={rental.id}
+                initial={rental.presentation}
+                disabled={isPending}
+              />
+
+              {/* The same control as the financial step, not a copy of the
+                  value: this is where the document quoting it is produced, so
+                  a split that turned out wrong has to be fixable without
+                  walking the booking back a stage. */}
+              <SplitFields
+                depositBasis={depositBasis}
+                setDepositBasis={setDepositBasis}
+                depositPercent={depositPercent}
+                setDepositPercent={setDepositPercent}
+                depositAmount={depositAmount}
+                setDepositAmount={setDepositAmount}
+                deposit={deposit}
+                securityDepositAmount={securityDepositAmount}
+                setSecurityDepositAmount={setSecurityDepositAmount}
+                total={total}
+                balance={balance}
+                disabled={isPending}
+              />
+
               {/* The completion form: every field the documents require,
                   server-assembled and written back to contact/rental. */}
               {contractStep}
 
               {documentsStep}
 
-              {contractReady ? (
-                <>
-                  {/* The date-lock, optional: reserves the dates against
-                      other agents, no longer required to advance. */}
-                  {ownerConfirmed ? (
-                    <ConfirmedLine
-                      when={rental.ownerConfirmedAt}
-                      who={rental.ownerConfirmedByName}
-                      label="Accord du propriétaire"
-                    />
-                  ) : (
-                    <GateCheckbox
-                      checked={confirmOwner}
-                      onChange={setConfirmOwner}
-                      disabled={isPending}
-                      title="Accord trouvé (agent + client + propriétaire)"
-                      hint="Réserve ces dates : aucune autre location ne pourra être confirmée sur ce bien pour cette période. Facultatif pour avancer."
-                    />
-                  )}
+              {signedStep}
 
+              {contractReady || bothSigned ? (
+                <>
                   {/* THE gate: the signed contract, which freezes
                       owner + agent and opens the finalisation. */}
                   {contractSigned ? (
@@ -672,13 +938,22 @@ export function RentalFunnel({
                       who={rental.contractSignedByName}
                       label="Contrat signé"
                     />
+                  ) : bothSigned ? (
+                    <SatisfiedLine
+                      title="Contrat signé par toutes les parties"
+                      hint="Les deux exemplaires signés sont joints. Passer à la finalisation fige le propriétaire et l'agent de cette location."
+                    />
                   ) : (
                     <GateCheckbox
                       checked={signContract}
                       onChange={setSignContract}
                       disabled={isPending}
                       title="Contrat signé par toutes les parties"
-                      hint="Fige le propriétaire et l'agent de cette location, et ouvre la finalisation."
+                      hint={
+                        hasSignedContract || hasSignedConfirmation
+                          ? "Joindre les deux exemplaires signés coche cette étape d'office. Sinon, la cocher fige le propriétaire et l'agent, et ouvre la finalisation."
+                          : "Fige le propriétaire et l'agent de cette location, et ouvre la finalisation. Joindre les deux exemplaires signés ci-dessus la coche d'office."
+                      }
                     />
                   )}
                 </>
@@ -718,9 +993,7 @@ export function RentalFunnel({
                 hasAmount={hasAmount}
                 total={total}
                 depositAmount={depositAmount}
-                setDepositAmount={setDepositAmount}
                 securityDepositAmount={securityDepositAmount}
-                setSecurityDepositAmount={setSecurityDepositAmount}
                 balance={balance}
                 disabled={isPending}
               />
@@ -860,6 +1133,27 @@ function OverlapWarning({ overlap }: { overlap: OverlapSummary | null }) {
   );
 }
 
+/**
+ * A gate already met, by something other than ticking it.
+ *
+ * Reads like the checkbox it replaces so the step is recognisable, but there
+ * is nothing to click: the signed copies on file are what satisfied it.
+ */
+function SatisfiedLine({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-md border p-3">
+      <CircleCheck
+        aria-hidden="true"
+        className="mt-0.5 size-4 shrink-0 text-emerald-600"
+      />
+      <div className="space-y-0.5">
+        <p className="text-sm font-medium">{title}</p>
+        <p className="text-muted-foreground text-xs">{hint}</p>
+      </div>
+    </div>
+  );
+}
+
 function StagePanelHeader({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="space-y-0.5">
@@ -954,6 +1248,144 @@ function ConfirmedLine({
   );
 }
 
+/**
+ * The acompte's share of the client total, as the contract prints it.
+ *
+ * Empty when there is nothing to divide: a percentage of an unknown total is
+ * noise, and an acompte of zero is not a 0 % split — it is a booking where the
+ * tenant settles the balance directly, which the contract states differently.
+ */
+function depositShare(depositAmount: string, total: number | null): string {
+  const deposit = Number(depositAmount) || 0;
+  if (total === null || total <= 0 || deposit <= 0) return "";
+  return `≈ ${Math.round((deposit / total) * 100)} % du total client`;
+}
+
+/**
+ * How the client total is split between the acompte and the balance.
+ *
+ * The percentage is the one the contract will print — computed from the two
+ * amounts, never assumed. The 50 % that pre-fills the field is only a starting
+ * point, and it is shown as such until the agent settles on a figure.
+ */
+function SplitFields(props: {
+  depositBasis: DepositBasis;
+  setDepositBasis: (v: DepositBasis) => void;
+  depositPercent: string;
+  setDepositPercent: (v: string) => void;
+  depositAmount: string;
+  setDepositAmount: (v: string) => void;
+  /** The resolved acompte, whichever basis produced it. */
+  deposit: number;
+  securityDepositAmount: string;
+  setSecurityDepositAmount: (v: string) => void;
+  total: number | null;
+  balance: number | null;
+  disabled: boolean;
+}) {
+  const byPercent = props.depositBasis === "PERCENT";
+  const share =
+    props.total !== null && props.total > 0 && props.deposit > 0
+      ? Math.round((props.deposit / props.total) * 100)
+      : null;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">Échéancier</p>
+
+      {/* Which way the acompte is decided. A share follows the total as
+          services and the taxe de séjour move it; a figure stays put. */}
+      <div className="flex flex-wrap gap-4 text-sm">
+        {(
+          [
+            ["PERCENT", "Pourcentage du total"],
+            ["AMOUNT", "Montant fixe"],
+          ] as const
+        ).map(([value, label]) => (
+          <label key={value} className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="deposit-basis"
+              checked={props.depositBasis === value}
+              onChange={() => props.setDepositBasis(value)}
+              disabled={props.disabled}
+            />
+            <span>{label}</span>
+          </label>
+        ))}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={byPercent ? "Acompte (%)" : "Acompte"}>
+          {byPercent ? (
+            <NumberInput
+              value={props.depositPercent}
+              onChange={props.setDepositPercent}
+              disabled={props.disabled}
+            />
+          ) : (
+            <NumberInput
+              value={props.depositAmount}
+              onChange={props.setDepositAmount}
+              disabled={props.disabled}
+            />
+          )}
+          <p className="text-muted-foreground text-xs">
+            {byPercent
+              ? props.deposit > 0
+                ? `Soit ${formatAmount(props.deposit)} du total client.`
+                : "Part du total client. 0 % si le locataire règle le solde directement."
+              : share !== null
+                ? `≈ ${share} % du total client.`
+                : "Montant fixe. Laisser vide si le locataire règle le solde directement."}
+          </p>
+        </Field>
+        <Field label="Solde">
+          <p className="pt-2 text-sm tabular-nums">
+            {props.balance !== null ? (
+              <>
+                {formatAmount(props.balance)}
+                {share !== null ? (
+                  <span className="text-muted-foreground ml-1 text-xs">
+                    ≈ {100 - share} %
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </p>
+        </Field>
+      </div>
+      <p className="text-muted-foreground text-xs">
+        Repris tel quel sur le contrat, avec ces pourcentages.
+      </p>
+
+      {/* Not part of the total above: it is held and given back, never
+          earned. Every rental carries one, so an empty field is a gap to
+          fill rather than a variant of the booking. */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Dépôt de garantie">
+          <NumberInput
+            value={props.securityDepositAmount}
+            onChange={props.setSecurityDepositAmount}
+            disabled={props.disabled}
+          />
+          {Number(props.securityDepositAmount) > 0 ? (
+            <p className="text-muted-foreground text-xs">
+              Restitué après le séjour — jamais un revenu, et hors total client.
+            </p>
+          ) : (
+            <p className="text-xs text-amber-600">
+              Requis&nbsp;: aucune location ne se signe sans dépôt de garantie.
+            </p>
+          )}
+        </Field>
+      </div>
+    </div>
+  );
+}
+
 function MoneyBlock(props: {
   netOwner: string;
   setNetOwner: (v: string) => void;
@@ -963,9 +1395,7 @@ function MoneyBlock(props: {
   hasAmount: boolean;
   total: number | null;
   depositAmount: string;
-  setDepositAmount: (v: string) => void;
   securityDepositAmount: string;
-  setSecurityDepositAmount: (v: string) => void;
   balance: number | null;
   disabled: boolean;
 }) {
@@ -993,35 +1423,33 @@ function MoneyBlock(props: {
         </p>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
+        {/* Read-only here: the acompte is set at the financial step and
+            printed on a contract the parties have since signed, so this shows
+            what was agreed rather than offering to contradict it. */}
         <Field label="Acompte">
-          <NumberInput
-            value={props.depositAmount}
-            onChange={props.setDepositAmount}
-            disabled={props.disabled}
-          />
-          {(() => {
-            const deposit = Number(props.depositAmount) || 0;
-            if (props.total === null || props.total <= 0 || deposit <= 0) {
-              return (
-                <p className="text-muted-foreground text-xs">
-                  Par défaut 50 % du total client.
-                </p>
-              );
-            }
-            const pct = Math.round((deposit / props.total) * 100);
-            return (
-              <p className="text-muted-foreground text-xs">
-                ≈ {pct} % du total client.
-              </p>
-            );
-          })()}
+          <p className="text-sm tabular-nums">
+            {Number(props.depositAmount) > 0 ? (
+              <>
+                {formatAmount(Number(props.depositAmount))}
+                <span className="text-muted-foreground ml-1 text-xs">
+                  {depositShare(props.depositAmount, props.total)}
+                </span>
+              </>
+            ) : (
+              <span className="text-muted-foreground">
+                Aucun acompte — solde réglé directement.
+              </span>
+            )}
+          </p>
         </Field>
         <Field label="Dépôt de garantie">
-          <NumberInput
-            value={props.securityDepositAmount}
-            onChange={props.setSecurityDepositAmount}
-            disabled={props.disabled}
-          />
+          <p className="text-sm tabular-nums">
+            {Number(props.securityDepositAmount) > 0 ? (
+              formatAmount(Number(props.securityDepositAmount))
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </p>
         </Field>
       </div>
       {props.balance !== null ? (

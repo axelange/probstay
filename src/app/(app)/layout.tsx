@@ -27,7 +27,13 @@ export default async function AppLayout({
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter(
-      (item) => !item.permission || hasPermission(user, item.permission)
+      (item) =>
+        !item.permission ||
+        (Array.isArray(item.permission)
+          ? item.permission.some((permission) =>
+              hasPermission(user, permission)
+            )
+          : hasPermission(user, item.permission))
     ),
   })).filter((section) => section.items.length > 0);
 

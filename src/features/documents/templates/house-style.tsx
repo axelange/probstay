@@ -1,6 +1,8 @@
 import * as React from "react";
 import { View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 
+import { LogoVertical, Monogram } from "@/features/documents/templates/logo";
+
 /**
  * The house document system, shared by every document the agency issues.
  *
@@ -65,6 +67,9 @@ export const asset = (name: string) =>
     ? `${process.cwd()}/public/img/${name}`
     : `/img/${name}`;
 
+// The PNG marks. Kept for anything outside the documents; the documents
+// themselves draw the vector versions from ./logo, which stay sharp at the
+// sizes they are placed at. See the note there.
 export const LOGO_VERTICAL = asset("LogoVertical.png");
 export const MONOGRAM = asset("LogoMonogramme.png");
 
@@ -159,7 +164,18 @@ export const h = StyleSheet.create({
   // A box the tenant ticks by hand. Square, hairline, never pre-filled: which
   // mode applied is recorded on paper at signature, not in the app.
   tickRow: { flexDirection: "row", alignItems: "center", gap: LABEL_GAP },
-  tickBox: { width: 11, height: 11, borderWidth: 0.5, borderColor: black, flexShrink: 0 },
+  tickBox: {
+    width: 11,
+    height: 11,
+    borderWidth: 0.5,
+    borderColor: black,
+    flexShrink: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // A filled square rather than a glyph: the bundled faces carry no check
+  // mark, and a substitute font would not match the document.
+  tickMark: { width: 6, height: 6, backgroundColor: black },
   tickLabel: { flex: 1, fontSize: 10, color: black, lineHeight: LH },
   tickLabelFr: { fontStyle: "italic" },
 
@@ -297,11 +313,25 @@ export function Section({
   );
 }
 
-/** An unticked box with its bilingual label, as the master draws them. */
-export function Tick({ en, fr }: { en: string; fr: string }) {
+/**
+ * A box with its bilingual label. All the options are printed and the one that
+ * applies is ticked: the tenant should see what was declared on their behalf,
+ * not just the single line someone chose, since their signature accepts it.
+ */
+export function Tick({
+  en,
+  fr,
+  checked,
+}: {
+  en: string;
+  fr: string;
+  checked?: boolean;
+}) {
   return (
     <View style={h.tickRow}>
-      <View style={h.tickBox} />
+      <View style={h.tickBox}>
+        {checked ? <View style={h.tickMark} /> : null}
+      </View>
       <Text style={h.tickLabel}>
         {en} <Text style={h.tickLabelFr}>/ {fr}</Text>
       </Text>
@@ -395,7 +425,7 @@ export function Footer({ a }: { a: AgencyIdentity }) {
         };
         return (
           <>
-            <Image src={MONOGRAM} style={h.footMono} />
+            <Monogram width={33} height={40} />
             <View>
               <Text style={h.footLine}>
                 {a.legalName} — {a.address}
@@ -442,7 +472,7 @@ export function Masthead({
   return (
     <>
       <View style={h.logoWrap}>
-        <Image src={LOGO_VERTICAL} style={h.logo} />
+        <LogoVertical width={75} height={82.5} />
       </View>
       <View style={h.head}>
         <View>

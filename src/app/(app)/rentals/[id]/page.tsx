@@ -15,6 +15,8 @@ import { ContractCompletionForm } from "@/features/documents/components/contract
 import { buildCompletionData } from "@/features/documents/services/build-completion-data";
 import { documentReadiness } from "@/features/documents/services/document-readiness";
 import { listGeneratedDocuments } from "@/features/documents/services/generated-document-service";
+import { listSignedDocuments } from "@/features/documents/services/signed-document-service";
+import { SignedDocuments } from "@/features/documents/components/signed-documents";
 import { RentalDocuments } from "@/features/documents/components/rental-documents";
 import {
   canManageRental,
@@ -108,12 +110,25 @@ export default async function RentalDetailPage({
       canManage={canManage}
     />
   ) : undefined;
+
+  // The signed copies sit alongside, from the same stage: an agent generates,
+  // sends, and attaches what comes back without leaving the step.
+  const signed = generated ? await listSignedDocuments(rental.id, user) : null;
+  const signedStep = signed ? (
+    <SignedDocuments
+      rentalId={rental.id}
+      documents={signed}
+      canManage={canManage}
+    />
+  ) : undefined;
+
   const contractStep =
     readiness && completion ? (
       <ContractCompletionForm
         rentalId={rental.id}
         data={completion}
         missingKeys={readiness.missing.map((m) => m.key)}
+        missingLabels={readiness.missing.map((m) => m.label)}
         complete={readiness.complete}
       />
     ) : undefined;
@@ -158,6 +173,28 @@ export default async function RentalDetailPage({
               </Field>
               <Field label="Personnes">
                 <span className="tabular-nums">{rental.guests ?? "—"}</span>
+                {rental.children ? (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    dont <span className="tabular-nums">{rental.children}</span>{" "}
+                    enfant{rental.children > 1 ? "s" : ""}
+                  </span>
+                ) : null}
+              </Field>
+              <Field label="Horaires">
+                <span className="tabular-nums">
+                  {rental.checkInTime ?? rental.property.checkInTime}
+                </span>
+                {" → "}
+                <span className="tabular-nums">
+                  {rental.checkOutTime ?? rental.property.checkOutTime}
+                </span>
+                {rental.checkInTime === null && rental.checkOutTime === null ? null : (
+                  <span className="text-muted-foreground text-xs">
+                    {" "}
+                    (propre à ce séjour)
+                  </span>
+                )}
               </Field>
               <Field label="Bien">
                 <Link
@@ -195,6 +232,13 @@ export default async function RentalDetailPage({
             taxRatesByCity={taxRatesByCity}
             contractStep={contractStep}
             documentsStep={documentsStep}
+            signedStep={signedStep}
+            hasSignedConfirmation={
+              signed?.some((d) => d.type === "RENTAL_CONFIRMATION") ?? false
+            }
+            hasSignedContract={
+              signed?.some((d) => d.type === "SEASONAL_RENTAL_CONTRACT") ?? false
+            }
             contractReady={readiness?.complete ?? false}
             rental={{
               id: rental.id,
@@ -203,12 +247,18 @@ export default async function RentalDetailPage({
               checkIn: toDateInput(rental.checkIn),
               checkOut: toDateInput(rental.checkOut),
               guests: rental.guests,
+              children: rental.children,
+              checkInTime: rental.checkInTime,
+              checkOutTime: rental.checkOutTime,
+              presentation: rental.presentation,
               netOwnerAmount: rental.netOwnerAmount,
               commissionAmount: rental.commissionAmount,
               touristTaxAmount: rental.touristTaxAmount,
               touristTaxRate: rental.touristTaxAmount !== null ? rental.touristTaxRate : null,
               grossAmount: rental.grossAmount,
               depositAmount: rental.depositAmount,
+              depositBasis: rental.depositBasis,
+              depositPercent: rental.depositPercent,
               securityDepositAmount: rental.securityDepositAmount,
               depositStatus: rental.depositStatus,
               balanceStatus: rental.balanceStatus,

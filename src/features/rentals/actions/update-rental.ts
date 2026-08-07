@@ -151,10 +151,15 @@ export async function updateRental(
   const update: Prisma.RentalUncheckedUpdateInput = {
     bookingStatus: data.bookingStatus,
     guests: data.guests ?? null,
+    children: data.children ?? null,
+    checkInTime: data.checkInTime ?? null,
+    checkOutTime: data.checkOutTime ?? null,
     netOwnerAmount: data.netOwnerAmount ?? null,
     commissionAmount: data.commissionAmount ?? null,
     grossAmount,
     depositAmount: data.depositAmount ?? null,
+    depositBasis: data.depositBasis,
+    depositPercent: data.depositPercent,
     securityDepositAmount: data.securityDepositAmount ?? null,
     depositStatus: data.depositStatus,
     balanceStatus: data.balanceStatus,
@@ -168,14 +173,19 @@ export async function updateRental(
     if (data.checkOut) update.checkOut = new Date(data.checkOut);
   }
 
-  // Gate 1: the owner's agreement. Sets the exclusivity lock the
-  // exclusion constraint keys on. One-way — never cleared here.
+  // The owner's agreement, which sets the exclusivity lock the exclusion
+  // constraint keys on. One-way — never cleared here.
+  //
+  // No longer declared on its own in the funnel: the signed contract is the
+  // only gate there now, and it says more than this one ever did, so a booking
+  // that reaches signature carries the agreement with it (below). The flag
+  // stays honoured for any caller that does send it.
   if (data.confirmOwner && rental.ownerConfirmedAt === null) {
     update.ownerConfirmedAt = new Date();
     update.ownerConfirmedById = user.id;
   }
 
-  // Gate 2: the signed contract. This is the moment the booking matches
+  // The gate: the signed contract. This is the moment the booking matches
   // a real document, so the owner/agent snapshot is frozen here — not on
   // entering the CONTRACT stage. Captured from the property's current
   // values and never touched again.
@@ -184,6 +194,15 @@ export async function updateRental(
     update.contractSignedById = user.id;
     update.ownerId = rental.property.ownerId;
     update.agentId = rental.property.agentId;
+
+    // A signed contract implies the owner agreed, so the date-lock is taken
+    // here if it was not already. Without this the exclusion constraint would
+    // never engage now that nothing else sets it, and two agents could confirm
+    // the same villa for the same week.
+    if (rental.ownerConfirmedAt === null) {
+      update.ownerConfirmedAt = new Date();
+      update.ownerConfirmedById = user.id;
+    }
 
     // The tourist tax joins the frozen record: amount and the rate it was
     // computed with, from the city's rate at this moment. Dates are locked
@@ -195,11 +214,16 @@ export async function updateRental(
           WHERE lower(city) = lower(${rental.property.city}) LIMIT 1`
       : [];
     const rate = taxRow[0]?.amount ?? null;
-    const guests = data.guests ?? null;
+    // Minors are exempt, so the tax is frozen on the adults only — the same
+    // basis the funnel showed and both documents print.
+    const taxableGuests = Math.max(
+      0,
+      (data.guests ?? 0) - (data.children ?? 0)
+    );
     const stayNights = nights(rental.checkIn, rental.checkOut);
-    if (rate !== null && guests !== null && guests > 0) {
+    if (rate !== null && taxableGuests > 0) {
       update.touristTaxRate = rate;
-      update.touristTaxAmount = rate * guests * stayNights;
+      update.touristTaxAmount = rate * taxableGuests * stayNights;
     }
   }
 

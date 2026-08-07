@@ -16,6 +16,38 @@
  * lines, and joining those would produce "Services hôteliers inclus : • 2
  * agents d'entretien • 1 chef…" in a single run. Bullets therefore stand alone.
  */
+/**
+ * Notices APIMO's descriptions carry for the *listing*, not for a contract.
+ *
+ * French advertising rules require a meublé de tourisme's registration number
+ * and a pointer to Géorisques in the advert, so the agency types both into the
+ * description and they arrive with it — on 42 of the 53 in French, 35 in
+ * English. In an agreement they are out of place: the risk disclosure is
+ * annexed as an actual ERP document rather than a web address, and the
+ * registration number belongs in a field, not buried in prose about terraces.
+ *
+ * Matched on the destination rather than the sentence, because the wording is
+ * not stable: "risks to which", "risks associated with", "risks likely to be
+ * exposed", variously opened with ", " or «. What does not vary is Géorisques
+ * (or its mistranslation, GeoHazards) and the phrase naming the registration.
+ */
+const LISTING_NOTICE =
+  /(g[ée]orisques|geohazards|num[ée]ro d['’]enregistrement|registration number)/i;
+
+/**
+ * The description as a contract should carry it: the prose describing the
+ * property, without the notices that exist to satisfy advertising rules.
+ *
+ * Kept out of `descriptionParagraphs` deliberately — the property page is
+ * internal and showing what APIMO sent is useful there. Only the documents
+ * strip them.
+ */
+export function descriptionForContract(
+  text: string | null | undefined
+): string[] {
+  return descriptionParagraphs(text).filter((p) => !LISTING_NOTICE.test(p));
+}
+
 export function descriptionParagraphs(
   text: string | null | undefined
 ): string[] {

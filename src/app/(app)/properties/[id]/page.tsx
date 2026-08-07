@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AgentAssignField } from "@/features/properties/components/agent-assign-field";
+import { CheckTimesField } from "@/features/properties/components/check-times-field";
 import { DefaultSecurityDepositField } from "@/features/properties/components/default-security-deposit-field";
 import { IncludedServicesField } from "@/features/properties/components/included-services-field";
 import { MarketingNameField } from "@/features/properties/components/marketing-name-field";
@@ -169,6 +170,22 @@ export default async function PropertyDetailPage({
             <DefaultSecurityDepositField
               propertyId={property.id}
               initialValue={property.defaultSecurityDeposit?.toFixed(2) ?? null}
+              canEdit={canEditMarketingName}
+            />
+          </Section>
+
+          <Separator />
+
+          <Section title="Horaires">
+            <p className="text-muted-foreground text-sm">
+              L&apos;heure d&apos;arrivée et de départ de ce bien. Une villa
+              avec gardien et un appartement à boîte à clés ne tournent pas à la
+              même heure&nbsp;; le contrat imprime celles-ci.
+            </p>
+            <CheckTimesField
+              propertyId={property.id}
+              checkInTime={property.checkInTime}
+              checkOutTime={property.checkOutTime}
               canEdit={canEditMarketingName}
             />
           </Section>

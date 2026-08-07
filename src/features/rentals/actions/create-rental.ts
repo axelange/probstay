@@ -58,7 +58,12 @@ export async function createRental(
   // MANAGE_RENTALS. The same gate a conversion uses.
   const property = await prisma.property.findFirst({
     where: { id: data.propertyId, archivedAt: null },
-    select: { id: true, agentId: true, category: true },
+    select: {
+      id: true,
+      agentId: true,
+      category: true,
+      defaultSecurityDeposit: true,
+    },
   });
   if (!property) {
     return { status: "error", message: "Ce bien n'existe plus." };
@@ -171,6 +176,11 @@ export async function createRental(
           bookingStatus: "INQUIRY",
           tenantAgentId,
           guests: data.guests ?? null,
+          // Seed the caution from the property, exactly as converting a
+          // demande does. Copied once and never read again: revising the
+          // property's default must not rewrite a rental whose contract may
+          // already quote the old figure.
+          securityDepositAmount: property.defaultSecurityDeposit,
           checkIn: new Date(data.checkIn),
           checkOut: new Date(data.checkOut),
           tenants: { create: [{ contactId: tenantContactId, isPrimary: true }] },

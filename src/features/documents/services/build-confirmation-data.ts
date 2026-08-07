@@ -3,7 +3,7 @@ import "server-only";
 import type { CurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { AGENCY } from "@/features/documents/agency";
+import { getAgency } from "@/features/documents/agency";
 import { documentReference } from "@/features/documents/reference";
 import { currentTemplateClauses } from "@/features/documents/services/template-service";
 import { resolveClause } from "@/features/documents/template-clauses";
@@ -73,6 +73,7 @@ export async function buildConfirmationData(
       checkIn: true,
       checkOut: true,
       guests: true,
+      children: true,
       contractSignedAt: true,
       grossAmount: true,
       netOwnerAmount: true,
@@ -193,6 +194,7 @@ export async function buildConfirmationData(
     .reduce((sum, sv) => sum + n(sv.amount), 0);
   const stayNights = nights(rental.checkIn, rental.checkOut);
   const guests = rental.guests ?? 0;
+  const children = rental.children ?? 0;
   let clientTax = 0;
   if (rental.touristTaxAmount !== null) {
     clientTax = n(rental.touristTaxAmount);
@@ -201,7 +203,12 @@ export async function buildConfirmationData(
       SELECT amount::float8 AS amount FROM tourist_taxes
       WHERE lower(city) = lower(${p.city}) LIMIT 1`;
     const taxRate = taxRow[0]?.amount ?? null;
-    clientTax = taxRate !== null && guests > 0 ? taxRate * guests * stayNights : 0;
+    // Minors are exempt from the taxe de séjour: adults only.
+    const taxableGuests = Math.max(0, guests - children);
+    clientTax =
+      taxRate !== null && taxableGuests > 0
+        ? taxRate * taxableGuests * stayNights
+        : 0;
   }
   const clientTotal = rent + billedTotal + clientTax;
 
@@ -329,6 +336,7 @@ export async function buildConfirmationData(
   // The wording comes from the current template version when one exists, and
   // from the shipped defaults otherwise. The Confirmation's clauses carry no
   // variables, so nothing is interpolated into them.
+  const agency = await getAgency();
   const { clauses } = await currentTemplateClauses("RENTAL_CONFIRMATION");
   const clause = (key: string) =>
     resolveClause("RENTAL_CONFIRMATION", key, clauses);
@@ -336,14 +344,14 @@ export async function buildConfirmationData(
   return {
     reference: documentReference("CONFIRMATION", rental.reference),
     agency: {
-      legalName: AGENCY.legalName,
-      address: AGENCY.address,
-      rcs: AGENCY.rcs,
-      cartePro: AGENCY.cartePro,
-      garantieFinanciere: AGENCY.garantieFinanciere,
-      rcp: AGENCY.rcp,
-      web: AGENCY.web,
-      phone: AGENCY.phone,
+      legalName: agency.legalName,
+      address: agency.address,
+      rcs: agency.rcs,
+      cartePro: agency.cartePro,
+      garantieFinanciere: agency.garantieFinanciere,
+      rcp: agency.rcp,
+      web: agency.web,
+      phone: agency.phone,
     },
     owner: {
       name: ownerName,
@@ -364,7 +372,11 @@ export async function buildConfirmationData(
       checkIn: shortDate(rental.checkIn),
       checkOut: shortDate(rental.checkOut),
       nights: `${stayNights}`,
-      occupancy: `${guests || "—"} Guests / Occupants`,
+      // The split is stated only when there are children, so a straightforward
+      // booking keeps the master's single line.
+      occupancy: children > 0
+        ? `${guests || "—"} Guests / Occupants — incl. ${children} children / dont ${children} enfant${children > 1 ? "s" : ""}`
+        : `${guests || "—"} Guests / Occupants`,
     },
     services: { included, notIncluded },
     financial: { rows: financialRows, total: money(total) },
@@ -379,8 +391,8 @@ export async function buildConfirmationData(
         representedBy: ownerRep(owner),
       },
       agent: {
-        name: AGENCY.name,
-        representedBy: `${AGENCY.signatory}, ${AGENCY.signatoryTitle}`,
+        name: agency.name,
+        representedBy: `${agency.representedBy}, ${agency.capacity}`,
       },
     },
   };

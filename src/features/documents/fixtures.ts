@@ -1,4 +1,3 @@
-import { AGENCY } from "@/features/documents/agency";
 import {
   DEFAULT_CLAUSES,
   resolveClause,
@@ -26,6 +25,7 @@ const SAMPLE_CONTRAT_VARIABLES = {
 
 export const sampleContrat: ContratData = {
   reference: "SRA-0001240",
+  presentation: "IN_PERSON",
   clauses: Object.fromEntries(
     Object.keys(DEFAULT_CLAUSES.SEASONAL_RENTAL_CONTRACT).map((key) => [
       key,
@@ -40,10 +40,10 @@ export const sampleContrat: ContratData = {
   place: "Cannes",
   date: "23 juillet 2026",
   agency: {
-    bankName: AGENCY.bankName,
-    bankAccountName: AGENCY.bankAccountName,
-    bankIban: AGENCY.bankIban,
-    bankBic: AGENCY.bankBic,
+    bankName: "CIC",
+    bankAccountName: "BSTAY",
+    bankIban: "FR76 1009 6180 8000 0464 4770 580",
+    bankBic: "CMCIFRPP",
     name: "B-STAY",
     tagline: "Locations d'exception · Côte d'Azur",
     legalForm: "SAS",
@@ -51,14 +51,14 @@ export const sampleContrat: ContratData = {
     representedBy: "Mme Valentine Roche",
     capacity: "Présidente",
     // The footer identity, shared with the Confirmation.
-    legalName: AGENCY.legalName,
-    address: AGENCY.address,
-    rcs: AGENCY.rcs,
-    cartePro: AGENCY.cartePro,
-    garantieFinanciere: AGENCY.garantieFinanciere,
-    rcp: AGENCY.rcp,
-    web: AGENCY.web,
-    phone: AGENCY.phone,
+    legalName: "SAS BSTAY",
+    address: "9 Rond-point Duboys d'Angers, 06400 Cannes",
+    rcs: "RCS Cannes 920 635 356",
+    cartePro: "Carte professionnelle n° 83042026000000007",
+    garantieFinanciere: "Garantie financière CEGC n°31961GES261",
+    rcp: "RCP Generali n° AL591311/31961",
+    web: "www.b-stay.com",
+    phone: "+33 6 85 87 78 68",
   },
   owner: {
     name: "M. Thomas Buffa",
@@ -106,8 +106,8 @@ export const sampleContrat: ContratData = {
     checkOut: "25 août 2026",
     nights: "12 nuits",
     guests: "10 personnes",
-    checkInTime: AGENCY.checkInTime,
-    checkOutTime: AGENCY.checkOutTime,
+    checkInTime: "16h00",
+    checkOutTime: "10h00",
   },
   money: {
     rent: "48 000,00 €",
@@ -135,14 +135,14 @@ export const sampleConfirmation: ConfirmationData = {
   reference: "RC-0001240",
   intro: DEFAULT_CLAUSES.RENTAL_CONFIRMATION.intro,
   agency: {
-    legalName: AGENCY.legalName,
-    address: AGENCY.address,
-    rcs: AGENCY.rcs,
-    cartePro: AGENCY.cartePro,
-    garantieFinanciere: AGENCY.garantieFinanciere,
-    rcp: AGENCY.rcp,
-    web: AGENCY.web,
-    phone: AGENCY.phone,
+    legalName: "SAS BSTAY",
+    address: "9 Rond-point Duboys d'Angers, 06400 Cannes",
+    rcs: "RCS Cannes 920 635 356",
+    cartePro: "Carte professionnelle n° 83042026000000007",
+    garantieFinanciere: "Garantie financière CEGC n°31961GES261",
+    rcp: "RCP Generali n° AL591311/31961",
+    web: "www.b-stay.com",
+    phone: "+33 6 85 87 78 68",
   },
   owner: {
     name: "GALIMARD (SAS)",

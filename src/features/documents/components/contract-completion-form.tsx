@@ -29,11 +29,14 @@ export function ContractCompletionForm({
   rentalId,
   data,
   missingKeys,
+  missingLabels,
   complete,
 }: {
   rentalId: string;
   data: CompletionData;
   missingKeys: string[];
+  /** Same fields, in words — the banner names them rather than counting. */
+  missingLabels: string[];
   complete: boolean;
 }) {
   const router = useRouter();
@@ -71,7 +74,6 @@ export function ContractCompletionForm({
     oRepFirstName: data.owner?.company?.repFirstName ?? "",
     oRepLastName: data.owner?.company?.repLastName ?? "",
     oRepCapacity: data.owner?.company?.repCapacity ?? "",
-    securityDepositAmount: data.securityDepositAmount?.toString() ?? "",
   });
   const [isPending, startTransition] = React.useTransition();
   const set = (k: keyof typeof form, v: string) =>
@@ -134,7 +136,6 @@ export function ContractCompletionForm({
               },
             }
           : {}),
-        securityDepositAmount: form.securityDepositAmount,
       });
       if (result.status === "error") {
         toast.error(result.message);
@@ -185,12 +186,22 @@ export function ContractCompletionForm({
           Toutes les informations requises sont complètes.
         </p>
       ) : (
-        <p className="flex items-center gap-1.5 text-sm text-amber-600">
-          <CircleAlert aria-hidden="true" className="size-4" />
-          {missingKeys.length} champ{missingKeys.length > 1 ? "s" : ""} requis
-          manquant{missingKeys.length > 1 ? "s" : ""} pour générer les
-          documents.
-        </p>
+        // Named, not counted. Some of these fields are not in this form —
+        // the presentation is chosen above it — so a bare number left the
+        // agent hunting for an input that was never here.
+        <div className="space-y-1 text-sm text-amber-600">
+          <p className="flex items-center gap-1.5">
+            <CircleAlert aria-hidden="true" className="size-4" />
+            {missingKeys.length} champ{missingKeys.length > 1 ? "s" : ""} requis
+            manquant{missingKeys.length > 1 ? "s" : ""} pour générer les
+            documents.
+          </p>
+          <ul className="list-disc pl-8 text-xs">
+            {missingLabels.map((label) => (
+              <li key={label}>{label}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="space-y-3 rounded-md border p-3">
@@ -376,14 +387,11 @@ export function ContractCompletionForm({
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {field(
-          "money.securityDeposit",
-          "securityDepositAmount",
-          "Caution (dépôt de garantie)",
-          { type: "number" }
-        )}
-      </div>
+      {/* The caution is not here: it is a money field, entered with the
+          acompte at the financial step and shown again above this form on the
+          contract step. Offering it twice in one panel, saved by two different
+          actions, is how the two versions start to disagree. It stays in
+          `documentReadiness` — the missing-field count below still names it. */}
 
       <Button type="submit" variant="outline" size="sm" disabled={isPending}>
         {isPending ? "Enregistrement…" : "Enregistrer les informations"}
