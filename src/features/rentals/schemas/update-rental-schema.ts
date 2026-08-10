@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   DepositBasis,
   RentalBookingStatus,
+  RentalPaymentKind,
   RentalPaymentStatus,
 } from "@/generated/prisma/enums";
 import { optionalTimeOfDay } from "@/lib/time-of-day";
@@ -75,6 +76,24 @@ export const updateRentalSchema = z.object({
       })
     )
     .max(40)
+    .default([]),
+
+  // What has actually come in under each status. Sent whole and reconciled by
+  // replacement, like the services — a small hand-kept list where an edited
+  // line is an edit, not a new receipt.
+  payments: z
+    .array(
+      z.object({
+        kind: z.enum(RentalPaymentKind),
+        amount: z.coerce.number().positive(),
+        paidAt: z
+          .union([z.literal(""), z.iso.date()])
+          .transform((v) => (v === "" ? undefined : v))
+          .optional(),
+        note: z.string().trim().max(160).optional(),
+      })
+    )
+    .max(60)
     .default([]),
 
   depositStatus: z.enum(RentalPaymentStatus),

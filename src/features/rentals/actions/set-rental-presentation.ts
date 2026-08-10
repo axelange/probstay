@@ -24,8 +24,8 @@ export type SetPresentationResult =
  * this field — so an agent picking a box and saving the obvious way lost it
  * silently. A radio that writes when clicked has no wrong button to press.
  *
- * Safe to write at any stage: it describes what happened before signature and
- * is not part of the frozen snapshot.
+ * Refused once the contract is signed: the document ticks one of these boxes
+ * and the tenant accepted that statement with their signature.
  */
 export async function setRentalPresentation(
   input: unknown
@@ -42,6 +42,7 @@ export async function setRentalPresentation(
     select: {
       id: true,
       tenantAgentId: true,
+      contractSignedAt: true,
       property: { select: { agentId: true } },
     },
   });
@@ -49,6 +50,17 @@ export async function setRentalPresentation(
 
   if (!canManageRental(user, rental)) {
     return { status: "error", message: "Vous ne gérez pas ce bien." };
+  }
+
+  // A term like any other: the signed contract ticks one of these boxes, and
+  // the tenant accepted it by signing. Reported rather than ignored — unlike
+  // the funnel's bulk save, this one only ever fires on a deliberate click.
+  if (rental.contractSignedAt !== null) {
+    return {
+      status: "error",
+      message:
+        "Le contrat est signé : la présentation du bien ne peut plus être modifiée.",
+    };
   }
 
   await prisma.rental.update({

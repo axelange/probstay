@@ -83,15 +83,25 @@ export async function updateRental(
     };
   }
 
-  // Property, dates and guests may be changed only while the booking is an
-  // enquiry — that is the stage the agent reshapes a request against, and
-  // it is safe there because no owner is confirmed (no date lock) and no
-  // snapshot is frozen yet. Silently ignored past then rather than errored,
-  // since the funnel simply stops offering them.
-  const isEnquiry = rental.bookingStatus === "INQUIRY";
+  // The signature is what closes the booking to changes, not the stage.
+  //
+  // Until the contract is signed nothing is committed: no document quotes the
+  // figures, the owner/agent snapshot is not frozen and the date-lock is not
+  // taken, so an agent may walk back to Informations or Financier and correct
+  // whatever was wrong. After it, the villa, the dates, the party, the hours
+  // and every amount are what the parties put their names to, and this refuses
+  // to move them.
+  //
+  // Read from the stored state, not the would-be one: a save that sets the
+  // final figures and ticks the signature in the same stroke is still editing
+  // an unsigned booking, and must be allowed to.
+  //
+  // Payment statuses, the deposit's return and the notes stay open — those are
+  // the work that happens after signature, not the terms of it.
+  const unsigned = rental.contractSignedAt === null;
   let targetPropertyId = rental.property.id;
 
-  if (isEnquiry && data.propertyId && data.propertyId !== rental.property.id) {
+  if (unsigned && data.propertyId && data.propertyId !== rental.property.id) {
     const property = await prisma.property.findFirst({
       where: { id: data.propertyId, archivedAt: null },
       select: { id: true, agentId: true, category: true },
@@ -112,7 +122,7 @@ export async function updateRental(
     targetPropertyId = property.id;
   }
 
-  if (isEnquiry && data.checkIn && data.checkOut) {
+  if (unsigned && data.checkIn && data.checkOut) {
     if (new Date(data.checkOut) <= new Date(data.checkIn)) {
       return {
         status: "error",
@@ -148,29 +158,35 @@ export async function updateRental(
     };
   }
 
+  // Always writable: where the booking is in the pipeline, how the money has
+  // actually been paid, and the internal notes.
   const update: Prisma.RentalUncheckedUpdateInput = {
     bookingStatus: data.bookingStatus,
-    guests: data.guests ?? null,
-    children: data.children ?? null,
-    checkInTime: data.checkInTime ?? null,
-    checkOutTime: data.checkOutTime ?? null,
-    netOwnerAmount: data.netOwnerAmount ?? null,
-    commissionAmount: data.commissionAmount ?? null,
-    grossAmount,
-    depositAmount: data.depositAmount ?? null,
-    depositBasis: data.depositBasis,
-    depositPercent: data.depositPercent,
-    securityDepositAmount: data.securityDepositAmount ?? null,
     depositStatus: data.depositStatus,
     balanceStatus: data.balanceStatus,
     securityDepositStatus: data.securityDepositStatus,
     notes: data.notes || null,
   };
 
-  if (isEnquiry) {
+  // The terms. Silently ignored once signed rather than errored: the funnel
+  // stops offering them, so anything still arriving is a stale form, not an
+  // attempt worth reporting.
+  if (unsigned) {
     update.propertyId = targetPropertyId;
     if (data.checkIn) update.checkIn = new Date(data.checkIn);
     if (data.checkOut) update.checkOut = new Date(data.checkOut);
+
+    update.guests = data.guests ?? null;
+    update.children = data.children ?? null;
+    update.checkInTime = data.checkInTime ?? null;
+    update.checkOutTime = data.checkOutTime ?? null;
+    update.netOwnerAmount = data.netOwnerAmount ?? null;
+    update.commissionAmount = data.commissionAmount ?? null;
+    update.grossAmount = grossAmount;
+    update.depositAmount = data.depositAmount ?? null;
+    update.depositBasis = data.depositBasis;
+    update.depositPercent = data.depositPercent;
+    update.securityDepositAmount = data.securityDepositAmount ?? null;
   }
 
   // The owner's agreement, which sets the exclusivity lock the exclusion
@@ -240,16 +256,35 @@ export async function updateRental(
     // and keeps consistent even if a label was renamed.
     await prisma.$transaction([
       prisma.rental.update({ where: { id: rental.id }, data: update }),
-      prisma.rentalService.deleteMany({ where: { rentalId: rental.id } }),
-      prisma.rentalService.createMany({
-        data: data.additionalServices.map((s) => ({
+      // Receipts are not terms: they are the work that happens after signature,
+      // so they are reconciled at every save whatever the contract's state.
+      prisma.rentalPayment.deleteMany({ where: { rentalId: rental.id } }),
+      prisma.rentalPayment.createMany({
+        data: data.payments.map((p) => ({
           rentalId: rental.id,
-          label: s.label,
-          // Included = a label with no amount of its own.
-          amount: s.includedInStay ? 0 : s.amount,
-          includedInStay: s.includedInStay,
+          kind: p.kind,
+          amount: p.amount,
+          paidAt: p.paidAt ? new Date(p.paidAt) : null,
+          note: p.note || null,
         })),
       }),
+      // The services are terms as well — they are priced on the contract — so
+      // they are reconciled only while it is unsigned. Replacing the whole set
+      // is what keeps it consistent when a label is renamed.
+      ...(unsigned
+        ? [
+            prisma.rentalService.deleteMany({ where: { rentalId: rental.id } }),
+            prisma.rentalService.createMany({
+              data: data.additionalServices.map((s) => ({
+                rentalId: rental.id,
+                label: s.label,
+                // Included = a label with no amount of its own.
+                amount: s.includedInStay ? 0 : s.amount,
+                includedInStay: s.includedInStay,
+              })),
+            }),
+          ]
+        : []),
     ]);
     revalidatePath("/rentals");
     revalidatePath(`/rentals/${rental.id}`);

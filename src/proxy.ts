@@ -37,7 +37,13 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isPublicRoute = pathname === "/login" || pathname.startsWith("/auth/");
+  // /intake/<token> is the client-facing identification form. It carries no
+  // session by design — the token in the path is the whole credential, and the
+  // page resolves it server-side. It is the only thing a client ever reaches.
+  const isPublicRoute =
+    pathname === "/login" ||
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/intake/");
 
   if (!user && !isPublicRoute) {
     const loginUrl = new URL("/login", request.url);

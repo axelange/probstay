@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { optionalIdDocType } from "@/features/contacts/schemas/id-doc-type";
 import {
   ContactKind,
   ContactSpecialty,
@@ -59,7 +60,7 @@ export const individualDetailFields = {
   birthDate: optionalDate,
   birthPlace: optionalText(160),
   nationality: optionalText(120),
-  idDocType: optionalText(60),
+  idDocType: optionalIdDocType,
   idDocNumber: optionalText(60),
   address: optionalText(300),
 };

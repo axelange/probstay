@@ -100,10 +100,50 @@ enum PropertyPresentation {
   REMOTE
 }
 
+/** Civil status, collected for client identification (LCB-FT / TRACFIN). */
+/**
+ * What a client intake link asks for.
+ *
+ * FULL identifies the party the agency contracts with, before the contract.
+ * OCCUPANTS collects only the other adults on the stay, which is a fact about
+ * one booking and is usually not known until much later.
+ */
+enum IntakeScope {
+  FULL
+  OCCUPANTS
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  PACS
+  DIVORCED
+  WIDOWED
+  OTHER
+}
+
+/**
+ * Why the stay is happening. A location saisonnière is a holiday instrument,
+ * so anything other than HOLIDAY is worth an agent seeing rather than a box
+ * quietly ticked.
+ */
+enum StayPurpose {
+  HOLIDAY
+  BUSINESS
+  EVENT
+  OTHER
+}
+
+/**
+ * The identity documents the agency accepts. Now genuinely the source of
+ * truth: `contacts.idDocType` and `rental_occupants.idDocType` are this type,
+ * not free text, so nothing unrecognised can reach a contract.
+ */
 enum IdentityDocumentType {
   PASSPORT
   ID_CARD
   DRIVING_LICENSE
+  RESIDENCE_PERMIT
 }
 
 // A demande (request) is its own thing, distinct from a rental: the first
@@ -136,6 +176,13 @@ model TouristTax {
   updatedBy     User?    @relation("TouristTaxUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("tourist_taxes")
+}
+
+/** Which of the three sums a receipt belongs to. */
+enum RentalPaymentKind {
+  DEPOSIT
+  BALANCE
+  SECURITY_DEPOSIT
 }
 
 enum RentalPaymentStatus {
@@ -218,6 +265,7 @@ model User {
   identityDocuments     IdentityDocument[] @relation("IdentityDocumentUploader")
   documentsGenerated    GeneratedDocument[] @relation("GeneratedDocumentAuthor")
   documentsSigned       SignedDocument[]    @relation("SignedDocumentUploader")
+  intakeLinksCreated    ClientIntakeLink[]  @relation("IntakeLinkCreatedBy")
   touristTaxesUpdated   TouristTax[]       @relation("TouristTaxUpdatedBy")
   agencyUpdates         Agency[]           @relation("AgencyUpdatedBy")
   demandesCreated       Demande[]          @relation("DemandeCreatedBy")
@@ -322,12 +370,24 @@ model Contact {
   birthDate   DateTime? @db.Date
   birthPlace  String?
   nationality String?
-  idDocType   String? // Passeport, CNI, Titre de séjour…
+  idDocType   IdentityDocumentType?
   idDocNumber String?
+
+  // Collected for client identification (LCB-FT / TRACFIN), not for the
+  // documents — nothing prints these. Held because the agency is required to
+  // know who it rents to, and kept for the next booking.
+  occupation    String?
+  maritalStatus MaritalStatus?
   // Postal address, printed on rental documents ("demeurant …"). BSTAY's
   // own — never synced. A company's address is its registered office in
   // `company` instead.
   address     String?
+  // The rest of the postal address. `address` stays the street line, which is
+  // what "demeurant …" prints, so these are additions rather than a split of
+  // something the documents already read.
+  postalCode  String?
+  city        String?
+  country     String?
 
   // `apimoId` is the identity for anything synced from APIMO; contacts
   // created in BSTAY simply have none.
@@ -360,6 +420,8 @@ model Contact {
   rentalTenants     RentalTenant[]
   identityDocuments IdentityDocument[]
   demandes          Demande[]          @relation("DemandeProspect")
+  intakeLinks       ClientIntakeLink[]
+  intakeSubmissions ClientIntakeSubmission[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   archivedAt    DateTime?
@@ -390,6 +452,12 @@ model ContactCompany {
   legalForm          String? // Forme sociale ← comment "Forme sociale"
   registrationNumber String? // N° immatriculation ← comment "Numéro d'immatriculation"
   registeredOffice   String? // Siège social ← APIMO address (+ address_more)
+  // The rest of the office address, and what the entity actually does —
+  // asked for identification, like the individual's occupation.
+  officePostalCode   String?
+  officeCity         String?
+  officeCountry      String?
+  mainActivity       String?
 
   // The legal representative — the natural person who signs. From APIMO
   // firstname/lastname and personal fields; capacity and multi-nationality
@@ -400,6 +468,15 @@ model ContactCompany {
   repBirthDate   DateTime? @db.Date // ← APIMO birthday_at
   repBirthPlace  String? // ← APIMO birthplace
   repNationality String? // ← comment "Nationalité(s)" else APIMO nationality
+  // The representative's own trade and contact details. Distinct from the
+  // company's: the same person may sign for several entities.
+  repOccupation  String?
+  repPhone       String?
+  repEmail       String?
+  // The representative's own identity document. A company has none; the person
+  // who signs for it does, and they are who the obligation reaches.
+  repIdDocType   IdentityDocumentType?
+  repIdDocNumber String?
 
   // Régime parahôtelier: a company owner under this VAT regime charges 10% VAT
   // on their net rental income. When set, documents add a "TVA 10 %" line on
@@ -699,7 +776,19 @@ model Rental {
   // Sets securityDepositStatus to REFUNDED in the same action.
   securityDepositReturnedAt DateTime?
 
+  // Why the stay is happening, and the other adults on it. Both asked of the
+  // client through the intake link, not of the agent.
+  stayPurpose      StayPurpose?
+  stayPurposeOther String?
+  occupants        RentalOccupant[]
+
+  // What has actually come in, under each of the three statuses. A status
+  // says "partially paid"; these say how much, and when.
+  payments          RentalPayment[]
+
   identityDocuments IdentityDocument[]
+  intakeLinks       ClientIntakeLink[]
+  intakeSubmissions ClientIntakeSubmission[]
   // The copies that came back signed, one row per upload.
   signedDocuments   SignedDocument[]
   // Extra services the agent adds and prices for this booking, on top of
@@ -823,8 +912,10 @@ model RentalTenant {
 // path is stored here. `number` is the document number, not the file.
 model IdentityDocument {
   id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  rentalId String @db.Uuid
-  rental   Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  // Optional: an owner asked for their ID from their contact page has no
+  // booking behind it. A tenant's copy still hangs off the rental.
+  rentalId String? @db.Uuid
+  rental   Rental? @relation(fields: [rentalId], references: [id], onDelete: Cascade)
 
   // Which guest this belongs to. Nullable and SET NULL on delete: the
   // document is evidence tied to the rental, and must survive a tenant
@@ -832,8 +923,15 @@ model IdentityDocument {
   contactId String?  @db.Uuid
   contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
+  // Whose document this is: a contact (the tenant, an owner) or an occupant
+  // of one stay. Exactly one of the two is set.
+  occupantId String?         @db.Uuid
+  occupant   RentalOccupant? @relation(fields: [occupantId], references: [id], onDelete: Cascade)
+
   type        IdentityDocumentType
-  number      String
+  // The number as read off the document. Optional: the copy is the evidence,
+  // the number only a convenience, and a client may upload without typing it.
+  number      String?
   storagePath String
 
   uploadedAt   DateTime @default(now())
@@ -1024,6 +1122,119 @@ model GeneratedDocument {
 enum SignedDocumentKind {
   SIGNED
   AMENDMENT
+}
+
+/**
+ * Another adult on the stay. Recorded, not taken on as a client: they change
+ * every booking, and the address book already holds 5000 APIMO records.
+ * Children are excluded, by the same rule that exempts them from the tax.
+ */
+/**
+ * A sum received against one of the three amounts a booking carries.
+ *
+ * Positive by construction: this is a receipts journal, not a ledger. The
+ * deposit going back to the client is the `securityDepositReturnedAt`
+ * milestone, which is a different event with a different meaning.
+ */
+model RentalPayment {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rentalId String @db.Uuid
+  rental   Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  kind   RentalPaymentKind
+  amount Decimal   @db.Decimal(12, 2)
+  /** Null while the agent knows it landed but not on what day. */
+  paidAt DateTime? @db.Date
+  /** "virement", "chèque n° …" — whatever makes it findable on a statement. */
+  note   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([rentalId, kind])
+  @@map("rental_payments")
+}
+
+model RentalOccupant {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rentalId String @db.Uuid
+  rental   Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  firstName String
+  lastName  String
+
+  idDocType   IdentityDocumentType?
+  idDocNumber String?
+
+  identityDocuments IdentityDocument[]
+
+  createdAt DateTime @default(now())
+
+  @@index([rentalId])
+  @@map("rental_occupants")
+}
+
+/**
+ * A link a client fills in themselves.
+ *
+ * Targets a contact; the rental is only context — opened from a contact page
+ * it is an identity request, from Finalisation it also asks the motif and the
+ * occupants. The token is the whole credential, so it is long, random, expiring
+ * and revocable, and it reaches exactly one contact.
+ */
+model ClientIntakeLink {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token     String   @unique
+  contactId String   @db.Uuid
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  rentalId  String?  @db.Uuid
+  rental    Rental?  @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  /** Whether this asks for the tenant's own identity or only the occupants. */
+  scope IntakeScope @default(FULL)
+
+  createdById String? @db.Uuid
+  createdBy   User?   @relation("IntakeLinkCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  /** Last answered. Stays usable until it expires so a mistake can be fixed. */
+  submittedAt DateTime?
+
+  submissions ClientIntakeSubmission[]
+
+  @@index([contactId])
+  @@index([rentalId])
+  @@map("client_intake_links")
+}
+
+/**
+ * What a client declared, and when.
+ *
+ * Append-only. The contact holds what is true now; this holds what was stated
+ * at the time, which is what an inspection asks for and what updating the
+ * contact would destroy.
+ */
+model ClientIntakeSubmission {
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  linkId    String            @db.Uuid
+  link      ClientIntakeLink  @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  contactId String            @db.Uuid
+  contact   Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  rentalId  String?           @db.Uuid
+  rental    Rental?           @relation(fields: [rentalId], references: [id], onDelete: SetNull)
+
+  /** Exactly what was submitted, kept whole so it survives schema changes. */
+  payload Json
+
+  confirmedAt DateTime
+  userAgent   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([contactId, createdAt])
+  @@index([rentalId])
+  @@map("client_intake_submissions")
 }
 
 model SignedDocument {

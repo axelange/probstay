@@ -199,6 +199,10 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
         select: { id: true, label: true, amount: true, includedInStay: true },
         orderBy: { createdAt: "asc" },
       },
+      payments: {
+        select: { id: true, kind: true, amount: true, paidAt: true, note: true },
+        orderBy: { createdAt: "asc" },
+      },
       owner: { select: { id: true, firstName: true, lastName: true } },
       agent: { select: { id: true, fullName: true } },
       tenantAgentId: true,
@@ -268,6 +272,13 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
     commissionRate: toNumber(rental.commissionRate),
     // amount is a non-null Decimal on this table, so convert directly.
     services: rental.services.map((s) => ({ ...s, amount: s.amount.toNumber() })),
+    // Decimal cannot cross into a Client Component, and the funnel is one.
+    payments: rental.payments.map((p) => ({
+      kind: p.kind,
+      amount: p.amount.toNumber(),
+      paidAt: p.paidAt,
+      note: p.note,
+    })),
     // Frozen at contract signature; before that the tax follows the
     // city's current rate.
     touristTaxAmount: toNumber(rental.touristTaxAmount),

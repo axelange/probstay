@@ -18,6 +18,7 @@ import type {
   DepositBasis,
   PropertyPresentation,
   RentalBookingStatus,
+  RentalPaymentKind,
 } from "@/generated/prisma/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -257,6 +258,12 @@ export type FunnelRental = {
     amount: number;
     includedInStay: boolean;
   }[];
+  payments: {
+    kind: RentalPaymentKind;
+    amount: number;
+    paidAt: Date | null;
+    note: string | null;
+  }[];
   ownerConfirmedAt: Date | null;
   ownerConfirmedByName: string | null;
   contractSignedAt: Date | null;
@@ -282,7 +289,27 @@ const ADVANCE_LABEL: Partial<Record<RentalBookingStatus, string>> = {
   CHECK_IN: "Terminer le séjour",
 };
 
-function Stepper({ current }: { current: RentalBookingStatus }) {
+/**
+ * The pipeline, and the way back through it.
+ *
+ * A step already reached can be opened again: before signature to correct it,
+ * after signature to read what was agreed. Steps ahead of the booking are not
+ * reachable — there is nothing there yet.
+ *
+ * `current` is where the booking actually is; `viewing` is which panel is
+ * open. They differ whenever someone has stepped back, which is why the two
+ * are marked differently: a ring for what you are looking at, a filled chip
+ * for where the booking stands.
+ */
+function Stepper({
+  current,
+  viewing,
+  onSelect,
+}: {
+  current: RentalBookingStatus;
+  viewing: RentalBookingStatus;
+  onSelect: (stage: RentalBookingStatus) => void;
+}) {
   const cancelled = current === "CANCELLED";
   const currentIdx = BOOKING_PIPELINE.indexOf(current);
   return (
@@ -290,15 +317,23 @@ function Stepper({ current }: { current: RentalBookingStatus }) {
       {BOOKING_PIPELINE.map((stage, i) => {
         const done = !cancelled && i < currentIdx;
         const active = !cancelled && i === currentIdx;
+        const reachable = !cancelled && i <= currentIdx;
+        const open = stage === viewing;
         return (
           <li key={stage} className="flex items-center gap-1">
-            <span
+            <button
+              type="button"
+              disabled={!reachable}
+              onClick={() => onSelect(stage)}
+              aria-current={open ? "step" : undefined}
               className={[
-                "flex items-center gap-1.5 rounded-full px-2.5 py-1",
+                "flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors",
+                reachable ? "cursor-pointer" : "cursor-default",
+                open ? "ring-primary/60 ring-2 ring-offset-1" : "",
                 active
                   ? "bg-primary text-primary-foreground font-medium"
                   : done
-                    ? "bg-primary/10 text-foreground"
+                    ? "bg-primary/10 text-foreground hover:bg-primary/20"
                     : "bg-muted text-muted-foreground",
               ].join(" ")}
             >
@@ -306,7 +341,7 @@ function Stepper({ current }: { current: RentalBookingStatus }) {
                 {done ? <Check aria-hidden="true" className="size-3" /> : i + 1}
               </span>
               {bookingStatusLabel(stage)}
-            </span>
+            </button>
             {i < BOOKING_PIPELINE.length - 1 ? (
               <span aria-hidden="true" className="text-muted-foreground">
                 ·
@@ -327,6 +362,8 @@ export function RentalFunnel({
   contractStep,
   documentsStep,
   signedStep,
+  intakeStep,
+  occupantsStep,
   contractReady = false,
   hasSignedConfirmation = false,
   hasSignedContract = false,
@@ -341,6 +378,10 @@ export function RentalFunnel({
   documentsStep?: React.ReactNode;
   /** The signed copies that came back, uploaded against this rental. */
   signedStep?: React.ReactNode;
+  /** The client's own identification link, offered at the contract step. */
+  intakeStep?: React.ReactNode;
+  /** The other adults on the stay, chased at finalisation. */
+  occupantsStep?: React.ReactNode;
   /**
    * Which documents have a signed copy on file. Both of them present is the
    * evidence behind gate 2, and satisfies it on its own.
@@ -390,6 +431,14 @@ export function RentalFunnel({
   // booking that has none — the one-way copy, for rentals created before the
   // property had a default or before the seeding existed. Pre-filled, not
   // silently applied: it becomes the rental's own figure only once saved.
+  const [payments, setPayments] = React.useState<PaymentDraft[]>(() =>
+    rental.payments.map((p) => ({
+      kind: p.kind,
+      amount: p.amount.toString(),
+      paidAt: p.paidAt ? p.paidAt.toISOString().slice(0, 10) : "",
+      note: p.note ?? "",
+    }))
+  );
   const [securityDepositAmount, setSecurityDepositAmount] = React.useState(
     () =>
       rental.securityDepositAmount?.toString() ??
@@ -417,7 +466,15 @@ export function RentalFunnel({
   const [isPending, startTransition] = React.useTransition();
 
   const stage = rental.bookingStatus;
+  // Which panel is open, as opposed to where the booking is. Steps already
+  // reached can be reopened; advancing moves the view along with the booking.
+  const [view, setView] = React.useState<RentalBookingStatus>(stage);
   const contractSigned = rental.contractSignedAt !== null;
+  // The signature closes the terms. Before it, stepping back to Informations
+  // or Financier means correcting them; after it, it means reading them. The
+  // server enforces the same rule — this only stops the form offering what
+  // would be discarded.
+  const termsLocked = contractSigned;
   // Both signed copies on file is the signature itself, so it satisfies gate 2
   // without a checkbox: an agent who has attached the paperwork has already
   // said everything ticking a box would say.
@@ -520,6 +577,16 @@ export function RentalFunnel({
             amount: s.includedInStay ? 0 : Number(s.amount) || 0,
             includedInStay: s.includedInStay,
           })),
+        // Blank rows are drafts an agent opened and left: dropped rather than
+        // refused, so a stray "+" never blocks a save.
+        payments: payments
+          .filter((p) => Number(p.amount) > 0)
+          .map((p) => ({
+            kind: p.kind,
+            amount: Number(p.amount),
+            paidAt: p.paidAt,
+            note: p.note,
+          })),
         depositStatus,
         balanceStatus,
         securityDepositStatus,
@@ -537,6 +604,9 @@ export function RentalFunnel({
       toast.success(
         target === stage ? "Enregistré." : `${bookingStatusLabel(target)}.`
       );
+      // Follow the booking rather than leaving the agent on the step they
+      // just left behind.
+      if (target !== stage) setView(target);
       setSignContract(false);
       setReturnSecurityDeposit(false);
       router.refresh();
@@ -565,7 +635,7 @@ export function RentalFunnel({
   if (!canManage) {
     return (
       <div className="space-y-4">
-        <Stepper current={stage} />
+        <Stepper current={stage} viewing={view} onSelect={setView} />
         <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
           <Lock aria-hidden="true" className="size-4" />
           Lecture seule — vous ne gérez pas ce bien.
@@ -576,7 +646,7 @@ export function RentalFunnel({
 
   return (
     <div className="space-y-6">
-      <Stepper current={stage} />
+      <Stepper current={stage} viewing={view} onSelect={setView} />
 
       {stage === "CANCELLED" ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
@@ -587,12 +657,14 @@ export function RentalFunnel({
         </div>
       ) : (
         <div className="space-y-5 rounded-lg border p-4">
-          {stage === "INQUIRY" ? (
-            <>
+          {view === "INQUIRY" ? (
+            <fieldset disabled={termsLocked} className="min-w-0 space-y-5">
               <StagePanelHeader
                 title="Informations"
                 hint="La villa, les dates et le nombre de personnes. Le montant, l'accord des parties et le contrat se règlent à l'étape suivante."
               />
+
+              <LockedNotice shown={termsLocked} />
 
               <div className="space-y-2">
                 <Label htmlFor="villa">Villa</Label>
@@ -652,16 +724,31 @@ export function RentalFunnel({
                 </Field>
               </div>
 
+              {/* Beside the dates they qualify: an arrival date and the hour
+                  it starts are one piece of information, and the agent enters
+                  them in the same breath. */}
+              <StayTimes
+                checkInTime={checkInTime}
+                checkOutTime={checkOutTime}
+                onCheckInTime={setCheckInTime}
+                onCheckOutTime={setCheckOutTime}
+                propertyCheckInTime={selectedProperty?.checkInTime ?? "16h00"}
+                propertyCheckOutTime={selectedProperty?.checkOutTime ?? "10h00"}
+                disabled={isPending}
+              />
+
               <OverlapWarning overlap={overlap} />
-            </>
+            </fieldset>
           ) : null}
 
-          {stage === "FINANCIAL" ? (
-            <>
+          {view === "FINANCIAL" ? (
+            <fieldset disabled={termsLocked} className="min-w-0 space-y-5">
               <StagePanelHeader
                 title="Financier"
                 hint="Le net propriétaire, la commission et les services. Les montants validés ouvrent l'étape contrat."
               />
+
+              <LockedNotice shown={termsLocked} />
 
               {/* The two figures the stay amount is built from. */}
               <div className="grid gap-3 sm:grid-cols-2">
@@ -875,54 +962,49 @@ export function RentalFunnel({
               />
 
               <OverlapWarning overlap={overlap} />
-            </>
+            </fieldset>
           ) : null}
 
-          {stage === "CONTRACT" ? (
+          {view === "CONTRACT" ? (
             <>
               <StagePanelHeader
                 title="Contrat"
-                hint="Les informations des parties, la génération des documents, puis la signature."
+                hint="L'identification du client, les informations des parties, la génération des documents, puis la signature."
               />
 
-              <StayTimes
-                checkInTime={checkInTime}
-                checkOutTime={checkOutTime}
-                onCheckInTime={setCheckInTime}
-                onCheckOutTime={setCheckOutTime}
-                propertyCheckInTime={selectedProperty?.checkInTime ?? "16h00"}
-                propertyCheckOutTime={selectedProperty?.checkOutTime ?? "10h00"}
-                disabled={isPending}
-              />
+              {/* Identifying the client comes first: the LCB-FT obligation
+                  applies before entering into the relationship, and what the
+                  client declares here fills exactly the fields the contract
+                  requires — address, nationality, birth, identity document.
+                  Left outside the lock below on purpose: the signature freezes
+                  the contract's terms, not who the client is, and an answer
+                  may well arrive after it. */}
+              {intakeStep}
 
-              <PresentationChoice
-                rentalId={rental.id}
-                initial={rental.presentation}
-                disabled={isPending}
-              />
+              {/* Once signed, this step is only somewhere to fetch and file
+                  paperwork: the presentation and the parties are terms the
+                  document now states. */}
+              {termsLocked ? null : (
+                <PresentationChoice
+                  rentalId={rental.id}
+                  initial={rental.presentation}
+                  disabled={isPending}
+                />
+              )}
 
               {/* The same control as the financial step, not a copy of the
                   value: this is where the document quoting it is produced, so
                   a split that turned out wrong has to be fixable without
                   walking the booking back a stage. */}
-              <SplitFields
-                depositBasis={depositBasis}
-                setDepositBasis={setDepositBasis}
-                depositPercent={depositPercent}
-                setDepositPercent={setDepositPercent}
-                depositAmount={depositAmount}
-                setDepositAmount={setDepositAmount}
-                deposit={deposit}
-                securityDepositAmount={securityDepositAmount}
-                setSecurityDepositAmount={setSecurityDepositAmount}
-                total={total}
-                balance={balance}
-                disabled={isPending}
-              />
+              {/* The acompte and the caution are settled at the financial
+                  step and nowhere else. They were repeated here so a booking
+                  already at this stage could still reach them; the stepper
+                  makes that unnecessary, and one figure with two places to
+                  edit it is one figure too many. */}
 
               {/* The completion form: every field the documents require,
                   server-assembled and written back to contact/rental. */}
-              {contractStep}
+              {termsLocked ? null : contractStep}
 
               {documentsStep}
 
@@ -961,12 +1043,14 @@ export function RentalFunnel({
             </>
           ) : null}
 
-          {stage === "FINALISATION" ? (
+          {view === "FINALISATION" ? (
             <>
               <StagePanelHeader
                 title="Finalisation"
-                hint="Pièces d'identité et paiements avant l'arrivée."
+                hint="Les autres occupants, les pièces d'identité et les paiements avant l'arrivée."
               />
+
+              {occupantsStep}
               <ConfirmedLine
                 when={rental.contractSignedAt}
                 who={rental.contractSignedByName}
@@ -1004,12 +1088,19 @@ export function RentalFunnel({
                 setBalanceStatus={setBalanceStatus}
                 securityDepositStatus={securityDepositStatus}
                 setSecurityDepositStatus={setSecurityDepositStatus}
+                payments={payments}
+                setPayments={setPayments}
+                due={{
+                  DEPOSIT: deposit > 0 ? deposit : null,
+                  BALANCE: balance,
+                  SECURITY_DEPOSIT: Number(securityDepositAmount) || null,
+                }}
                 disabled={isPending}
               />
             </>
           ) : null}
 
-          {stage === "CHECK_IN" ? (
+          {view === "CHECK_IN" ? (
             <>
               <StagePanelHeader
                 title="Séjour"
@@ -1022,12 +1113,19 @@ export function RentalFunnel({
                 setBalanceStatus={setBalanceStatus}
                 securityDepositStatus={securityDepositStatus}
                 setSecurityDepositStatus={setSecurityDepositStatus}
+                payments={payments}
+                setPayments={setPayments}
+                due={{
+                  DEPOSIT: deposit > 0 ? deposit : null,
+                  BALANCE: balance,
+                  SECURITY_DEPOSIT: Number(securityDepositAmount) || null,
+                }}
                 disabled={isPending}
               />
             </>
           ) : null}
 
-          {stage === "CHECK_OUT" ? (
+          {view === "CHECK_OUT" ? (
             <>
               <StagePanelHeader
                 title="Départ"
@@ -1061,6 +1159,22 @@ export function RentalFunnel({
             />
           </div>
 
+          {/* Where the booking stands, when that is not what is on screen. */}
+          {view !== stage ? (
+            <p className="text-muted-foreground text-xs">
+              Vous consultez l&apos;étape «&nbsp;{bookingStatusLabel(view)}
+              &nbsp;». La location est à l&apos;étape «&nbsp;
+              {bookingStatusLabel(stage)}&nbsp;».{" "}
+              <button
+                type="button"
+                onClick={() => setView(stage)}
+                className="cursor-pointer underline underline-offset-2"
+              >
+                Revenir à l&apos;étape en cours
+              </button>
+            </p>
+          ) : null}
+
           <div className="flex flex-wrap items-center gap-3 border-t pt-4">
             <Button
               type="button"
@@ -1070,7 +1184,9 @@ export function RentalFunnel({
             >
               Enregistrer
             </Button>
-            {next ? (
+            {/* Advancing and cancelling act on the booking, so they belong to
+                the step it is actually on — not to one being read back. */}
+            {next && view === stage ? (
               <Button
                 type="button"
                 onClick={() => run(next)}
@@ -1082,7 +1198,7 @@ export function RentalFunnel({
             ) : null}
             {/* A finished rental with its deposit returned is closed for
                 good — no cancelling after that. */}
-            {returned ? null : (
+            {returned || view !== stage ? null : (
               <button
                 type="button"
                 onClick={() => run("CANCELLED")}
@@ -1151,6 +1267,18 @@ function SatisfiedLine({ title, hint }: { title: string; hint: string }) {
         <p className="text-muted-foreground text-xs">{hint}</p>
       </div>
     </div>
+  );
+}
+
+/** Why a step that used to be editable no longer is. */
+function LockedNotice({ shown }: { shown: boolean }) {
+  if (!shown) return null;
+  return (
+    <p className="text-muted-foreground flex items-start gap-1.5 text-xs">
+      <Lock aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+      Le contrat est signé&nbsp;: ces informations sont celles que les parties
+      ont signées et ne peuvent plus être modifiées.
+    </p>
   );
 }
 
@@ -1462,6 +1590,26 @@ function MoneyBlock(props: {
   );
 }
 
+type PaymentDraft = {
+  kind: RentalPaymentKind;
+  amount: string;
+  paidAt: string;
+  note: string;
+};
+
+/**
+ * The three sums a booking carries, and what has actually come in against each.
+ *
+ * A status alone said "partially paid" without saying how much, and a client
+ * settling in three instalments had nowhere to put the second and the third.
+ * The receipts sit under their status: they appear once it stops being unpaid,
+ * because an unpaid line has nothing to detail.
+ *
+ * The status stays the agent's own call rather than being derived from the
+ * sums. A transfer announced but not yet cleared, a cheque in hand — the
+ * figures and the judgement are not the same thing, and the pipeline reads the
+ * judgement.
+ */
 function PaymentBlock(props: {
   depositStatus: string;
   setDepositStatus: (v: string) => void;
@@ -1469,46 +1617,151 @@ function PaymentBlock(props: {
   setBalanceStatus: (v: string) => void;
   securityDepositStatus: string;
   setSecurityDepositStatus: (v: string) => void;
+  payments: PaymentDraft[];
+  setPayments: React.Dispatch<React.SetStateAction<PaymentDraft[]>>;
+  /** What each is owed, so the receipts can be read against something. */
+  due: Record<RentalPaymentKind, number | null>;
   disabled: boolean;
 }) {
   const rows = [
-    ["Acompte", props.depositStatus, props.setDepositStatus],
-    ["Solde", props.balanceStatus, props.setBalanceStatus],
+    ["DEPOSIT", "Acompte", props.depositStatus, props.setDepositStatus],
+    ["BALANCE", "Solde", props.balanceStatus, props.setBalanceStatus],
     [
+      "SECURITY_DEPOSIT",
       "Dépôt de garantie",
       props.securityDepositStatus,
       props.setSecurityDepositStatus,
     ],
   ] as const;
+
+  const patch = (index: number, field: keyof PaymentDraft, value: string) =>
+    props.setPayments((list) =>
+      list.map((p, i) => (i === index ? { ...p, [field]: value } : p))
+    );
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <p className="text-sm font-medium">Paiements</p>
-      <div className="grid gap-3 sm:grid-cols-3">
-        {rows.map(([label, value, setter]) => (
-          <Field key={label} label={label}>
-            <Select
-              value={value}
-              onValueChange={(v) => v !== null && setter(v)}
-              items={PAYMENT_STATUSES.map((s) => ({
-                value: s,
-                label: paymentStatusLabel(s),
-              }))}
-              disabled={props.disabled}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {paymentStatusLabel(s)}
-                  </SelectItem>
+
+      {rows.map(([kind, label, value, setter]) => {
+        const entries = props.payments
+          .map((p, index) => ({ p, index }))
+          .filter(({ p }) => p.kind === kind);
+        const received = entries.reduce(
+          (sum, { p }) => sum + (Number(p.amount) || 0),
+          0
+        );
+        const owed = props.due[kind];
+        const outstanding = owed === null ? null : owed - received;
+
+        return (
+          <div key={kind} className="space-y-2 rounded-md border p-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-44 flex-1">
+                <Field label={label}>
+                  <Select
+                    value={value}
+                    onValueChange={(v) => v !== null && setter(v)}
+                    items={PAYMENT_STATUSES.map((st) => ({
+                      value: st,
+                      label: paymentStatusLabel(st),
+                    }))}
+                    disabled={props.disabled}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_STATUSES.map((st) => (
+                        <SelectItem key={st} value={st}>
+                          {paymentStatusLabel(st)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+              <p className="text-muted-foreground pb-2 text-xs tabular-nums">
+                {owed === null ? "—" : `Dû ${formatAmount(owed)}`}
+                {entries.length > 0
+                  ? ` · reçu ${formatAmount(received)}`
+                  : ""}
+                {outstanding !== null && entries.length > 0 && outstanding !== 0
+                  ? ` · reste ${formatAmount(outstanding)}`
+                  : ""}
+              </p>
+            </div>
+
+            {value === "UNPAID" ? null : (
+              <div className="space-y-2">
+                {entries.map(({ p, index }) => (
+                  <div key={index} className="flex flex-wrap items-end gap-2">
+                    <div className="w-32">
+                      <Field label="Montant">
+                        <NumberInput
+                          value={p.amount}
+                          onChange={(v) => patch(index, "amount", v)}
+                          disabled={props.disabled}
+                        />
+                      </Field>
+                    </div>
+                    <div className="w-40">
+                      <Field label="Date">
+                        <Input
+                          type="date"
+                          value={p.paidAt}
+                          onChange={(e) => patch(index, "paidAt", e.target.value)}
+                          disabled={props.disabled}
+                        />
+                      </Field>
+                    </div>
+                    <div className="min-w-40 flex-1">
+                      <Field label="Référence">
+                        <Input
+                          value={p.note}
+                          onChange={(e) => patch(index, "note", e.target.value)}
+                          placeholder="Virement, chèque n°…"
+                          disabled={props.disabled}
+                        />
+                      </Field>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Retirer ce versement"
+                      disabled={props.disabled}
+                      onClick={() =>
+                        props.setPayments((list) =>
+                          list.filter((_, i) => i !== index)
+                        )
+                      }
+                    >
+                      <X aria-hidden="true" />
+                    </Button>
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
-          </Field>
-        ))}
-      </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={props.disabled}
+                  onClick={() =>
+                    props.setPayments((list) => [
+                      ...list,
+                      { kind, amount: "", paidAt: "", note: "" },
+                    ])
+                  }
+                >
+                  <Plus aria-hidden="true" />
+                  Ajouter un versement
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

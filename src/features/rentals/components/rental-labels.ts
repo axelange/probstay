@@ -52,11 +52,10 @@ export const PAYMENT_STATUSES: RentalPaymentStatus[] = [
   "REFUNDED",
 ];
 
-export const IDENTITY_TYPE_LABELS: Record<IdentityDocumentType, string> = {
-  PASSPORT: "Passeport",
-  ID_CARD: "Carte d'identité",
-  DRIVING_LICENSE: "Permis de conduire",
-};
+// The identity-document labels used to live here too, spelling ID_CARD
+// "Carte d'identité" where the contact forms spelled it "CNI". Nothing read
+// them, so they are gone: ID_DOC_TYPES in contact-type-labels.ts is the one
+// list, and idDocTypeLabel the one way to name a type.
 
 export const IDENTITY_TYPES: IdentityDocumentType[] = [
   "PASSPORT",
@@ -70,10 +69,6 @@ export function bookingStatusLabel(status: string): string {
 
 export function paymentStatusLabel(status: string): string {
   return PAYMENT_STATUS_LABELS[status as RentalPaymentStatus] ?? status;
-}
-
-export function identityTypeLabel(type: string): string {
-  return IDENTITY_TYPE_LABELS[type as IdentityDocumentType] ?? type;
 }
 
 // Always two decimals: the agency works to the cent, so a price is

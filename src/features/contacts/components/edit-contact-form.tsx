@@ -464,7 +464,7 @@ export function EditContactForm({
               <Select
                 value={form.idDocType || null}
                 onValueChange={(v) => v !== null && set("idDocType", v)}
-                items={ID_DOC_TYPES.map((t) => ({ value: t, label: t }))}
+                items={ID_DOC_TYPES.map((t) => ({ value: t.value, label: t.label }))}
                 disabled={disabled}
               >
                 <SelectTrigger id="idDocType" className="w-full">
@@ -472,8 +472,8 @@ export function EditContactForm({
                 </SelectTrigger>
                 <SelectContent>
                   {ID_DOC_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

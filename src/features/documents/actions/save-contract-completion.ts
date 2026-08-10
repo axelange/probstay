@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { optionalIdDocType } from "@/features/contacts/schemas/id-doc-type";
 import type { Prisma } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -50,7 +51,7 @@ const schema = z.object({
     birthDate: optionalDate,
     birthPlace: optionalText(160),
     nationality: optionalText(120),
-    idDocType: optionalText(60),
+    idDocType: optionalIdDocType,
     idDocNumber: optionalText(60),
     company: companyBlock.optional(),
   }),

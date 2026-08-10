@@ -16,6 +16,11 @@ import { buildCompletionData } from "@/features/documents/services/build-complet
 import { documentReadiness } from "@/features/documents/services/document-readiness";
 import { listGeneratedDocuments } from "@/features/documents/services/generated-document-service";
 import { listSignedDocuments } from "@/features/documents/services/signed-document-service";
+import {
+  listIntakeLinks,
+  occupantsState,
+} from "@/features/intake/services/intake-service";
+import { IntakeLinkPanel } from "@/features/intake/components/intake-link-panel";
 import { SignedDocuments } from "@/features/documents/components/signed-documents";
 import { RentalDocuments } from "@/features/documents/components/rental-documents";
 import {
@@ -121,6 +126,76 @@ export default async function RentalDetailPage({
       canManage={canManage}
     />
   ) : undefined;
+
+  // The client's own identification (LCB-FT / TRACFIN), collected through a
+  // link they fill in themselves. Tied to the primary tenant, since that is
+  // the party the agency is required to identify.
+  const primaryTenant = rental.tenants.find((t) => t.isPrimary)?.contact ?? null;
+  const intakeLinks =
+    canManage && primaryTenant
+      ? await listIntakeLinks(primaryTenant.id, rental.id)
+      : [];
+  const intakeStep = primaryTenant ? (
+    <IntakeLinkPanel
+      contactId={primaryTenant.id}
+      rentalId={rental.id}
+      contactName={[primaryTenant.firstName, primaryTenant.lastName]
+        .filter(Boolean)
+        .join(" ")}
+      contactEmail={primaryTenant.email ?? null}
+      stayLabel={rental.property.marketingName ?? rental.property.city ?? undefined}
+      links={intakeLinks}
+      canManage={canManage}
+    />
+  ) : undefined;
+
+  // The other adults, chased at finalisation: optional before the contract
+  // because the tenant rarely knows who is coming that early, required once
+  // the stay is being finalised.
+  const occupants =
+    canManage && primaryTenant ? await occupantsState(rental.id) : null;
+  const occupantLinks =
+    canManage && primaryTenant
+      ? await listIntakeLinks(primaryTenant.id, rental.id, "OCCUPANTS")
+      : [];
+  const occupantsStep =
+    primaryTenant && occupants ? (
+      <IntakeLinkPanel
+        contactId={primaryTenant.id}
+        rentalId={rental.id}
+        contactName={[primaryTenant.firstName, primaryTenant.lastName]
+          .filter(Boolean)
+          .join(" ")}
+        contactEmail={primaryTenant.email ?? null}
+        stayLabel={rental.property.marketingName ?? rental.property.city ?? undefined}
+        links={occupantLinks}
+        canManage={canManage}
+        scope="OCCUPANTS"
+        title="Autres occupants"
+        intro="Les autres adultes du séjour, hors enfants. Un lien dédié demande uniquement ces informations — le locataire principal n'a pas à redéclarer les siennes."
+      >
+        {occupants.complete ? (
+          <p className="text-sm text-emerald-600">
+            {occupants.listed} occupant{occupants.listed > 1 ? "s" : ""} renseigné
+            {occupants.listed > 1 ? "s" : ""}.
+          </p>
+        ) : (
+          <div className="space-y-1 text-sm text-amber-600">
+            <p>
+              {occupants.listed} sur {occupants.expected} occupant
+              {occupants.expected > 1 ? "s" : ""} attendu
+              {occupants.expected > 1 ? "s" : ""}.
+            </p>
+            {occupants.incomplete.length > 0 ? (
+              <p className="text-xs">
+                Pièce d&apos;identité manquante&nbsp;:{" "}
+                {occupants.incomplete.join(", ")}.
+              </p>
+            ) : null}
+          </div>
+        )}
+      </IntakeLinkPanel>
+    ) : undefined;
 
   const contractStep =
     readiness && completion ? (
@@ -233,6 +308,8 @@ export default async function RentalDetailPage({
             contractStep={contractStep}
             documentsStep={documentsStep}
             signedStep={signedStep}
+            intakeStep={intakeStep}
+            occupantsStep={occupantsStep}
             hasSignedConfirmation={
               signed?.some((d) => d.type === "RENTAL_CONFIRMATION") ?? false
             }
@@ -264,6 +341,7 @@ export default async function RentalDetailPage({
               balanceStatus: rental.balanceStatus,
               securityDepositStatus: rental.securityDepositStatus,
               additionalServices: rental.services,
+              payments: rental.payments,
               ownerConfirmedAt: rental.ownerConfirmedAt,
               ownerConfirmedByName: rental.ownerConfirmedBy?.fullName ?? null,
               contractSignedAt: rental.contractSignedAt,
