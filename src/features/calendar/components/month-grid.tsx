@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { ComboboxOption } from "@/components/ui/combobox";
+import { EventBar } from "@/features/calendar/components/event-bar";
 import type {
   CalendarEntry,
   CalendarStay,
@@ -59,9 +61,15 @@ const HEADER = 2;
 const BAND = 1.5;
 const MIN_CELL = HEADER + BAND * 4;
 
-/** Local midnight, so a comparison is not shifted by a time zone. */
+/**
+ * The calendar day a stored date falls on, as a local date at midnight.
+ *
+ * Read in UTC because that is how the dates are stored — a stay beginning on
+ * the 31st is 31T00:00Z, which is still the 30th anywhere west of Greenwich.
+ * Reading it locally would draw the bar a day early.
+ */
 function atMidnight(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 }
 function key(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -81,6 +89,8 @@ type Band = {
   /** Whether the real start and end fall inside the month being drawn. */
   opensLeft: boolean;
   closesRight: boolean;
+  /** Set on an agency entry: clicking it opens the entry, not a booking. */
+  event?: CalendarEntry;
 };
 
 /**
@@ -112,10 +122,14 @@ export function MonthGrid({
   month,
   stays,
   events,
+  properties = [],
+  rentals = [],
 }: {
   month: Date;
   stays: CalendarStay[];
   events: CalendarEntry[];
+  properties?: ComboboxOption[];
+  rentals?: ComboboxOption[];
 }) {
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
   // getDay() gives 0 for Sunday, which would start the week on the wrong day.
@@ -129,8 +143,16 @@ export function MonthGrid({
     (a, b) => a.checkIn.getTime() - b.checkIn.getTime()
   );
 
+  // Colour by booking, so an event attached to one wears its colour and reads
+  // as belonging to it — a cleaning on the day of departure is part of that
+  // stay, not a separate thing that happens to fall on the same square.
+  const colourOf = new Map<string, string>();
+  ordered.forEach((s, i) => {
+    colourOf.set(s.id, STAY_COLOURS[i % STAY_COLOURS.length] as string);
+  });
+
   const bands: Band[] = [
-    ...ordered.map((s, i) => ({
+    ...ordered.map((s) => ({
       id: `stay-${s.id}`,
       label: s.property,
       title: [s.property, s.tenant, `réf. ${s.reference}`]
@@ -141,7 +163,7 @@ export function MonthGrid({
       to: atMidnight(s.checkOut),
       // Consecutive stays never share a colour: the index is the position in
       // date order, and the palette is longer than two.
-      colour: STAY_COLOURS[i % STAY_COLOURS.length] as string,
+      colour: colourOf.get(s.id) as string,
       opensLeft: true,
       closesRight: true,
     })),
@@ -149,13 +171,19 @@ export function MonthGrid({
       id: `event-${e.id}`,
       label: e.title,
       title: [e.title, e.property, e.notes].filter(Boolean).join(" — "),
+      // No href: an entry opens itself. The booking it belongs to is one
+      // click further, inside the panel.
       href: null,
+      event: e,
       from: atMidnight(e.startsOn),
       to: atMidnight(e.endsOn),
-      // Deliberately neutral: an agency entry is context around the bookings,
-      // not another booking.
+      // Attached to a booking: it takes that booking's colour, dashed so it
+      // still reads as an entry rather than as part of the stay itself.
+      // Otherwise neutral — an unattached entry is context around the
+      // bookings, not another booking.
       colour:
-        "bg-muted text-muted-foreground border border-dashed hover:bg-muted/80",
+        (e.rentalId ? colourOf.get(e.rentalId) : undefined) ??
+        "bg-muted text-muted-foreground hover:bg-muted/80",
       opensLeft: true,
       closesRight: true,
     })),
@@ -227,25 +255,34 @@ export function MonthGrid({
                   ].join(" ")}
                   style={{ minHeight: `${height}rem` }}
                 >
-                  <span
+                  {/* The number opens the day hour by hour. A link rather
+                      than the whole cell: the cell is covered by the bars, and
+                      clicking a stay should open the booking. */}
+                  <Link
+                    href={`/calendar/${key(day)}`}
+                    aria-label={`Voir le ${day.getDate()} heure par heure`}
                     className={[
-                      "text-xs tabular-nums",
+                      "text-xs tabular-nums transition-colors",
                       key(day) === today
                         ? "bg-primary text-primary-foreground inline-flex size-5 items-center justify-center rounded-full font-medium"
                         : day.getMonth() === month.getMonth()
-                          ? "text-muted-foreground"
-                          : "text-muted-foreground/60",
+                          ? "text-muted-foreground hover:text-foreground hover:underline"
+                          : "text-muted-foreground/60 hover:text-muted-foreground",
                     ].join(" ")}
                   >
                     {day.getDate()}
-                  </span>
+                  </Link>
                 </div>
               ))}
             </div>
 
             {/* The bars, laid over the week on the same seven columns. */}
             <div
-              className="pointer-events-none absolute inset-x-0 grid grid-cols-7 px-1"
+              // z-10: the bars are drawn after the day cells, so they already
+              // win on document order — but a cell that later gains a
+              // background or a transform would create a stacking context and
+              // silently swallow them.
+              className="pointer-events-none absolute inset-x-0 z-10 grid grid-cols-7 px-1"
               style={{ top: `${HEADER}rem`, gridAutoRows: `${BAND}rem` }}
             >
               {segments.map((s) => (
@@ -268,6 +305,9 @@ export function MonthGrid({
                       className={[
                         "block truncate px-1.5 py-0.5 text-[11px] leading-tight transition-colors",
                         s.band.colour,
+                        s.band.id.startsWith("event-")
+                          ? "border border-dashed"
+                          : "",
                         // Rounded only where the stay actually begins or ends,
                         // so a bar cut by the end of a week reads as continuing.
                         s.startsHere ? "rounded-l" : "",
@@ -277,20 +317,24 @@ export function MonthGrid({
                       {s.startsHere ? "" : "… "}
                       {s.band.label}
                     </Link>
-                  ) : (
-                    <div
-                      title={s.band.title}
+                  ) : s.band.event ? (
+                    <EventBar
+                      event={s.band.event}
+                      properties={properties}
+                      rentals={rentals}
                       className={[
-                        "truncate px-1.5 py-0.5 text-[11px] leading-tight",
+                        "truncate border border-dashed px-1.5 py-0.5 text-[11px] leading-tight transition-colors",
                         s.band.colour,
                         s.startsHere ? "rounded-l" : "",
                         s.endsHere ? "rounded-r" : "",
                       ].join(" ")}
                     >
-                      {s.startsHere ? "" : "… "}
-                      {s.band.label}
-                    </div>
-                  )}
+                      <span className="block truncate">
+                        {s.startsHere ? "" : "… "}
+                        {s.band.label}
+                      </span>
+                    </EventBar>
+                  ) : null}
                 </div>
               ))}
             </div>

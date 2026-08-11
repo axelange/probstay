@@ -264,8 +264,10 @@ export async function updateRental(
         where: { rentalId: rental.id, kind: "SECURITY_DEPOSIT" },
         select: { amount: true },
       }),
+      // Only what is actually withheld: a tenant's expense invoiced separately
+      // is settled on its own and must not be taken twice.
       prisma.rentalExpense.aggregate({
-        where: { rentalId: rental.id, bearer: "CLIENT" },
+        where: { rentalId: rental.id, bearer: "CLIENT", settlement: "DEPOSIT" },
         _sum: { amount: true },
       }),
     ]);
@@ -285,7 +287,7 @@ export async function updateRental(
     });
 
     const chargedNow = data.expenses
-      .filter((e) => e.bearer === "CLIENT")
+      .filter((e) => e.bearer === "CLIENT" && e.settlement === "DEPOSIT")
       .reduce((sum, e) => sum + e.amount, 0);
 
     const returned =
@@ -327,6 +329,7 @@ export async function updateRental(
           label: e.label,
           amount: e.amount,
           bearer: e.bearer,
+          settlement: e.settlement,
           spentAt: e.spentAt ? new Date(e.spentAt) : null,
           storagePath: e.storagePath || null,
           fileName: e.fileName || null,

@@ -45,19 +45,29 @@ export const EVENT_KINDS = [
  */
 export function AddEventDialog({
   properties,
+  rentals,
+  defaultDate,
 }: {
   properties: ComboboxOption[];
+  /** Bookings the entry can be attached to; it then takes their colour. */
+  rentals: ComboboxOption[];
+  /** Opened from a day, the form starts on that day rather than on today. */
+  defaultDate?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [isPending, startTransition] = React.useTransition();
 
-  const today = new Date().toISOString().slice(0, 10);
+  const initial = defaultDate ?? new Date().toISOString().slice(0, 10);
   const [title, setTitle] = React.useState("");
   const [kind, setKind] = React.useState<string>("MAINTENANCE");
-  const [startsOn, setStartsOn] = React.useState(today);
-  const [endsOn, setEndsOn] = React.useState(today);
+  const [startsOn, setStartsOn] = React.useState(initial);
+  const [endsOn, setEndsOn] = React.useState(initial);
+  // Optional: most entries are all-day. A viewing at 11h fills them.
+  const [startTime, setStartTime] = React.useState("");
+  const [endTime, setEndTime] = React.useState("");
   const [propertyId, setPropertyId] = React.useState("");
+  const [rentalId, setRentalId] = React.useState("");
   const [notes, setNotes] = React.useState("");
 
   function submit() {
@@ -67,7 +77,10 @@ export function AddEventDialog({
         kind,
         startsOn,
         endsOn,
+        startTime,
+        endTime,
         propertyId,
+        rentalId,
         notes,
       });
       if (result.status === "error") {
@@ -78,6 +91,9 @@ export function AddEventDialog({
       setTitle("");
       setNotes("");
       setPropertyId("");
+      setRentalId("");
+      setStartTime("");
+      setEndTime("");
       setOpen(false);
       router.refresh();
     });
@@ -146,8 +162,31 @@ export function AddEventDialog({
                 options={properties}
                 placeholder="Aucun bien…"
                 emptyLabel="Aucun bien ne correspond."
+                // A booking already names its villa; choosing both invites
+                // them to disagree.
+                disabled={isPending || rentalId !== ""}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="event-rental">Location (facultatif)</Label>
+              <Combobox
+                id="event-rental"
+                value={rentalId || null}
+                onValueChange={(v) => {
+                  setRentalId(v);
+                  // The booking settles the villa; clearing the field avoids
+                  // sending a property that contradicts it.
+                  if (v) setPropertyId("");
+                }}
+                options={rentals}
+                placeholder="Aucune location…"
+                emptyLabel="Aucune location ne correspond."
                 disabled={isPending}
               />
+              <p className="text-muted-foreground text-xs">
+                Rattaché à une location, l&apos;événement prend sa couleur dans
+                le calendrier.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="event-start">Début</Label>
@@ -176,6 +215,34 @@ export function AddEventDialog({
               />
             </div>
           </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="event-from">Heure de début (facultatif)</Label>
+              <Input
+                id="event-from"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                placeholder="11h00"
+                disabled={isPending}
+                className="tabular-nums"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event-to">Heure de fin (facultatif)</Label>
+              <Input
+                id="event-to"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                placeholder="12h30"
+                disabled={isPending}
+                className="tabular-nums"
+              />
+            </div>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            Sans heure, l&apos;événement occupe la journée entière.
+          </p>
 
           <div className="space-y-2">
             <Label htmlFor="event-notes">Notes</Label>

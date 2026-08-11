@@ -4,56 +4,51 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { CalendarEventKind } from "@/generated/prisma/enums";
 import { getCurrentUser } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { optionalTimeOfDay } from "@/lib/time-of-day";
 
 const schema = z
   .object({
+    id: z.uuid(),
     title: z.string().trim().min(1, "Un intitulé est nécessaire.").max(160),
-    kind: z.enum(CalendarEventKind).default("OTHER"),
+    kind: z.enum(CalendarEventKind),
     startsOn: z.iso.date(),
     endsOn: z.iso.date(),
-    // Optional, and normalised to the same "16h00" shape the properties' own
-    // hours use — so "11", "11h" and "11:00" all land the same way.
     startTime: optionalTimeOfDay,
     endTime: optionalTimeOfDay,
     propertyId: z
       .union([z.literal(""), z.uuid()])
       .transform((v) => (v === "" ? undefined : v))
       .optional(),
-    // Attaching to a booking makes the entry belong to it: the calendar draws
-    // it in that stay's colour and links to it.
     rentalId: z
       .union([z.literal(""), z.uuid()])
       .transform((v) => (v === "" ? undefined : v))
       .optional(),
     notes: z.string().trim().max(500).optional(),
   })
-  // Inclusive range, so a one-day event repeats its date rather than being
-  // refused for ending when it starts.
   .refine((v) => v.endsOn >= v.startsOn, {
     path: ["endsOn"],
     message: "La fin ne peut pas précéder le début.",
   });
 
-export type CreateCalendarEventResult =
+export type UpdateCalendarEventResult =
   | { status: "success" }
   | { status: "error"; message: string };
 
 /**
- * An entry the agency puts on the calendar itself.
+ * Correcting an entry the agency put on the calendar.
  *
- * Never an arrival or a departure: those are the rentals, and a copy here
- * would drift the first time a booking moves. This is for what nothing else
- * records — a caretaker's visit, a pool service, an owner's own stay.
+ * Freely editable, unlike almost everything else in this application: a
+ * calendar entry is a note to the office, not a term anyone agreed to, and a
+ * gardener who comes on Thursday instead of Wednesday should not need a
+ * correcting entry to say so.
  */
-export async function createCalendarEvent(
+export async function updateCalendarEvent(
   input: unknown
-): Promise<CreateCalendarEventResult> {
+): Promise<UpdateCalendarEventResult> {
   const user = await getCurrentUser();
   if (!user) return { status: "error", message: "Session expirée." };
-  // Open to anyone with a profile. Making it a privilege would leave "its
-  // author may edit it" meaning nothing, since only managers would ever be one.
 
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
@@ -64,16 +59,24 @@ export async function createCalendarEvent(
   }
   const data = parsed.data;
 
-  if (data.propertyId) {
-    const property = await prisma.property.findFirst({
-      where: { id: data.propertyId, archivedAt: null },
-      select: { id: true },
-    });
-    if (!property) return { status: "error", message: "Ce bien n'existe plus." };
+  const event = await prisma.calendarEvent.findUnique({
+    where: { id: data.id },
+    select: { id: true, createdById: true },
+  });
+  if (!event) return { status: "error", message: "Cet événement n'existe plus." };
+
+  // Its author, or someone allowed to reach across. Whoever wrote the entry
+  // knows what they meant by it; MANAGE_EVENTS is for tidying up after a
+  // colleague who has left or is away.
+  if (event.createdById !== user.id && !hasPermission(user, "MANAGE_EVENTS")) {
+    return {
+      status: "error",
+      message: "Seul l'auteur de cet événement peut le modifier.",
+    };
   }
 
-  // A booking carries its own property, so attaching to one settles the villa
-  // too — and an event on a booking pointing at a different villa would be a
+  // A booking carries its own villa, so attaching to one settles the property
+  // too — an entry on a booking pointing at a different villa is a
   // contradiction the calendar would draw.
   let propertyId = data.propertyId ?? null;
   if (data.rentalId) {
@@ -87,7 +90,8 @@ export async function createCalendarEvent(
     propertyId = rental.propertyId;
   }
 
-  await prisma.calendarEvent.create({
+  await prisma.calendarEvent.update({
+    where: { id: data.id },
     data: {
       title: data.title,
       kind: data.kind,
@@ -98,7 +102,6 @@ export async function createCalendarEvent(
       propertyId,
       rentalId: data.rentalId ?? null,
       notes: data.notes || null,
-      createdById: user.id,
     },
   });
 

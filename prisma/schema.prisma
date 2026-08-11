@@ -37,6 +37,10 @@ enum Permission {
   // changing the IBAN printed on every contract are different powers, and one
   // should not carry the other.
   MANAGE_AGENCY
+  // Tidying calendar entries someone else wrote. Their author may always edit
+  // their own, so this is only about reaching across — which is why an Agent
+  // does not hold it and a Moderator is refused it by default.
+  MANAGE_EVENTS
 }
 
 // The booking pipeline. Terminal states are CHECK_OUT and CANCELLED.
@@ -198,6 +202,21 @@ enum ExpenseBearer {
   CLIENT
   OWNER
   AGENCY
+}
+
+/**
+ * How a cost is actually settled — a separate question from who bears it.
+ *
+ * DEPOSIT withholds it from the caution, which only makes sense for a tenant.
+ * INVOICE means it is billed or forwarded and settled outside this booking:
+ * an owner's expense always works this way, since the agency keeps the invoice
+ * and passes it on rather than touching his net. COMMISSION is the agency's
+ * own, taken off what it earns.
+ */
+enum ExpenseSettlement {
+  DEPOSIT
+  INVOICE
+  COMMISSION
 }
 
 /** Which of the three sums a receipt belongs to. */
@@ -1218,6 +1237,15 @@ model CalendarEvent {
   startsOn DateTime @db.Date
   endsOn   DateTime @db.Date
 
+  /**
+   * An hour, when there is one. Most entries are all-day — a villa blocked for
+   * a fortnight — so both are optional; a viewing at 11h fills them. Same
+   * "16h00" text as the properties' own hours, which sorts correctly and
+   * carries no time zone.
+   */
+  startTime String?
+  endTime   String?
+
   propertyId String?   @db.Uuid
   property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   rentalId   String?   @db.Uuid
@@ -1273,7 +1301,8 @@ model RentalExpense {
   label  String
   /** Negative for a correction offsetting an earlier entry. Never zero. */
   amount Decimal       @db.Decimal(12, 2)
-  bearer ExpenseBearer
+  bearer     ExpenseBearer
+  settlement ExpenseSettlement @default(INVOICE)
   spentAt DateTime?    @db.Date
 
   /** The receipt, when there is one — it often arrives after the expense. */

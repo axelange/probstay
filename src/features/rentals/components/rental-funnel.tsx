@@ -20,6 +20,7 @@ import type {
   CommissionBasis,
   DepositBasis,
   ExpenseBearer,
+  ExpenseSettlement,
   PropertyPresentation,
   RentalBookingStatus,
   RentalPaymentKind,
@@ -609,6 +610,7 @@ export function RentalFunnel({
             label: e.label,
             amount: Number(e.amount),
             bearer: e.bearer,
+            settlement: e.settlement,
             spentAt: e.spentAt,
             storagePath: e.storagePath,
             fileName: e.fileName,
@@ -1181,7 +1183,9 @@ export function RentalFunnel({
                   status: securityDepositStatus,
                 })}
                 agreed={Number(securityDepositAmount) || null}
-                charged={rental.expenses.filter((e) => e.bearer === "CLIENT")}
+                charged={rental.expenses.filter(
+                  (e) => e.bearer === "CLIENT" && e.settlement === "DEPOSIT"
+                )}
                 settled={returned}
                 settledAmount={rental.securityDepositReturnedAmount}
               />
@@ -1775,6 +1779,7 @@ type ExpenseDraft = {
   label: string;
   amount: string;
   bearer: ExpenseBearer;
+  settlement: ExpenseSettlement;
   spentAt: string;
   storagePath: string;
   fileName: string;
@@ -1785,6 +1790,7 @@ export type RecordedExpense = {
   label: string;
   amount: number;
   bearer: ExpenseBearer;
+  settlement: ExpenseSettlement;
   spentAt: Date | null;
   storagePath: string | null;
   fileName: string | null;
@@ -1793,10 +1799,31 @@ export type RecordedExpense = {
 };
 
 const BEARERS = [
-  ["CLIENT", "Client — déduit de la caution"],
-  ["OWNER", "Propriétaire — déduit de son net"],
-  ["AGENCY", "Agence — déduit de la commission"],
+  ["CLIENT", "Client"],
+  ["OWNER", "Propriétaire"],
+  ["AGENCY", "Agence"],
 ] as const;
+
+/**
+ * How the cost is settled, which is a separate question from who bears it.
+ *
+ * Only a tenant's expense has a real choice. An owner's is always forwarded —
+ * the agency keeps the invoice and passes it on, and his net stays what the
+ * contract says. The agency's own always comes off its commission.
+ */
+const SETTLEMENTS: Record<
+  ExpenseBearer,
+  { value: ExpenseSettlement; label: string }[]
+> = {
+  CLIENT: [
+    { value: "DEPOSIT", label: "Retenue sur la caution" },
+    { value: "INVOICE", label: "Facturée séparément" },
+  ],
+  OWNER: [
+    { value: "INVOICE", label: "Facture transmise au propriétaire" },
+  ],
+  AGENCY: [{ value: "COMMISSION", label: "Déduite de la commission" }],
+};
 
 /**
  * What the stay cost, and who carries it.
@@ -1918,12 +1945,12 @@ function ExpenseBlock(props: {
       list.map((e, i) => (i === index ? { ...e, [field]: value } : e))
     );
 
-  const totalFor = (bearer: ExpenseBearer) =>
+  const totalFor = (settlement: ExpenseSettlement) =>
     props.recorded
-      .filter((e) => e.bearer === bearer)
+      .filter((e) => e.settlement === settlement)
       .reduce((sum, e) => sum + e.amount, 0) +
     props.drafts
-      .filter((e) => e.bearer === bearer)
+      .filter((e) => e.settlement === settlement)
       .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
   return (
@@ -1942,7 +1969,9 @@ function ExpenseBlock(props: {
               <span>
                 {e.label}
                 <span className="text-muted-foreground ml-2 text-xs">
-                  {BEARERS.find(([v]) => v === e.bearer)?.[1]}
+                  {BEARERS.find(([v]) => v === e.bearer)?.[1]} ·{" "}
+                  {SETTLEMENTS[e.bearer].find((x) => x.value === e.settlement)
+                    ?.label ?? e.settlement}
                   {e.spentAt ? ` · ${formatDate(e.spentAt)}` : ""}
                   {e.fileName ? ` · ${e.fileName}` : " · sans justificatif"}
                 </span>
@@ -1965,6 +1994,7 @@ function ExpenseBlock(props: {
                         label: `Régularisation — ${e.label}`,
                         amount: (-e.amount).toString(),
                         bearer: e.bearer,
+                        settlement: e.settlement,
                         spentAt: "",
                         storagePath: "",
                         fileName: "",
@@ -2001,7 +2031,15 @@ function ExpenseBlock(props: {
             <Field label="Imputée à">
               <Select
                 value={e.bearer}
-                onValueChange={(v) => v !== null && patch(index, "bearer", v)}
+                onValueChange={(v) => {
+                  if (v === null) return;
+                  patch(index, "bearer", v);
+                  // Each bearer has its own settlements, and only a tenant has
+                  // a choice — so moving the expense picks the one that fits
+                  // rather than leaving an impossible pair.
+                  const first = SETTLEMENTS[v as ExpenseBearer][0];
+                  if (first) patch(index, "settlement", first.value);
+                }}
                 items={BEARERS.map(([value, label]) => ({ value, label }))}
                 disabled={props.disabled}
               >
@@ -2012,6 +2050,32 @@ function ExpenseBlock(props: {
                   {BEARERS.map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Règlement">
+              <Select
+                value={e.settlement}
+                onValueChange={(v) =>
+                  v !== null && patch(index, "settlement", v)
+                }
+                items={SETTLEMENTS[e.bearer].map((x) => ({
+                  value: x.value,
+                  label: x.label,
+                }))}
+                // A single option is not a choice; it is shown so the agent
+                // reads what will happen, not so they pick it.
+                disabled={props.disabled || SETTLEMENTS[e.bearer].length < 2}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SETTLEMENTS[e.bearer].map((x) => (
+                    <SelectItem key={x.value} value={x.value}>
+                      {x.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -2069,6 +2133,9 @@ function ExpenseBlock(props: {
               label: "",
               amount: "",
               bearer: "CLIENT",
+              // The usual case for a tenant, and the one an agent means when
+              // they note breakage at check-out.
+              settlement: "DEPOSIT",
               spentAt: "",
               storagePath: "",
               fileName: "",
@@ -2080,30 +2147,58 @@ function ExpenseBlock(props: {
         Ajouter une dépense
       </Button>
 
-      {/* What each bearer is left with once their share of the expenses is
-          taken off. Shown together because the same expense reduces exactly
-          one of the three, and an agent choosing between them should see
-          which. */}
-      {BEARERS.some(([b]) => totalFor(b) !== 0) ? (
+      {/* Only what actually reduces something. An invoiced expense — a
+          tenant's billed separately, an owner's forwarded — is settled outside
+          this booking and takes nothing off it; showing it as a deduction was
+          the mistake. */}
+      {(["DEPOSIT", "COMMISSION", "INVOICE"] as const).some(
+        (st) => totalFor(st) !== 0
+      ) ? (
         <div className="space-y-1 rounded-md bg-muted/40 p-3 text-sm">
-          {BEARERS.map(([bearer, label]) => {
-            const total = totalFor(bearer);
-            if (total === 0) return null;
-            const before = props.base[bearer];
-            return (
-              <p key={bearer} className="flex justify-between gap-3 tabular-nums">
-                <span className="text-muted-foreground text-xs">{label}</span>
-                <span className="text-xs">
-                  −{formatAmount(total)}
-                  {before !== null ? (
-                    <span className="ml-2">
-                      reste {formatAmount(before - total)}
-                    </span>
-                  ) : null}
+          {totalFor("DEPOSIT") !== 0 ? (
+            <p className="flex justify-between gap-3 tabular-nums">
+              <span className="text-muted-foreground text-xs">
+                Retenu sur la caution
+              </span>
+              <span className="text-xs">
+                −{formatAmount(totalFor("DEPOSIT"))}
+                {props.base.CLIENT !== null ? (
+                  <span className="ml-2">
+                    reste {formatAmount(props.base.CLIENT - totalFor("DEPOSIT"))}
+                  </span>
+                ) : null}
+              </span>
+            </p>
+          ) : null}
+          {totalFor("COMMISSION") !== 0 ? (
+            <p className="flex justify-between gap-3 tabular-nums">
+              <span className="text-muted-foreground text-xs">
+                Déduit de la commission
+              </span>
+              <span className="text-xs">
+                −{formatAmount(totalFor("COMMISSION"))}
+                {props.base.AGENCY !== null ? (
+                  <span className="ml-2">
+                    reste{" "}
+                    {formatAmount(props.base.AGENCY - totalFor("COMMISSION"))}
+                  </span>
+                ) : null}
+              </span>
+            </p>
+          ) : null}
+          {totalFor("INVOICE") !== 0 ? (
+            <p className="flex justify-between gap-3 tabular-nums">
+              <span className="text-muted-foreground text-xs">
+                Facturé séparément ou transmis
+              </span>
+              <span className="text-xs">
+                {formatAmount(totalFor("INVOICE"))}
+                <span className="text-muted-foreground ml-2">
+                  réglé hors de cette location
                 </span>
-              </p>
-            );
-          })}
+              </span>
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

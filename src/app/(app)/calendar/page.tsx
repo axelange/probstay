@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AddEventDialog } from "@/features/calendar/components/add-event-dialog";
 import { MonthGrid, MONTH_NAMES } from "@/features/calendar/components/month-grid";
 import {
+  listAttachableRentals,
   listMonth,
   listUpcoming,
 } from "@/features/calendar/services/calendar-service";
@@ -34,12 +35,16 @@ export default async function CalendarPage({
   searchParams,
 }: {
   // Next 16: searchParams is a promise.
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; months?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const { month: requested } = await searchParams;
+  const { month: requested, months: requestedSpan } = await searchParams;
+  // One month or two. Two by default: placing a booking usually means looking
+  // at the month after the one on screen. Carried in the URL like the month
+  // itself, so a view can be linked to.
+  const span = requestedSpan === "1" ? 1 : 2;
   // The month comes from the URL so a view can be linked to and refreshed;
   // anything unparseable falls back to now rather than erroring.
   const match = /^(\d{4})-(\d{2})$/.exec(requested ?? "");
@@ -48,27 +53,46 @@ export default async function CalendarPage({
     ? new Date(Number(match[1]), Number(match[2]) - 1, 1)
     : new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Two months at a time: a booking is very often being placed against the
-  // month after the one being looked at, and flipping back and forth to see
-  // both ends of a stay is how double bookings happen.
   const second = new Date(month.getFullYear(), month.getMonth() + 1, 1);
-  const from = new Date(month.getFullYear(), month.getMonth(), 1);
-  const to = new Date(month.getFullYear(), month.getMonth() + 2, 0);
-  // Stepping by one month, not two: the pair slides, so the month on the right
-  // becomes the month on the left rather than disappearing unseen.
+
+  // The window is built in UTC, and closed at the end of its last day.
+  //
+  // Stay dates are stored at UTC midnight. A bound built from local midnight
+  // lands two hours *earlier* in UTC, so `checkIn <= to` excluded any stay
+  // starting on the last day of the window — a booking beginning 31 July
+  // vanished from July while still showing in a July–August pair, whose bound
+  // was far enough away to hide the fault.
+  const from = new Date(Date.UTC(month.getFullYear(), month.getMonth(), 1));
+  // The loaded window follows the view: one month or two.
+  const to = new Date(
+    Date.UTC(month.getFullYear(), month.getMonth() + span, 0, 23, 59, 59, 999)
+  );
+  // Stepping by one month either way: in the two-month view the pair slides,
+  // so the month on the right becomes the month on the left rather than
+  // disappearing unseen.
   const previous = new Date(month.getFullYear(), month.getMonth() - 1, 1);
-  const next = second;
+  const next = new Date(month.getFullYear(), month.getMonth() + 1, 1);
   // The arrows name the month that will *appear*, not the one they land on:
   // stepping forward from août–septembre reveals octobre, and labelling that
   // button "septembre" would point at a month already on screen.
-  const revealed = new Date(month.getFullYear(), month.getMonth() + 2, 1);
+  const revealed = new Date(month.getFullYear(), month.getMonth() + span, 1);
+
+  const href = (m: Date) =>
+    `/calendar?month=${monthParam(m)}${span === 1 ? "&months=1" : ""}`;
 
   const canAdd = hasPermission(user, "MANAGE_RENTALS");
-  const [{ stays, events }, upcoming, properties] = await Promise.all([
+  const [{ stays, events }, upcoming, properties, attachable] = await Promise.all([
     listMonth(user, from, to),
     listUpcoming(user, new Date(now.getFullYear(), now.getMonth(), now.getDate()), UPCOMING_DAYS),
     canAdd ? listBookableProperties() : Promise.resolve([]),
+    canAdd ? listAttachableRentals(user) : Promise.resolve([]),
   ]);
+
+  const propertyOptions = properties.map((p) => ({
+    value: p.id,
+    label: p.marketingName ?? p.city ?? "Sans nom",
+    ...(p.city ? { hint: p.city } : {}),
+  }));
 
   return (
     <div className="space-y-6">
@@ -81,11 +105,8 @@ export default async function CalendarPage({
         </div>
         {canAdd ? (
           <AddEventDialog
-            properties={properties.map((p) => ({
-              value: p.id,
-              label: p.marketingName ?? p.city ?? "Sans nom",
-              ...(p.city ? { hint: p.city } : {}),
-            }))}
+            rentals={attachable}
+            properties={propertyOptions}
           />
         ) : null}
       </div>
@@ -95,23 +116,31 @@ export default async function CalendarPage({
           variant="outline"
           size="sm"
           nativeButton={false}
-          render={<Link href={`/calendar?month=${monthParam(previous)}`} />}
+          render={<Link href={href(previous)} />}
         >
           <ArrowLeft aria-hidden="true" />
           {MONTH_NAMES[previous.getMonth()]}
         </Button>
         <span className="text-sm font-medium">
-          {MONTH_NAMES[month.getMonth()]}
-          {month.getFullYear() === second.getFullYear()
-            ? ""
-            : ` ${month.getFullYear()}`}{" "}
-          – {MONTH_NAMES[second.getMonth()]} {second.getFullYear()}
+          {span === 1 ? (
+            <>
+              {MONTH_NAMES[month.getMonth()]} {month.getFullYear()}
+            </>
+          ) : (
+            <>
+              {MONTH_NAMES[month.getMonth()]}
+              {month.getFullYear() === second.getFullYear()
+                ? ""
+                : ` ${month.getFullYear()}`}{" "}
+              – {MONTH_NAMES[second.getMonth()]} {second.getFullYear()}
+            </>
+          )}
         </span>
         <Button
           variant="outline"
           size="sm"
           nativeButton={false}
-          render={<Link href={`/calendar?month=${monthParam(next)}`} />}
+          render={<Link href={href(next)} />}
         >
           {MONTH_NAMES[revealed.getMonth()]}
           <ArrowRight aria-hidden="true" />
@@ -121,12 +150,32 @@ export default async function CalendarPage({
             variant="ghost"
             size="sm"
             nativeButton={false}
-            render={<Link href="/calendar" />}
+            render={<Link href={href(now)} />}
           >
             Aujourd&apos;hui
           </Button>
         ) : null}
-        <span className="text-muted-foreground ml-auto text-xs">
+        {/* One month or two. A pair of links rather than a control with
+            state: the view is in the URL, so it survives a refresh and can be
+            sent to someone. */}
+        <div className="ml-auto flex items-center gap-1 rounded-md border p-0.5">
+          {([1, 2] as const).map((n) => (
+            <Button
+              key={n}
+              variant={span === n ? "secondary" : "ghost"}
+              size="sm"
+              nativeButton={false}
+              render={
+                <Link
+                  href={`/calendar?month=${monthParam(month)}${n === 1 ? "&months=1" : ""}`}
+                />
+              }
+            >
+              {n} mois
+            </Button>
+          ))}
+        </div>
+        <span className="text-muted-foreground text-xs">
           {stays.length} séjour{stays.length > 1 ? "s" : ""} · {events.length}{" "}
           événement{events.length > 1 ? "s" : ""}
         </span>
@@ -134,9 +183,23 @@ export default async function CalendarPage({
 
       {/* Both grids get the whole window, not their own month: that is what
           keeps a stay the same colour and row as it crosses between them. */}
-      <div className="grid gap-4 xl:grid-cols-2">
-        <MonthGrid month={month} stays={stays} events={events} />
-        <MonthGrid month={second} stays={stays} events={events} />
+      <div className={span === 2 ? "grid gap-4 xl:grid-cols-2" : ""}>
+        <MonthGrid
+          month={month}
+          stays={stays}
+          events={events}
+          properties={propertyOptions}
+          rentals={attachable}
+        />
+        {span === 2 ? (
+          <MonthGrid
+            month={second}
+            stays={stays}
+            events={events}
+            properties={propertyOptions}
+            rentals={attachable}
+          />
+        ) : null}
       </div>
 
       <section className="space-y-3">

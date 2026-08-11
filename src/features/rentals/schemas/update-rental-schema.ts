@@ -3,6 +3,7 @@ import {
   CommissionBasis,
   DepositBasis,
   ExpenseBearer,
+  ExpenseSettlement,
   RentalBookingStatus,
   RentalPaymentKind,
   RentalPaymentStatus,
@@ -119,6 +120,7 @@ export const updateRentalSchema = z.object({
           .number()
           .refine((v) => v !== 0, "Le montant ne peut pas être nul."),
         bearer: z.enum(ExpenseBearer),
+        settlement: z.enum(ExpenseSettlement).default("INVOICE"),
         spentAt: z
           .union([z.literal(""), z.iso.date()])
           .transform((v) => (v === "" ? undefined : v))

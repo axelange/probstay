@@ -45,7 +45,8 @@ export function hasPermission(
       permission !== "MANAGE_REGISTERS" &&
       permission !== "MANAGE_USERS" &&
       permission !== "MANAGE_DOCUMENT_TEMPLATES" &&
-      permission !== "MANAGE_AGENCY"
+      permission !== "MANAGE_AGENCY" &&
+      permission !== "MANAGE_EVENTS"
     );
   }
 
