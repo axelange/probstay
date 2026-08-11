@@ -345,15 +345,16 @@ export default async function PropertyDetailPage({
                 {formatAmount(property.priceFees, property.priceCurrency)}
               </span>
             </Field>
-            <Field label="Dépôt de garantie">
-              <span className="tabular-nums">
-                {formatAmount(property.priceDeposit, property.priceCurrency)}
-              </span>
-            </Field>
+            {/* Le dépôt de garantie d'APIMO (price.deposit) n'est pas affiché :
+                c'est celui de la location classique, sans usage en saisonnier.
+                La caution qui compte est defaultSecurityDeposit, saisie ici et
+                reprise à la création d'une location. */}
             <Field label="Propriétaire">
-              {property.owner
-                ? `${property.owner.firstName} ${property.owner.lastName}`
-                : "—"}
+              {/* Une société n'a pas de prénom : lastName porte alors la raison
+                  sociale seule. D'où le filtre, comme partout ailleurs. */}
+              {[property.owner?.firstName, property.owner?.lastName]
+                .filter(Boolean)
+                .join(" ") || "—"}
             </Field>
             <Field label="Contact propriétaire">
               {property.owner?.email ?? property.owner?.phone ?? "—"}
