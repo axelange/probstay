@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { RentalFunnel } from "@/features/rentals/components/rental-funnel";
 import {
   formatDate,
@@ -31,6 +30,7 @@ import {
 } from "@/features/rentals/services/rental-service";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
+import { RentalNotesField } from "@/features/rentals/components/rental-notes-field";
 
 /** yyyy-mm-dd for a date input, in the pinned Paris zone. */
 function toDateInput(date: Date): string {
@@ -235,6 +235,66 @@ export default async function RentalDetailPage({
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="space-y-6">
+          {/* The funnel leads: it is what an agent came to the page to do.
+              What the booking *is* — the villa, the dates, the party — sits in
+              the right-hand column with the rest of the fixed information,
+              where it can be read without scrolling past the work. */}
+          <RentalFunnel
+            canManage={canManage}
+            properties={properties}
+            taxRatesByCity={taxRatesByCity}
+            contractStep={contractStep}
+            documentsStep={documentsStep}
+            signedStep={signedStep}
+            intakeStep={intakeStep}
+            occupantsStep={occupantsStep}
+            hasSignedConfirmation={
+              signed?.some((d) => d.type === "RENTAL_CONFIRMATION") ?? false
+            }
+            hasSignedContract={
+              signed?.some((d) => d.type === "SEASONAL_RENTAL_CONTRACT") ?? false
+            }
+            contractReady={readiness?.complete ?? false}
+            rental={{
+              id: rental.id,
+              bookingStatus: rental.bookingStatus,
+              propertyId: rental.property.id,
+              checkIn: toDateInput(rental.checkIn),
+              checkOut: toDateInput(rental.checkOut),
+              guests: rental.guests,
+              children: rental.children,
+              checkInTime: rental.checkInTime,
+              checkOutTime: rental.checkOutTime,
+              presentation: rental.presentation,
+              netOwnerAmount: rental.netOwnerAmount,
+              commissionAmount: rental.commissionAmount,
+              commissionBasis: rental.commissionBasis,
+              commissionRate: rental.commissionRate,
+              touristTaxAmount: rental.touristTaxAmount,
+              touristTaxRate: rental.touristTaxAmount !== null ? rental.touristTaxRate : null,
+              grossAmount: rental.grossAmount,
+              depositAmount: rental.depositAmount,
+              depositBasis: rental.depositBasis,
+              depositPercent: rental.depositPercent,
+              securityDepositAmount: rental.securityDepositAmount,
+              securityDepositReturnedAmount: rental.securityDepositReturnedAmount,
+              depositStatus: rental.depositStatus,
+              balanceStatus: rental.balanceStatus,
+              securityDepositStatus: rental.securityDepositStatus,
+              additionalServices: rental.services,
+              payments: rental.payments,
+              expenses: rental.expenses,
+              ownerConfirmedAt: rental.ownerConfirmedAt,
+              ownerConfirmedByName: rental.ownerConfirmedBy?.fullName ?? null,
+              contractSignedAt: rental.contractSignedAt,
+              contractSignedByName: rental.contractSignedBy?.fullName ?? null,
+              securityDepositReturnedAt: rental.securityDepositReturnedAt,
+              identityDocumentCount: rental.identityDocuments.length,
+            }}
+          />
+        </div>
+
+        <div className="space-y-6">
           <section className="space-y-3">
             <h3 className="text-sm font-medium">Séjour</h3>
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -256,15 +316,25 @@ export default async function RentalDetailPage({
                   </span>
                 ) : null}
               </Field>
-              <Field label="Horaires">
+              {/* Two fields rather than one range: an agent looking up an
+                  arrival hour is not looking up a departure. The note marks an
+                  hour set for this stay alone, against the property's own. */}
+              <Field label="Check-in">
                 <span className="tabular-nums">
                   {rental.checkInTime ?? rental.property.checkInTime}
                 </span>
-                {" → "}
+                {rental.checkInTime === null ? null : (
+                  <span className="text-muted-foreground text-xs">
+                    {" "}
+                    (propre à ce séjour)
+                  </span>
+                )}
+              </Field>
+              <Field label="Check-out">
                 <span className="tabular-nums">
                   {rental.checkOutTime ?? rental.property.checkOutTime}
                 </span>
-                {rental.checkInTime === null && rental.checkOutTime === null ? null : (
+                {rental.checkOutTime === null ? null : (
                   <span className="text-muted-foreground text-xs">
                     {" "}
                     (propre à ce séjour)
@@ -296,64 +366,6 @@ export default async function RentalDetailPage({
             ) : null}
           </section>
 
-          <Separator />
-
-          {/* The pipeline as a funnel: a stepper, and the current stage's
-              own panel with its fields and the condition to advance.
-              Read-only inside for anyone who doesn't manage the booking. */}
-          <RentalFunnel
-            canManage={canManage}
-            properties={properties}
-            taxRatesByCity={taxRatesByCity}
-            contractStep={contractStep}
-            documentsStep={documentsStep}
-            signedStep={signedStep}
-            intakeStep={intakeStep}
-            occupantsStep={occupantsStep}
-            hasSignedConfirmation={
-              signed?.some((d) => d.type === "RENTAL_CONFIRMATION") ?? false
-            }
-            hasSignedContract={
-              signed?.some((d) => d.type === "SEASONAL_RENTAL_CONTRACT") ?? false
-            }
-            contractReady={readiness?.complete ?? false}
-            rental={{
-              id: rental.id,
-              bookingStatus: rental.bookingStatus,
-              propertyId: rental.property.id,
-              checkIn: toDateInput(rental.checkIn),
-              checkOut: toDateInput(rental.checkOut),
-              guests: rental.guests,
-              children: rental.children,
-              checkInTime: rental.checkInTime,
-              checkOutTime: rental.checkOutTime,
-              presentation: rental.presentation,
-              netOwnerAmount: rental.netOwnerAmount,
-              commissionAmount: rental.commissionAmount,
-              touristTaxAmount: rental.touristTaxAmount,
-              touristTaxRate: rental.touristTaxAmount !== null ? rental.touristTaxRate : null,
-              grossAmount: rental.grossAmount,
-              depositAmount: rental.depositAmount,
-              depositBasis: rental.depositBasis,
-              depositPercent: rental.depositPercent,
-              securityDepositAmount: rental.securityDepositAmount,
-              depositStatus: rental.depositStatus,
-              balanceStatus: rental.balanceStatus,
-              securityDepositStatus: rental.securityDepositStatus,
-              additionalServices: rental.services,
-              payments: rental.payments,
-              ownerConfirmedAt: rental.ownerConfirmedAt,
-              ownerConfirmedByName: rental.ownerConfirmedBy?.fullName ?? null,
-              contractSignedAt: rental.contractSignedAt,
-              contractSignedByName: rental.contractSignedBy?.fullName ?? null,
-              securityDepositReturnedAt: rental.securityDepositReturnedAt,
-              identityDocumentCount: rental.identityDocuments.length,
-              notes: rental.notes,
-            }}
-          />
-        </div>
-
-        <div className="space-y-6">
           <section className="space-y-3">
             <h3 className="text-sm font-medium">
               Locataires{" "}
@@ -456,6 +468,18 @@ export default async function RentalDetailPage({
                 ? "Deux co-agents gèrent cette location : l'un côté locataire, l'autre côté propriétaire."
                 : "Propriétaire et agent figés à la signature du contrat : réassigner le bien ensuite ne réécrit pas l'historique."}
             </p>
+          </section>
+
+          {/* Notes outlive every stage — written at the enquiry, read at
+              check-out — so they sit with the fixed information rather than
+              inside a panel that disappears when the booking moves on. */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium">Notes internes</h3>
+            <RentalNotesField
+              rentalId={rental.id}
+              initial={rental.notes ?? ""}
+              canManage={canManage}
+            />
           </section>
         </div>
       </div>

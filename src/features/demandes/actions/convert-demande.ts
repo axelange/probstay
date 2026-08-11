@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { defaultDepositPercent } from "@/features/rentals/utils/deposit-rule";
 import {
   canBookProperty,
   isLettableProperty,
@@ -136,6 +137,10 @@ export async function convertDemande(
           // Carry the party size the prospect gave on the demande, so it
           // isn't lost when the rental opens. Editable afterwards in the funnel.
           guests: demande.guests,
+          // No acompte on a booking made inside the balance's notice period:
+          // its due date has passed, so the whole amount is payable and there
+          // is nothing to split. Changed freely afterwards.
+          depositPercent: defaultDepositPercent(new Date(data.checkIn)),
           // Seed the caution from the property. Copied once, here, and never
           // read again: revising the property's default must not rewrite a
           // rental whose contract may already quote the old figure. Editable

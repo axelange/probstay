@@ -16,15 +16,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { ContactKind } from "@/generated/prisma/enums";
 import { createRental } from "@/features/rentals/actions/create-rental";
+import { Combobox } from "@/components/ui/combobox";
 
 export type BookableProperty = {
   id: string;
@@ -41,11 +35,6 @@ export type TenantCandidate = {
   types: string[];
 };
 
-function villaLabel(p: BookableProperty): string {
-  return [p.marketingName ?? p.city ?? "Sans nom", p.city]
-    .filter(Boolean)
-    .join(" — ");
-}
 
 function tenantLabel(t: TenantCandidate): string {
   const name = [t.firstName, t.lastName].filter(Boolean).join(" ");
@@ -171,28 +160,21 @@ export function CreateRentalDialog({
           <div className="max-h-[60vh] space-y-4 overflow-y-auto py-4">
             <div className="space-y-2">
               <Label htmlFor="rental-villa">Bien</Label>
-              {/* items lets Base UI resolve the selected label without
-                  opening the popup. */}
-              <Select
-                value={propertyId}
-                onValueChange={(v) => v !== null && setPropertyId(v)}
-                items={properties.map((p) => ({
+              {/* Searchable: fifty-odd properties is past the point where
+                  scrolling an alphabetical list is finding something. */}
+              <Combobox
+                id="rental-villa"
+                value={propertyId || null}
+                onValueChange={setPropertyId}
+                options={properties.map((p) => ({
                   value: p.id,
-                  label: villaLabel(p),
+                  label: p.marketingName ?? p.city ?? "Sans nom",
+                  ...(p.city ? { hint: p.city } : {}),
                 }))}
+                placeholder="Rechercher un bien…"
+                emptyLabel="Aucun bien ne correspond."
                 disabled={isPending}
-              >
-                <SelectTrigger id="rental-villa" className="w-full">
-                  <SelectValue placeholder="Choisir un bien" />
-                </SelectTrigger>
-                <SelectContent>
-                  {properties.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {villaLabel(p)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
 
             <fieldset className="space-y-3">
@@ -222,26 +204,18 @@ export function CreateRentalDialog({
               </div>
 
               {tenantMode === "existing" ? (
-                <Select
-                  value={tenantId}
-                  onValueChange={(v) => v !== null && setTenantId(v)}
-                  items={tenants.map((t) => ({
+                <Combobox
+                  value={tenantId || null}
+                  onValueChange={setTenantId}
+                  options={tenants.map((t) => ({
                     value: t.id,
                     label: tenantLabel(t),
+                    ...(t.email ? { hint: t.email } : {}),
                   }))}
+                  placeholder="Rechercher un contact…"
+                  emptyLabel="Aucun contact ne correspond."
                   disabled={isPending}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choisir un contact" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tenants.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {tenantLabel(t)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               ) : (
                 <div className="space-y-3 rounded-md border p-3">
                   <div className="flex flex-wrap gap-4">

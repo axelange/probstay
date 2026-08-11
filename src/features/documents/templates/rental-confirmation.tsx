@@ -4,7 +4,7 @@ import {
   Page,
   View,
   Text,
-  Image,
+  
   StyleSheet,
 } from "@react-pdf/renderer";
 
@@ -95,10 +95,6 @@ const SANS = "Familjen Grotesk";
 
 // Bundled PNGs. On the server read from disk (absolute path); in the browser
 // served from /public. No node import so this also bundles for the preview.
-const asset = (name: string) =>
-  typeof window === "undefined"
-    ? `${process.cwd()}/public/img/${name}`
-    : `/img/${name}`;
 // The marks are drawn as vector, not placed as PNGs — the lettering is
 // hairline and a raster of it goes grey at these sizes. See ./logo.
 import { LogoVertical, Monogram } from "@/features/documents/templates/logo";

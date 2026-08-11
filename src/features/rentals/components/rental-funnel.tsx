@@ -9,13 +9,17 @@ import {
   CircleCheck,
   IdCard,
   Lock,
+  Paperclip,
   Plus,
   TriangleAlert,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import type { DepositHeld } from "@/features/rentals/utils/security-deposit";
 import type {
+  CommissionBasis,
   DepositBasis,
+  ExpenseBearer,
   PropertyPresentation,
   RentalBookingStatus,
   RentalPaymentKind,
@@ -33,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { setRentalPresentation } from "@/features/rentals/actions/set-rental-presentation";
 import { updateRental } from "@/features/rentals/actions/update-rental";
+import { uploadExpenseReceipt } from "@/features/rentals/actions/upload-expense-receipt";
 import {
   checkOverlaps,
   type OverlapSummary,
@@ -46,8 +51,15 @@ import {
   nights as countNights,
   paymentStatusLabel,
 } from "@/features/rentals/components/rental-labels";
+import {
+  BALANCE_NOTICE_DAYS,
+  STANDARD_DEPOSIT_PERCENT,
+  daysUntil,
+} from "@/features/rentals/utils/deposit-rule";
 import { missingToReach } from "@/features/rentals/utils/rental-gates";
+import { securityDepositHeld } from "@/features/rentals/utils/security-deposit";
 import { Money } from "@/features/rentals/components/money";
+import { Combobox } from "@/components/ui/combobox";
 
 type ServiceDraft = {
   label: string;
@@ -55,14 +67,6 @@ type ServiceDraft = {
   includedInStay: boolean;
 };
 
-function villaLabel(p: {
-  marketingName: string | null;
-  city: string | null;
-}): string {
-  return [p.marketingName ?? p.city ?? "Sans nom", p.city]
-    .filter(Boolean)
-    .join(" — ");
-}
 
 /**
  * How the property was shown to the tenant before signature.
@@ -242,6 +246,8 @@ export type FunnelRental = {
   presentation: PropertyPresentation;
   netOwnerAmount: number | null;
   commissionAmount: number | null;
+  commissionBasis: CommissionBasis;
+  commissionRate: number | null;
   /** Frozen at contract signature; null before. */
   touristTaxAmount: number | null;
   touristTaxRate: number | null;
@@ -250,6 +256,7 @@ export type FunnelRental = {
   depositBasis: DepositBasis;
   depositPercent: number;
   securityDepositAmount: number | null;
+  securityDepositReturnedAmount: number | null;
   depositStatus: string;
   balanceStatus: string;
   securityDepositStatus: string;
@@ -258,11 +265,15 @@ export type FunnelRental = {
     amount: number;
     includedInStay: boolean;
   }[];
+  expenses: RecordedExpense[];
   payments: {
+    id: string;
     kind: RentalPaymentKind;
     amount: number;
     paidAt: Date | null;
     note: string | null;
+    recordedAt: Date;
+    recordedByName: string | null;
   }[];
   ownerConfirmedAt: Date | null;
   ownerConfirmedByName: string | null;
@@ -270,7 +281,6 @@ export type FunnelRental = {
   contractSignedByName: string | null;
   securityDepositReturnedAt: Date | null;
   identityDocumentCount: number;
-  notes: string | null;
 };
 
 const NEXT: Partial<Record<RentalBookingStatus, RentalBookingStatus>> = {
@@ -411,7 +421,16 @@ export function RentalFunnel({
   const [netOwner, setNetOwner] = React.useState(
     rental.netOwnerAmount?.toString() ?? ""
   );
-  const [commission, setCommission] = React.useState(
+  // The commission is either a figure or a share of the owner's net. A share
+  // is resolved into an amount on save, so the loyer and the documents keep
+  // reading one settled figure.
+  const [commissionBasis, setCommissionBasis] = React.useState<CommissionBasis>(
+    rental.commissionBasis
+  );
+  const [commissionRate, setCommissionRate] = React.useState(
+    rental.commissionRate?.toString() ?? ""
+  );
+  const [commissionAmount, setCommissionAmount] = React.useState(
     rental.commissionAmount?.toString() ?? ""
   );
   // The acompte is either a figure or a share of the client total, defaulting
@@ -431,14 +450,10 @@ export function RentalFunnel({
   // booking that has none — the one-way copy, for rentals created before the
   // property had a default or before the seeding existed. Pre-filled, not
   // silently applied: it becomes the rental's own figure only once saved.
-  const [payments, setPayments] = React.useState<PaymentDraft[]>(() =>
-    rental.payments.map((p) => ({
-      kind: p.kind,
-      amount: p.amount.toString(),
-      paidAt: p.paidAt ? p.paidAt.toISOString().slice(0, 10) : "",
-      note: p.note ?? "",
-    }))
-  );
+  // Only what is being typed now. What is recorded is definitive and lives on
+  // `rental.payments`, never in editable state — there is nothing to edit.
+  const [payments, setPayments] = React.useState<PaymentDraft[]>([]);
+  const [expenses, setExpenses] = React.useState<ExpenseDraft[]>([]);
   const [securityDepositAmount, setSecurityDepositAmount] = React.useState(
     () =>
       rental.securityDepositAmount?.toString() ??
@@ -454,7 +469,6 @@ export function RentalFunnel({
       includedInStay: s.includedInStay,
     }))
   );
-  const [notes, setNotes] = React.useState(rental.notes ?? "");
   const [depositStatus, setDepositStatus] = React.useState(rental.depositStatus);
   const [balanceStatus, setBalanceStatus] = React.useState(rental.balanceStatus);
   const [securityDepositStatus, setSecurityDepositStatus] = React.useState(
@@ -518,7 +532,13 @@ export function RentalFunnel({
   const billedExtrasTotal = extras
     .filter((s) => !s.includedInStay)
     .reduce((sum, s) => sum + amount(s.amount), 0);
-  const stay = amount(netOwner) + amount(commission);
+  // What the agency actually takes, whichever way it was decided. This is the
+  // figure the loyer is built from and the one that gets stored.
+  const commission =
+    commissionBasis === "PERCENT"
+      ? Math.round(amount(netOwner) * (Number(commissionRate) || 0)) / 100
+      : amount(commissionAmount);
+  const stay = amount(netOwner) + commission;
   const total = hasAmount
     ? stay + billedExtrasTotal + (touristTax ?? 0)
     : null;
@@ -562,7 +582,9 @@ export function RentalFunnel({
         checkInTime,
         checkOutTime,
         netOwnerAmount: netOwner,
-        commissionAmount: commission,
+        commissionAmount: commission > 0 ? commission.toString() : "",
+        commissionBasis,
+        commissionRate,
         // The resolved figure, not the percentage: everything downstream wants
         // one amount, and it is the one on screen at the moment of saving.
         depositAmount: deposit > 0 ? deposit.toString() : "",
@@ -579,8 +601,20 @@ export function RentalFunnel({
           })),
         // Blank rows are drafts an agent opened and left: dropped rather than
         // refused, so a stray "+" never blocks a save.
+        // A line opened and abandoned records nothing; only what carries a
+        // label and an amount is an expense.
+        expenses: expenses
+          .filter((e) => e.label.trim() !== "" && Number(e.amount) !== 0)
+          .map((e) => ({
+            label: e.label,
+            amount: Number(e.amount),
+            bearer: e.bearer,
+            spentAt: e.spentAt,
+            storagePath: e.storagePath,
+            fileName: e.fileName,
+          })),
         payments: payments
-          .filter((p) => Number(p.amount) > 0)
+          .filter((p) => Number(p.amount) !== 0)
           .map((p) => ({
             kind: p.kind,
             amount: Number(p.amount),
@@ -595,7 +629,6 @@ export function RentalFunnel({
         // frozen the one way, whichever satisfied the gate.
         signContract: signContract || bothSigned,
         returnSecurityDeposit,
-        notes,
       });
       if (result.status === "error") {
         toast.error(result.message);
@@ -607,6 +640,9 @@ export function RentalFunnel({
       // Follow the booking rather than leaving the agent on the step they
       // just left behind.
       if (target !== stage) setView(target);
+      // Now recorded: they come back from the server as definitive entries.
+      setPayments([]);
+      setExpenses([]);
       setSignContract(false);
       setReturnSecurityDeposit(false);
       router.refresh();
@@ -668,29 +704,22 @@ export function RentalFunnel({
 
               <div className="space-y-2">
                 <Label htmlFor="villa">Villa</Label>
-                {/* items lets Base UI resolve the selected label without
-                    opening the popup — otherwise the trigger shows the
-                    raw id until first interaction. */}
-                <Select
-                  value={propertyId}
-                  onValueChange={(v) => v !== null && setPropertyId(v)}
-                  items={properties.map((p) => ({
+                {/* Searchable rather than a list to scroll: the picker holds
+                    every lettable property, and an agent looking for one knows
+                    its name, not its position. */}
+                <Combobox
+                  id="villa"
+                  value={propertyId || null}
+                  onValueChange={setPropertyId}
+                  options={properties.map((p) => ({
                     value: p.id,
-                    label: villaLabel(p),
+                    label: p.marketingName ?? p.city ?? "Sans nom",
+                    ...(p.city ? { hint: p.city } : {}),
                   }))}
+                  placeholder="Rechercher un bien…"
+                  emptyLabel="Aucun bien ne correspond."
                   disabled={isPending}
-                >
-                  <SelectTrigger id="villa" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {properties.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {villaLabel(p)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -755,9 +784,17 @@ export function RentalFunnel({
                 <Field label="Net propriétaire">
                   <NumberInput value={netOwner} onChange={setNetOwner} disabled={isPending} />
                 </Field>
-                <Field label="Commission">
-                  <NumberInput value={commission} onChange={setCommission} disabled={isPending} />
-                </Field>
+                <CommissionField
+                  basis={commissionBasis}
+                  setBasis={setCommissionBasis}
+                  rate={commissionRate}
+                  setRate={setCommissionRate}
+                  amount={commissionAmount}
+                  setAmount={setCommissionAmount}
+                  resolved={commission}
+                  net={amount(netOwner)}
+                  disabled={isPending}
+                />
               </div>
 
               {/* Services box: what the villa includes, plus priced lines. */}
@@ -947,6 +984,7 @@ export function RentalFunnel({
                   and it is generated at the step before — so an amount entered
                   later would print as a document with no deposit at all. */}
               <SplitFields
+                daysToArrival={checkIn ? daysUntil(new Date(checkIn)) : null}
                 depositBasis={depositBasis}
                 setDepositBasis={setDepositBasis}
                 depositPercent={depositPercent}
@@ -1069,10 +1107,8 @@ export function RentalFunnel({
                 </p>
               </div>
               <MoneyBlock
-                netOwner={netOwner}
-                setNetOwner={setNetOwner}
+                netOwner={amount(netOwner)}
                 commission={commission}
-                setCommission={setCommission}
                 stay={stay}
                 hasAmount={hasAmount}
                 total={total}
@@ -1088,6 +1124,7 @@ export function RentalFunnel({
                 setBalanceStatus={setBalanceStatus}
                 securityDepositStatus={securityDepositStatus}
                 setSecurityDepositStatus={setSecurityDepositStatus}
+                recorded={rental.payments}
                 payments={payments}
                 setPayments={setPayments}
                 due={{
@@ -1095,6 +1132,7 @@ export function RentalFunnel({
                   BALANCE: balance,
                   SECURITY_DEPOSIT: Number(securityDepositAmount) || null,
                 }}
+                commission={Number(commission) || 0}
                 disabled={isPending}
               />
             </>
@@ -1104,21 +1142,21 @@ export function RentalFunnel({
             <>
               <StagePanelHeader
                 title="Séjour"
-                hint="Le client est sur place. Facturation de services et documents — à venir."
+                hint="Le client est sur place. Les dépenses engagées se saisissent ici ; les paiements restent à l'étape Finalisation."
               />
-              <PaymentBlock
-                depositStatus={depositStatus}
-                setDepositStatus={setDepositStatus}
-                balanceStatus={balanceStatus}
-                setBalanceStatus={setBalanceStatus}
-                securityDepositStatus={securityDepositStatus}
-                setSecurityDepositStatus={setSecurityDepositStatus}
-                payments={payments}
-                setPayments={setPayments}
-                due={{
-                  DEPOSIT: deposit > 0 ? deposit : null,
-                  BALANCE: balance,
-                  SECURITY_DEPOSIT: Number(securityDepositAmount) || null,
+
+              <ExpenseBlock
+                rentalId={rental.id}
+                recorded={rental.expenses}
+                drafts={expenses}
+                setDrafts={setExpenses}
+                base={{
+                  // What each side has before expenses: the caution held, the
+                  // owner's net, and the commission with any surplus already
+                  // carried into it.
+                  CLIENT: Number(securityDepositAmount) || null,
+                  OWNER: Number(netOwner) || null,
+                  AGENCY: Number(commission) || null,
                 }}
                 disabled={isPending}
               />
@@ -1129,8 +1167,25 @@ export function RentalFunnel({
             <>
               <StagePanelHeader
                 title="Départ"
-                hint="Le séjour est terminé. Il ne reste que la caution."
+                hint="Le séjour est terminé. Il ne reste que la caution à solder."
               />
+
+              {/* The reckoning, done here and not before: the expenses charged
+                  to the client are only known once they have left. */}
+              <SecurityDepositSettlement
+                held={securityDepositHeld({
+                  receipts: rental.payments
+                    .filter((p) => p.kind === "SECURITY_DEPOSIT")
+                    .map((p) => p.amount),
+                  agreed: Number(securityDepositAmount) || null,
+                  status: securityDepositStatus,
+                })}
+                agreed={Number(securityDepositAmount) || null}
+                charged={rental.expenses.filter((e) => e.bearer === "CLIENT")}
+                settled={returned}
+                settledAmount={rental.securityDepositReturnedAmount}
+              />
+
               {returned ? (
                 <ConfirmedLine
                   when={rental.securityDepositReturnedAt}
@@ -1143,21 +1198,11 @@ export function RentalFunnel({
                   onChange={setReturnSecurityDeposit}
                   disabled={isPending}
                   title="Caution rendue au client"
-                  hint="Marque le dépôt de garantie comme remboursé."
+                  hint="Enregistre la restitution et fige le montant rendu."
                 />
               )}
             </>
           ) : null}
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes internes</Label>
-            <Input
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              disabled={isPending}
-            />
-          </div>
 
           {/* Where the booking stands, when that is not what is on screen. */}
           {view !== stage ? (
@@ -1396,7 +1441,86 @@ function depositShare(depositAmount: string, total: number | null): string {
  * amounts, never assumed. The 50 % that pre-fills the field is only a starting
  * point, and it is shown as such until the agent settles on a figure.
  */
+/**
+ * The agency's share: a figure, or a percentage of the owner's net.
+ *
+ * A percentage follows the net as it is negotiated, which is how these are
+ * actually agreed — "twenty percent" survives a change to the owner's take,
+ * where a figure has to be recomputed by hand every time.
+ *
+ * Whichever way it is entered, what is stored is the resolved amount: the
+ * loyer is net + commission, and every document quotes it.
+ */
+function CommissionField(props: {
+  basis: CommissionBasis;
+  setBasis: (v: CommissionBasis) => void;
+  rate: string;
+  setRate: (v: string) => void;
+  amount: string;
+  setAmount: (v: string) => void;
+  resolved: number;
+  net: number;
+  disabled: boolean;
+}) {
+  const byPercent = props.basis === "PERCENT";
+  const share =
+    props.net > 0 && props.resolved > 0
+      ? Math.round((props.resolved / props.net) * 1000) / 10
+      : null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-4 text-sm">
+        <span className="font-medium">Commission</span>
+        {(
+          [
+            ["AMOUNT", "Montant"],
+            ["PERCENT", "% du net"],
+          ] as const
+        ).map(([value, label]) => (
+          <label key={value} className="flex items-center gap-1.5 text-xs">
+            <input
+              type="radio"
+              name="commission-basis"
+              checked={props.basis === value}
+              onChange={() => props.setBasis(value)}
+              disabled={props.disabled}
+            />
+            <span>{label}</span>
+          </label>
+        ))}
+      </div>
+
+      {byPercent ? (
+        <NumberInput
+          value={props.rate}
+          onChange={props.setRate}
+          disabled={props.disabled}
+        />
+      ) : (
+        <NumberInput
+          value={props.amount}
+          onChange={props.setAmount}
+          disabled={props.disabled}
+        />
+      )}
+
+      <p className="text-muted-foreground text-xs">
+        {byPercent
+          ? props.resolved > 0
+            ? `Soit ${formatAmount(props.resolved)} sur un net de ${formatAmount(props.net)}.`
+            : "Part du net propriétaire."
+          : share !== null
+            ? `≈ ${share} % du net propriétaire.`
+            : "Montant fixe."}
+      </p>
+    </div>
+  );
+}
+
 function SplitFields(props: {
+  /** Days to arrival, which decides whether an acompte is the norm here. */
+  daysToArrival: number | null;
   depositBasis: DepositBasis;
   setDepositBasis: (v: DepositBasis) => void;
   depositPercent: string;
@@ -1412,6 +1536,15 @@ function SplitFields(props: {
   disabled: boolean;
 }) {
   const byPercent = props.depositBasis === "PERCENT";
+  // Inside the balance's notice period the whole amount is payable, so an
+  // acompte is the exception rather than the rule. Stated, never imposed: the
+  // agent may ask for one anyway, and often will.
+  const late =
+    props.daysToArrival !== null && props.daysToArrival < BALANCE_NOTICE_DAYS;
+  const suggested = late ? 0 : STANDARD_DEPOSIT_PERCENT;
+  const offSuggestion =
+    props.depositBasis === "AMOUNT" ||
+    Math.round(Number(props.depositPercent) || 0) !== suggested;
   const share =
     props.total !== null && props.total > 0 && props.deposit > 0
       ? Math.round((props.deposit / props.total) * 100)
@@ -1486,8 +1619,30 @@ function SplitFields(props: {
         </Field>
       </div>
       <p className="text-muted-foreground text-xs">
+        {props.daysToArrival === null
+          ? null
+          : late
+            ? `Arrivée dans ${props.daysToArrival} jour(s) : le solde est déjà exigible, donc pas d'acompte par défaut. `
+            : `Plus de ${BALANCE_NOTICE_DAYS} jours avant l'arrivée : acompte de ${STANDARD_DEPOSIT_PERCENT} % par défaut. `}
         Repris tel quel sur le contrat, avec ces pourcentages.
       </p>
+
+      {offSuggestion ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={props.disabled}
+          onClick={() => {
+            props.setDepositBasis("PERCENT");
+            props.setDepositPercent(suggested.toString());
+          }}
+        >
+          {late
+            ? "Retirer l'acompte"
+            : `Appliquer l'acompte de ${STANDARD_DEPOSIT_PERCENT} %`}
+        </Button>
+      ) : null}
 
       {/* Not part of the total above: it is held and given back, never
           earned. Every rental carries one, so an empty field is a gap to
@@ -1514,11 +1669,17 @@ function SplitFields(props: {
   );
 }
 
+/**
+ * The money, read back at finalisation.
+ *
+ * Every figure here is settled at the financial step: the net and the
+ * commission are terms of the contract, and the acompte and the caution were
+ * moved there too. This is a recap, not a second place to edit them — one
+ * amount with two inputs is one too many.
+ */
 function MoneyBlock(props: {
-  netOwner: string;
-  setNetOwner: (v: string) => void;
-  commission: string;
-  setCommission: (v: string) => void;
+  netOwner: number;
+  commission: number;
   stay: number;
   hasAmount: boolean;
   total: number | null;
@@ -1531,18 +1692,18 @@ function MoneyBlock(props: {
     <div className="space-y-2">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Net propriétaire">
-          <NumberInput
-            value={props.netOwner}
-            onChange={props.setNetOwner}
-            disabled={props.disabled}
-          />
+          <p className="text-sm tabular-nums">{formatAmount(props.netOwner)}</p>
         </Field>
         <Field label="Commission">
-          <NumberInput
-            value={props.commission}
-            onChange={props.setCommission}
-            disabled={props.disabled}
-          />
+          <p className="text-sm tabular-nums">
+            {formatAmount(props.commission)}
+            {props.netOwner > 0 && props.commission > 0 ? (
+              <span className="text-muted-foreground ml-1 text-xs">
+                ≈ {Math.round((props.commission / props.netOwner) * 1000) / 10} %
+                du net
+              </span>
+            ) : null}
+          </p>
         </Field>
       </div>
       {props.hasAmount ? (
@@ -1610,6 +1771,403 @@ type PaymentDraft = {
  * figures and the judgement are not the same thing, and the pipeline reads the
  * judgement.
  */
+type ExpenseDraft = {
+  label: string;
+  amount: string;
+  bearer: ExpenseBearer;
+  spentAt: string;
+  storagePath: string;
+  fileName: string;
+};
+
+export type RecordedExpense = {
+  id: string;
+  label: string;
+  amount: number;
+  bearer: ExpenseBearer;
+  spentAt: Date | null;
+  storagePath: string | null;
+  fileName: string | null;
+  recordedAt: Date;
+  recordedByName: string | null;
+};
+
+const BEARERS = [
+  ["CLIENT", "Client — déduit de la caution"],
+  ["OWNER", "Propriétaire — déduit de son net"],
+  ["AGENCY", "Agence — déduit de la commission"],
+] as const;
+
+/**
+ * What the stay cost, and who carries it.
+ *
+ * Who bears an expense is not a label: it decides where the money is taken
+ * from, so the three totals are shown against the sums they reduce. An agent
+ * deducting a broken window from the caution and one deducting a cleaner from
+ * the owner's net are doing different things to different people.
+ *
+ * Immutable once saved, like the receipts: a mistake is put right by an entry
+ * that offsets it, never by editing the first.
+ */
+/**
+ * What is owed back on the caution, once the stay is over.
+ *
+ * Deliberately at the departure step and not before: what the client is
+ * charged is only known once they have left, so a figure shown during the stay
+ * would be one the agent has to redo.
+ *
+ * Before settlement this is a projection; after it, the frozen figure is shown
+ * instead. The two can differ — an expense recorded after the refund does not
+ * retroactively change what was handed back — and showing the projection then
+ * would quietly contradict the payment.
+ */
+function SecurityDepositSettlement({
+  held,
+  agreed,
+  charged,
+  settled,
+  settledAmount,
+}: {
+  held: DepositHeld;
+  agreed: number | null;
+  charged: RecordedExpense[];
+  settled: boolean;
+  settledAmount: number | null;
+}) {
+  const received = held.amount;
+  const total = charged.reduce((sum, e) => sum + e.amount, 0);
+  const owed = Math.max(0, received - total);
+  const shortfall = received - total < 0 ? total - received : 0;
+
+  return (
+    <div className="space-y-2 rounded-md border p-3 text-sm">
+      <p className="font-medium">Restitution de la caution</p>
+
+      <div className="space-y-1">
+        <p className="flex justify-between gap-3 tabular-nums">
+          <span className="text-muted-foreground">
+            Caution encaissée
+            {held.source === "agreed" ? (
+              <span className="ml-1 text-xs">
+                (montant convenu, aucun versement détaillé)
+              </span>
+            ) : null}
+          </span>
+          <span>{formatAmount(received)}</span>
+        </p>
+        {held.source === "unknown" && agreed !== null ? (
+          <p className="text-xs text-amber-600">
+            {formatAmount(agreed)} convenus, mais la caution n&apos;est pas
+            marquée encaissée et aucun versement n&apos;est enregistré — rien à
+            restituer tant que ce n&apos;est pas réglé à l&apos;étape
+            Finalisation.
+          </p>
+        ) : null}
+        {charged.map((e) => (
+          <p key={e.id} className="flex justify-between gap-3 tabular-nums">
+            <span className="text-muted-foreground text-xs">
+              {e.label}
+              {e.fileName ? "" : " · sans justificatif"}
+            </span>
+            <span className="text-xs">−{formatAmount(e.amount)}</span>
+          </p>
+        ))}
+        {charged.length === 0 ? (
+          <p className="text-muted-foreground text-xs">
+            Aucune dépense imputée au client.
+          </p>
+        ) : null}
+      </div>
+
+      {settled ? (
+        <p className="flex justify-between gap-3 border-t pt-2 font-medium tabular-nums">
+          <span>Rendu au client</span>
+          <span>
+            {settledAmount === null ? "—" : formatAmount(settledAmount)}
+          </span>
+        </p>
+      ) : (
+        <>
+          <p className="flex justify-between gap-3 border-t pt-2 font-medium tabular-nums">
+            <span>À restituer</span>
+            <span>{formatAmount(owed)}</span>
+          </p>
+          {shortfall > 0 ? (
+            <p className="text-xs text-amber-600">
+              Les dépenses dépassent la caution de {formatAmount(shortfall)} —
+              rien à restituer, et ce reliquat est à réclamer au client.
+            </p>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ExpenseBlock(props: {
+  rentalId: string;
+  recorded: RecordedExpense[];
+  drafts: ExpenseDraft[];
+  setDrafts: React.Dispatch<React.SetStateAction<ExpenseDraft[]>>;
+  /** What each bearer's share is before expenses, to show the effect. */
+  base: Record<ExpenseBearer, number | null>;
+  disabled: boolean;
+}) {
+  const patch = (index: number, field: keyof ExpenseDraft, value: string) =>
+    props.setDrafts((list) =>
+      list.map((e, i) => (i === index ? { ...e, [field]: value } : e))
+    );
+
+  const totalFor = (bearer: ExpenseBearer) =>
+    props.recorded
+      .filter((e) => e.bearer === bearer)
+      .reduce((sum, e) => sum + e.amount, 0) +
+    props.drafts
+      .filter((e) => e.bearer === bearer)
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-0.5">
+        <p className="text-sm font-medium">Dépenses du séjour</p>
+        <p className="text-muted-foreground text-xs">
+          À qui la dépense est imputée décide d&apos;où elle est prise.
+        </p>
+      </div>
+
+      {props.recorded.length > 0 ? (
+        <ul className="divide-y text-sm">
+          {props.recorded.map((e) => (
+            <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-x-3 py-1.5">
+              <span>
+                {e.label}
+                <span className="text-muted-foreground ml-2 text-xs">
+                  {BEARERS.find(([v]) => v === e.bearer)?.[1]}
+                  {e.spentAt ? ` · ${formatDate(e.spentAt)}` : ""}
+                  {e.fileName ? ` · ${e.fileName}` : " · sans justificatif"}
+                </span>
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="tabular-nums">{formatAmount(e.amount)}</span>
+                <span className="text-muted-foreground text-xs">
+                  saisi le {formatDate(e.recordedAt)}
+                  {e.recordedByName ? ` · ${e.recordedByName}` : ""}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={props.disabled}
+                  onClick={() =>
+                    props.setDrafts((list) => [
+                      ...list,
+                      {
+                        label: `Régularisation — ${e.label}`,
+                        amount: (-e.amount).toString(),
+                        bearer: e.bearer,
+                        spentAt: "",
+                        storagePath: "",
+                        fileName: "",
+                      },
+                    ])
+                  }
+                >
+                  Régulariser
+                </Button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {props.drafts.map((e, index) => (
+        <div key={index} className="space-y-2 rounded-md border p-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Libellé">
+              <Input
+                value={e.label}
+                onChange={(ev) => patch(index, "label", ev.target.value)}
+                placeholder="Vitre cassée, ménage supplémentaire…"
+                disabled={props.disabled}
+              />
+            </Field>
+            <Field label="Montant">
+              <NumberInput
+                value={e.amount}
+                onChange={(v) => patch(index, "amount", v)}
+                disabled={props.disabled}
+              />
+            </Field>
+            <Field label="Imputée à">
+              <Select
+                value={e.bearer}
+                onValueChange={(v) => v !== null && patch(index, "bearer", v)}
+                items={BEARERS.map(([value, label]) => ({ value, label }))}
+                disabled={props.disabled}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BEARERS.map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Date">
+              <Input
+                type="date"
+                value={e.spentAt}
+                onChange={(ev) => patch(index, "spentAt", ev.target.value)}
+                disabled={props.disabled}
+              />
+            </Field>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <ReceiptUpload
+              rentalId={props.rentalId}
+              fileName={e.fileName}
+              disabled={props.disabled}
+              onUploaded={(path, name) =>
+                props.setDrafts((list) =>
+                  list.map((x, i) =>
+                    i === index ? { ...x, storagePath: path, fileName: name } : x
+                  )
+                )
+              }
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label="Retirer cette dépense"
+              disabled={props.disabled}
+              onClick={() =>
+                props.setDrafts((list) => list.filter((_, i) => i !== index))
+              }
+              className="ml-auto"
+            >
+              <X aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
+      ))}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={props.disabled}
+        onClick={() =>
+          props.setDrafts((list) => [
+            ...list,
+            {
+              label: "",
+              amount: "",
+              bearer: "CLIENT",
+              spentAt: "",
+              storagePath: "",
+              fileName: "",
+            },
+          ])
+        }
+      >
+        <Plus aria-hidden="true" />
+        Ajouter une dépense
+      </Button>
+
+      {/* What each bearer is left with once their share of the expenses is
+          taken off. Shown together because the same expense reduces exactly
+          one of the three, and an agent choosing between them should see
+          which. */}
+      {BEARERS.some(([b]) => totalFor(b) !== 0) ? (
+        <div className="space-y-1 rounded-md bg-muted/40 p-3 text-sm">
+          {BEARERS.map(([bearer, label]) => {
+            const total = totalFor(bearer);
+            if (total === 0) return null;
+            const before = props.base[bearer];
+            return (
+              <p key={bearer} className="flex justify-between gap-3 tabular-nums">
+                <span className="text-muted-foreground text-xs">{label}</span>
+                <span className="text-xs">
+                  −{formatAmount(total)}
+                  {before !== null ? (
+                    <span className="ml-2">
+                      reste {formatAmount(before - total)}
+                    </span>
+                  ) : null}
+                </span>
+              </p>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The receipt behind an expense, sent as soon as it is chosen. */
+function ReceiptUpload({
+  rentalId,
+  fileName,
+  disabled,
+  onUploaded,
+}: {
+  rentalId: string;
+  fileName: string;
+  disabled: boolean;
+  onUploaded: (path: string, name: string) => void;
+}) {
+  const input = React.useRef<HTMLInputElement | null>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  return (
+    <>
+      <input
+        ref={input}
+        type="file"
+        accept=".pdf,.jpg,.jpeg,.png,.webp,.heic"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file) return;
+          setBusy(true);
+          const body = new FormData();
+          body.set("rentalId", rentalId);
+          body.set("file", file);
+          void uploadExpenseReceipt(body)
+            .then((result) => {
+              if (result.status === "error") {
+                toast.error(result.message);
+                return;
+              }
+              onUploaded(result.storagePath, result.fileName);
+            })
+            .finally(() => setBusy(false));
+        }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={disabled || busy}
+        onClick={() => input.current?.click()}
+      >
+        <Paperclip aria-hidden="true" />
+        {busy ? "Envoi…" : fileName ? "Remplacer le justificatif" : "Joindre un justificatif"}
+      </Button>
+      {fileName ? (
+        <span className="text-muted-foreground truncate text-xs">{fileName}</span>
+      ) : null}
+    </>
+  );
+}
+
 function PaymentBlock(props: {
   depositStatus: string;
   setDepositStatus: (v: string) => void;
@@ -1617,10 +2175,22 @@ function PaymentBlock(props: {
   setBalanceStatus: (v: string) => void;
   securityDepositStatus: string;
   setSecurityDepositStatus: (v: string) => void;
+  /** Definitive entries. Read only — a correction is a new entry. */
+  recorded: {
+    id: string;
+    kind: RentalPaymentKind;
+    amount: number;
+    paidAt: Date | null;
+    note: string | null;
+    recordedAt: Date;
+    recordedByName: string | null;
+  }[];
   payments: PaymentDraft[];
   setPayments: React.Dispatch<React.SetStateAction<PaymentDraft[]>>;
   /** What each is owed, so the receipts can be read against something. */
   due: Record<RentalPaymentKind, number | null>;
+  /** The commission agreed on the contract, which a surplus adds to. */
+  commission: number;
   disabled: boolean;
 }) {
   const rows = [
@@ -1639,6 +2209,41 @@ function PaymentBlock(props: {
       list.map((p, i) => (i === index ? { ...p, [field]: value } : p))
     );
 
+  // Recorded and being typed together: the figures on screen have to be what
+  // the totals will be once saved, or an agent cannot tell whether they have
+  // finished.
+  const receivedFor = (kind: RentalPaymentKind) =>
+    props.recorded
+      .filter((p) => p.kind === kind)
+      .reduce((sum, p) => sum + p.amount, 0) +
+    props.payments
+      .filter((p) => p.kind === kind)
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+  // A client who sends more than the acompte asked for has not overpaid the
+  // booking — they have paid part of the balance early. The surplus is carried
+  // across so the balance shows what is genuinely left, rather than a figure
+  // the agent has to correct in their head before chasing it.
+  //
+  // The caution is untouched by this: it is held and given back, and never
+  // formed part of the client total the two others divide.
+  const depositDue = props.due.DEPOSIT;
+  const carriedOver =
+    depositDue === null ? 0 : Math.max(0, receivedFor("DEPOSIT") - depositDue);
+
+  // Beyond the client total, a surplus is not the client's money back: it is a
+  // regularisation that falls to the agency and adds to the commission. The
+  // owner's net is what the contract says it is, so the difference lands on
+  // the only other share of the loyer.
+  //
+  // Derived, never written onto commissionAmount: that figure is a term the
+  // parties signed, and the loyer is built from it — moving it would change
+  // the client total, which would change this surplus, which would change it
+  // again.
+  const clientTotal = (props.due.DEPOSIT ?? 0) + (props.due.BALANCE ?? 0);
+  const clientPaid = receivedFor("DEPOSIT") + receivedFor("BALANCE");
+  const surplus = Math.max(0, clientPaid - clientTotal);
+
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium">Paiements</p>
@@ -1647,11 +2252,11 @@ function PaymentBlock(props: {
         const entries = props.payments
           .map((p, index) => ({ p, index }))
           .filter(({ p }) => p.kind === kind);
-        const received = entries.reduce(
-          (sum, { p }) => sum + (Number(p.amount) || 0),
-          0
-        );
-        const owed = props.due[kind];
+        const done = props.recorded.filter((p) => p.kind === kind);
+        const received = receivedFor(kind);
+        const base = props.due[kind];
+        const owed =
+          kind === "BALANCE" && base !== null ? base - carriedOver : base;
         const outstanding = owed === null ? null : owed - received;
 
         return (
@@ -1681,18 +2286,98 @@ function PaymentBlock(props: {
                   </Select>
                 </Field>
               </div>
-              <p className="text-muted-foreground pb-2 text-xs tabular-nums">
-                {owed === null ? "—" : `Dû ${formatAmount(owed)}`}
-                {entries.length > 0
-                  ? ` · reçu ${formatAmount(received)}`
-                  : ""}
-                {outstanding !== null && entries.length > 0 && outstanding !== 0
-                  ? ` · reste ${formatAmount(outstanding)}`
-                  : ""}
-              </p>
+              <div className="pb-2">
+                <p className="text-muted-foreground text-xs tabular-nums">
+                  {owed === null ? "—" : `Dû ${formatAmount(owed)}`}
+                  {entries.length > 0 ? ` · reçu ${formatAmount(received)}` : ""}
+                  {outstanding !== null && entries.length > 0 && outstanding > 0
+                    ? ` · reste ${formatAmount(outstanding)}`
+                    : ""}
+                  {outstanding !== null && outstanding < 0
+                    ? ` · perçu en plus ${formatAmount(-outstanding)}`
+                    : ""}
+                </p>
+                {kind === "DEPOSIT" && carriedOver > 0 ? (
+                  <p className="text-xs text-amber-600">
+                    {formatAmount(carriedOver)} au-delà de l&apos;acompte —
+                    reporté sur le solde.
+                  </p>
+                ) : null}
+                {kind === "BALANCE" && carriedOver > 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    Dont {formatAmount(carriedOver)} déjà réglés avec
+                    l&apos;acompte.
+                  </p>
+                ) : null}
+                {kind === "SECURITY_DEPOSIT" &&
+                outstanding !== null &&
+                outstanding < 0 ? (
+                  <p className="text-xs text-amber-600">
+                    À restituer au client&nbsp;: la caution est détenue, pas
+                    encaissée.
+                  </p>
+                ) : null}
+              </div>
             </div>
 
-            {value === "UNPAID" ? null : (
+            {done.length > 0 ? (
+              <ul className="divide-y text-sm">
+                {done.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex flex-wrap items-baseline justify-between gap-x-3 py-1.5"
+                  >
+                    <span className="tabular-nums">
+                      {formatAmount(p.amount)}
+                      {p.amount < 0 ? (
+                        <span className="text-muted-foreground ml-1 text-xs">
+                          régularisation
+                        </span>
+                      ) : null}
+                      {p.paidAt ? (
+                        <span className="text-muted-foreground ml-2 text-xs">
+                          {formatDate(p.paidAt)}
+                        </span>
+                      ) : null}
+                      {p.note ? (
+                        <span className="text-muted-foreground ml-2 text-xs">
+                          {p.note}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-xs">
+                        saisi le {formatDate(p.recordedAt)}
+                        {p.recordedByName ? ` · ${p.recordedByName}` : ""}
+                      </span>
+                      {/* No edit, no delete: the entry stands, and an error is
+                          put right by one that offsets it. */}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={props.disabled}
+                        onClick={() =>
+                          props.setPayments((list) => [
+                            ...list,
+                            {
+                              kind,
+                              amount: (-p.amount).toString(),
+                              paidAt: "",
+                              note: `Régularisation du ${formatDate(p.recordedAt)}`,
+                            },
+                          ])
+                        }
+                      >
+                        Régulariser
+                      </Button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {value === "UNPAID" && done.length === 0 ? null : (
               <div className="space-y-2">
                 {entries.map(({ p, index }) => (
                   <div key={index} className="flex flex-wrap items-end gap-2">
@@ -1725,11 +2410,12 @@ function PaymentBlock(props: {
                         />
                       </Field>
                     </div>
+                    {/* Removable only until it is saved. */}
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      aria-label="Retirer ce versement"
+                      aria-label="Retirer cette saisie"
                       disabled={props.disabled}
                       onClick={() =>
                         props.setPayments((list) =>
@@ -1757,11 +2443,38 @@ function PaymentBlock(props: {
                   <Plus aria-hidden="true" />
                   Ajouter un versement
                 </Button>
+                {entries.length > 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    Définitif après enregistrement&nbsp;: une erreur se corrige
+                    ensuite par une régularisation.
+                  </p>
+                ) : null}
               </div>
             )}
           </div>
         );
       })}
+
+      {surplus > 0 ? (
+        <div className="space-y-0.5 rounded-md border border-emerald-600/30 bg-emerald-600/5 p-3 text-sm">
+          <p className="font-medium">
+            Régularisation de commission&nbsp;: {formatAmount(surplus)}
+          </p>
+          <p className="text-muted-foreground text-xs tabular-nums">
+            Perçu {formatAmount(clientPaid)} pour un total client de{" "}
+            {formatAmount(clientTotal)}. Le net propriétaire est celui du
+            contrat&nbsp;; l&apos;écart revient à l&apos;agence.
+          </p>
+          <p className="text-xs tabular-nums">
+            Commission finale&nbsp;: {formatAmount(props.commission + surplus)}
+            <span className="text-muted-foreground">
+              {" "}
+              ({formatAmount(props.commission)} au contrat +{" "}
+              {formatAmount(surplus)})
+            </span>
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

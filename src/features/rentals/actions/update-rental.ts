@@ -11,6 +11,7 @@ import {
   canManageRental,
 } from "@/features/rentals/services/rental-service";
 import { missingToReach } from "@/features/rentals/utils/rental-gates";
+import { securityDepositHeld } from "@/features/rentals/utils/security-deposit";
 import { nights } from "@/features/rentals/components/rental-labels";
 
 export type UpdateRentalResult =
@@ -57,6 +58,9 @@ export async function updateRental(
       ownerConfirmedAt: true,
       contractSignedAt: true,
       securityDepositReturnedAt: true,
+      securityDepositReturnedAmount: true,
+      securityDepositAmount: true,
+      securityDepositStatus: true,
       tenantAgentId: true,
       property: {
         select: { id: true, ownerId: true, agentId: true, city: true },
@@ -165,7 +169,8 @@ export async function updateRental(
     depositStatus: data.depositStatus,
     balanceStatus: data.balanceStatus,
     securityDepositStatus: data.securityDepositStatus,
-    notes: data.notes || null,
+    // Notes are saved on their own, beside the fixed information: they belong
+    // to the whole booking rather than to the step being edited.
   };
 
   // The terms. Silently ignored once signed rather than errored: the funnel
@@ -182,6 +187,8 @@ export async function updateRental(
     update.checkOutTime = data.checkOutTime ?? null;
     update.netOwnerAmount = data.netOwnerAmount ?? null;
     update.commissionAmount = data.commissionAmount ?? null;
+    update.commissionBasis = data.commissionBasis;
+    update.commissionRate = data.commissionRate ?? null;
     update.grossAmount = grossAmount;
     update.depositAmount = data.depositAmount ?? null;
     update.depositBasis = data.depositBasis;
@@ -244,10 +251,51 @@ export async function updateRental(
   }
 
   // The one thing left after check-out. Ticking it settles the security
-  // deposit as refunded in the same stroke.
-  if (data.returnSecurityDeposit) {
+  // deposit as refunded in the same stroke, and freezes what was handed back.
+  if (data.returnSecurityDeposit && rental.securityDepositReturnedAt === null) {
+    // What the client is owed: the caution actually received, less whatever
+    // was charged to them during the stay.
+    //
+    // Computed here rather than trusted from the form, and over the entries
+    // already recorded *plus* those arriving in this same save — an agent
+    // routinely notes the breakage and returns the balance in one go.
+    const [receipts, charged] = await Promise.all([
+      prisma.rentalPayment.findMany({
+        where: { rentalId: rental.id, kind: "SECURITY_DEPOSIT" },
+        select: { amount: true },
+      }),
+      prisma.rentalExpense.aggregate({
+        where: { rentalId: rental.id, bearer: "CLIENT" },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const held = securityDepositHeld({
+      receipts: [
+        ...receipts.map((r) => r.amount.toNumber()),
+        ...data.payments
+          .filter((p) => p.kind === "SECURITY_DEPOSIT")
+          .map((p) => p.amount),
+      ],
+      agreed:
+        data.securityDepositAmount ??
+        rental.securityDepositAmount?.toNumber() ??
+        null,
+      status: data.securityDepositStatus,
+    });
+
+    const chargedNow = data.expenses
+      .filter((e) => e.bearer === "CLIENT")
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    const returned =
+      held.amount - ((charged._sum.amount?.toNumber() ?? 0) + chargedNow);
+
     update.securityDepositReturnedAt = new Date();
     update.securityDepositStatus = "REFUNDED";
+    // Never negative: a client owing more than their caution covers is a debt
+    // to chase, not a refund of less than nothing.
+    update.securityDepositReturnedAmount = Math.max(0, returned);
   }
 
   try {
@@ -256,9 +304,13 @@ export async function updateRental(
     // and keeps consistent even if a label was renamed.
     await prisma.$transaction([
       prisma.rental.update({ where: { id: rental.id }, data: update }),
-      // Receipts are not terms: they are the work that happens after signature,
-      // so they are reconciled at every save whatever the contract's state.
-      prisma.rentalPayment.deleteMany({ where: { rentalId: rental.id } }),
+      // Receipts are appended, never reconciled: a saved entry is definitive,
+      // and a mistake is put right by a further entry that offsets it. So this
+      // only ever adds what the form has newly typed — nothing here can touch
+      // or remove what is already recorded.
+      //
+      // They are not terms either: they are the work that happens after
+      // signature, so they are written whatever the contract's state.
       prisma.rentalPayment.createMany({
         data: data.payments.map((p) => ({
           rentalId: rental.id,
@@ -266,6 +318,19 @@ export async function updateRental(
           amount: p.amount,
           paidAt: p.paidAt ? new Date(p.paidAt) : null,
           note: p.note || null,
+          recordedById: user.id,
+        })),
+      }),
+      prisma.rentalExpense.createMany({
+        data: data.expenses.map((e) => ({
+          rentalId: rental.id,
+          label: e.label,
+          amount: e.amount,
+          bearer: e.bearer,
+          spentAt: e.spentAt ? new Date(e.spentAt) : null,
+          storagePath: e.storagePath || null,
+          fileName: e.fileName || null,
+          recordedById: user.id,
         })),
       }),
       // The services are terms as well — they are priced on the contract — so

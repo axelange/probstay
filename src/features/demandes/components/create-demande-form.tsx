@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { createDemande } from "@/features/demandes/actions/create-demande";
 import { findOrCreateProspect } from "@/features/demandes/actions/find-or-create-prospect";
+import { Combobox } from "@/components/ui/combobox";
 
 type PropertyOption = {
   id: string;
@@ -173,30 +174,22 @@ export function CreateDemandeForm({
         </div>
 
         {newClient === null ? (
-          <Select
-            value={clientId}
-            onValueChange={(v) => v !== null && setClientId(v)}
-            items={clients.map((c) => ({ value: c.id, label: clientLabel(c) }))}
+          <Combobox
+            value={clientId || null}
+            onValueChange={setClientId}
+            options={clients.map((c) => ({
+              value: c.id,
+              label: clientLabel(c),
+              ...(c.email ? { hint: c.email } : {}),
+            }))}
+            placeholder={
+              clients.length === 0
+                ? "Aucun prospect — créez-en un"
+                : "Rechercher un prospect…"
+            }
+            emptyLabel="Aucun prospect ne correspond."
             disabled={isPending || clients.length === 0}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue
-                placeholder={
-                  clients.length === 0
-                    ? "Aucun prospect — créez-en un"
-                    : "Choisir un prospect"
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {clients.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {clientLabel(c)}
-                  {c.email ? ` — ${c.email}` : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         ) : (
           <div className="space-y-3 rounded-lg border p-3">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -248,23 +241,17 @@ export function CreateDemandeForm({
         </h3>
 
         {mode === "PRECISE" ? (
-          <Select
-            value={propertyId}
-            onValueChange={(v) => v !== null && setPropertyId(v)}
-            items={properties.map((p) => ({ value: p.id, label: propertyLabel(p) }))}
+          <Combobox
+            value={propertyId || null}
+            onValueChange={setPropertyId}
+            options={properties.map((p) => ({
+              value: p.id,
+              label: propertyLabel(p),
+            }))}
+            placeholder="Rechercher un bien…"
+            emptyLabel="Aucun bien ne correspond."
             disabled={isPending}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Choisir un bien" />
-            </SelectTrigger>
-            <SelectContent>
-              {properties.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {propertyLabel(p)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         ) : (
           <div className="space-y-2">
             {propertyIds.length > 0 ? (

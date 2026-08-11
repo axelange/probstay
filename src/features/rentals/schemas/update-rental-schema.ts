@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
+  CommissionBasis,
   DepositBasis,
+  ExpenseBearer,
   RentalBookingStatus,
   RentalPaymentKind,
   RentalPaymentStatus,
@@ -55,7 +57,15 @@ export const updateRentalSchema = z.object({
   // The stay amount ("Loyer") is no longer entered — it is derived from
   // these two plus the services flagged as included.
   netOwnerAmount: optionalAmount,
+  // The resolved figure, which the loyer is built from. When the basis is a
+  // percentage the funnel computes it from the same net it displays, so what
+  // is stored is what the agent was looking at.
   commissionAmount: optionalAmount,
+  commissionBasis: z.enum(CommissionBasis).default("AMOUNT"),
+  commissionRate: z
+    .union([z.literal(""), z.coerce.number().min(0).max(100)])
+    .transform((v) => (v === "" ? undefined : Number(v)))
+    .optional(),
   // The resolved figure, which the documents read. When the basis is a
   // percentage the funnel computes it from the same total it displays, so what
   // is stored is what the agent was looking at.
@@ -78,19 +88,43 @@ export const updateRentalSchema = z.object({
     .max(40)
     .default([]),
 
-  // What has actually come in under each status. Sent whole and reconciled by
-  // replacement, like the services — a small hand-kept list where an edited
-  // line is an edit, not a new receipt.
+  // Only the entries newly typed on this save. What is already recorded is
+  // never sent back: it cannot be edited, and a correction is a further entry
+  // rather than a change to the first.
   payments: z
     .array(
       z.object({
         kind: z.enum(RentalPaymentKind),
-        amount: z.coerce.number().positive(),
+        // Negative for a correction offsetting an earlier entry; zero would
+        // record nothing.
+        amount: z.coerce
+          .number()
+          .refine((v) => v !== 0, "Le montant ne peut pas être nul."),
         paidAt: z
           .union([z.literal(""), z.iso.date()])
           .transform((v) => (v === "" ? undefined : v))
           .optional(),
         note: z.string().trim().max(160).optional(),
+      })
+    )
+    .max(60)
+    .default([]),
+
+  // Only the expenses newly typed on this save, appended like the receipts.
+  expenses: z
+    .array(
+      z.object({
+        label: z.string().trim().min(1).max(160),
+        amount: z.coerce
+          .number()
+          .refine((v) => v !== 0, "Le montant ne peut pas être nul."),
+        bearer: z.enum(ExpenseBearer),
+        spentAt: z
+          .union([z.literal(""), z.iso.date()])
+          .transform((v) => (v === "" ? undefined : v))
+          .optional(),
+        storagePath: z.string().trim().max(300).optional(),
+        fileName: z.string().trim().max(200).optional(),
       })
     )
     .max(60)
@@ -102,7 +136,6 @@ export const updateRentalSchema = z.object({
   confirmOwner: z.boolean().default(false),
   signContract: z.boolean().default(false),
   returnSecurityDeposit: z.boolean().default(false),
-  notes: z.string().trim().max(2000).optional(),
 })
   // Children are counted within the occupancy, and a booking needs someone who
   // can sign for them — so the count is strictly below the headcount, never

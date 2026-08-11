@@ -165,6 +165,7 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
       depositAmount: true,
       depositBasis: true,
       depositPercent: true,
+      commissionBasis: true,
       securityDepositAmount: true,
       commissionAmount: true,
       commissionRate: true,
@@ -177,6 +178,7 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
       contractSignedAt: true,
       contractSignedBy: { select: { fullName: true } },
       securityDepositReturnedAt: true,
+      securityDepositReturnedAmount: true,
       createdAt: true,
       property: {
         select: {
@@ -199,8 +201,30 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
         select: { id: true, label: true, amount: true, includedInStay: true },
         orderBy: { createdAt: "asc" },
       },
+      expenses: {
+        select: {
+          id: true,
+          label: true,
+          amount: true,
+          bearer: true,
+          spentAt: true,
+          storagePath: true,
+          fileName: true,
+          createdAt: true,
+          recordedBy: { select: { fullName: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
       payments: {
-        select: { id: true, kind: true, amount: true, paidAt: true, note: true },
+        select: {
+          id: true,
+          kind: true,
+          amount: true,
+          paidAt: true,
+          note: true,
+          createdAt: true,
+          recordedBy: { select: { fullName: true } },
+        },
         orderBy: { createdAt: "asc" },
       },
       owner: { select: { id: true, firstName: true, lastName: true } },
@@ -268,16 +292,32 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
     depositAmount: toNumber(rental.depositAmount),
     depositPercent: rental.depositPercent.toNumber(),
     securityDepositAmount: toNumber(rental.securityDepositAmount),
+    securityDepositReturnedAmount: toNumber(rental.securityDepositReturnedAmount),
     commissionAmount: toNumber(rental.commissionAmount),
     commissionRate: toNumber(rental.commissionRate),
+    commissionBasis: rental.commissionBasis,
     // amount is a non-null Decimal on this table, so convert directly.
     services: rental.services.map((s) => ({ ...s, amount: s.amount.toNumber() })),
     // Decimal cannot cross into a Client Component, and the funnel is one.
+    expenses: rental.expenses.map((e) => ({
+      id: e.id,
+      label: e.label,
+      amount: e.amount.toNumber(),
+      bearer: e.bearer,
+      spentAt: e.spentAt,
+      storagePath: e.storagePath,
+      fileName: e.fileName,
+      recordedAt: e.createdAt,
+      recordedByName: e.recordedBy?.fullName ?? null,
+    })),
     payments: rental.payments.map((p) => ({
+      id: p.id,
       kind: p.kind,
       amount: p.amount.toNumber(),
       paidAt: p.paidAt,
       note: p.note,
+      recordedAt: p.createdAt,
+      recordedByName: p.recordedBy?.fullName ?? null,
     })),
     // Frozen at contract signature; before that the tax follows the
     // city's current rate.

@@ -10,6 +10,7 @@ import {
   isLettableProperty,
 } from "@/features/rentals/services/rental-service";
 import { createRentalSchema } from "@/features/rentals/schemas/create-rental-schema";
+import { defaultDepositPercent } from "@/features/rentals/utils/deposit-rule";
 
 export type CreateRentalResult =
   | { status: "success"; rentalId: string }
@@ -176,6 +177,10 @@ export async function createRental(
           bookingStatus: "INQUIRY",
           tenantAgentId,
           guests: data.guests ?? null,
+          // No acompte on a booking made inside the balance's notice period:
+          // its due date has passed, so the whole amount is payable and there
+          // is nothing to split. Changed freely afterwards.
+          depositPercent: defaultDepositPercent(new Date(data.checkIn)),
           // Seed the caution from the property, exactly as converting a
           // demande does. Copied once and never read again: revising the
           // property's default must not rewrite a rental whose contract may

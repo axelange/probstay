@@ -89,6 +89,16 @@ enum MandatePreference {
  * Whether the acompte was entered as a figure or as a share of the client
  * total. Only the funnel reads it — every document reads the resolved amount.
  */
+/**
+ * Whether the commission was entered as a figure or as a share of the owner's
+ * net. Only the funnel reads it — the loyer and every document read the
+ * resolved amount.
+ */
+enum CommissionBasis {
+  AMOUNT
+  PERCENT
+}
+
 enum DepositBasis {
   AMOUNT
   PERCENT
@@ -176,6 +186,16 @@ model TouristTax {
   updatedBy     User?    @relation("TouristTaxUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("tourist_taxes")
+}
+
+/**
+ * Who bears a cost incurred during the stay. It decides where the money comes
+ * from: the client's caution, the owner's net, or the agency's commission.
+ */
+enum ExpenseBearer {
+  CLIENT
+  OWNER
+  AGENCY
 }
 
 /** Which of the three sums a receipt belongs to. */
@@ -266,6 +286,8 @@ model User {
   documentsGenerated    GeneratedDocument[] @relation("GeneratedDocumentAuthor")
   documentsSigned       SignedDocument[]    @relation("SignedDocumentUploader")
   intakeLinksCreated    ClientIntakeLink[]  @relation("IntakeLinkCreatedBy")
+  paymentsRecorded      RentalPayment[]     @relation("RentalPaymentRecordedBy")
+  expensesRecorded      RentalExpense[]     @relation("RentalExpenseRecordedBy")
   touristTaxesUpdated   TouristTax[]       @relation("TouristTaxUpdatedBy")
   agencyUpdates         Agency[]           @relation("AgencyUpdatedBy")
   demandesCreated       Demande[]          @relation("DemandeCreatedBy")
@@ -775,6 +797,11 @@ model Rental {
   // The one thing left after check-out: the security deposit handed back.
   // Sets securityDepositStatus to REFUNDED in the same action.
   securityDepositReturnedAt DateTime?
+  // What was actually handed back: the caution received, less the expenses
+  // charged to the client. Frozen when the agent ticks it on the departure
+  // step, because that is the figure they acted on — recomputing it later from
+  // expenses that have since moved would rewrite what was paid.
+  securityDepositReturnedAmount Decimal? @db.Decimal(12, 2)
 
   // Why the stay is happening, and the other adults on it. Both asked of the
   // client through the intake link, not of the agent.
@@ -785,6 +812,8 @@ model Rental {
   // What has actually come in, under each of the three statuses. A status
   // says "partially paid"; these say how much, and when.
   payments          RentalPayment[]
+  // What the stay cost, and who carries each one.
+  expenses          RentalExpense[]
 
   identityDocuments IdentityDocument[]
   intakeLinks       ClientIntakeLink[]
@@ -855,10 +884,16 @@ model Rental {
   depositBasis   DepositBasis @default(PERCENT)
   depositPercent Decimal      @default(50) @db.Decimal(5, 2)
 
-  // Resolved output of the commission engine, stored per-rental so the
-  // rules can change without rewriting history. Never a hardcoded rate.
-  commissionAmount Decimal? @db.Decimal(12, 2)
-  commissionRate   Decimal? @db.Decimal(5, 2)
+  // The agency's share, stored per-rental so the rules can change without
+  // rewriting history. Never a hardcoded rate.
+  //
+  // `commissionAmount` is the resolved figure the loyer and the documents
+  // read; `commissionBasis` and `commissionRate` record how it was decided, so
+  // "twenty percent" survives a change to the net instead of having to be
+  // recomputed by hand.
+  commissionAmount Decimal?        @db.Decimal(12, 2)
+  commissionBasis  CommissionBasis @default(AMOUNT)
+  commissionRate   Decimal?        @db.Decimal(5, 2)
 
   // Frozen at contract signature, like the owner/agent snapshot: the
   // tourist-tax amount and the per-night rate it was computed with. Null
@@ -1130,28 +1165,68 @@ enum SignedDocumentKind {
  * Children are excluded, by the same rule that exempts them from the tax.
  */
 /**
- * A sum received against one of the three amounts a booking carries.
+ * A sum recorded against one of the three amounts a booking carries.
  *
- * Positive by construction: this is a receipts journal, not a ledger. The
- * deposit going back to the client is the `securityDepositReturnedAt`
- * milestone, which is a different event with a different meaning.
+ * Immutable once saved: never edited, never deleted. A mistake is corrected by
+ * a further entry that offsets it, so the trail shows both the error and its
+ * correction — which is what the financial register this feeds requires, and
+ * why an amount may be negative.
+ *
+ * The deposit going back to the client is still the
+ * `securityDepositReturnedAt` milestone: a different event, with a date and a
+ * meaning of its own.
  */
 model RentalPayment {
   id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   rentalId String @db.Uuid
   rental   Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
 
-  kind   RentalPaymentKind
+  kind RentalPaymentKind
+  /** Negative for a correction offsetting an earlier entry. Never zero. */
   amount Decimal   @db.Decimal(12, 2)
   /** Null while the agent knows it landed but not on what day. */
   paidAt DateTime? @db.Date
   /** "virement", "chèque n° …" — whatever makes it findable on a statement. */
   note   String?
 
+  recordedById String? @db.Uuid
+  recordedBy   User?   @relation("RentalPaymentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
 
   @@index([rentalId, kind])
   @@map("rental_payments")
+}
+
+/**
+ * A cost incurred during the stay, and who carries it.
+ *
+ * Immutable once saved, like the payments: these are financial movements, and
+ * a correction is a further entry offsetting the first rather than an edit —
+ * hence amounts that may be negative and never zero.
+ */
+model RentalExpense {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rentalId String @db.Uuid
+  rental   Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  label  String
+  /** Negative for a correction offsetting an earlier entry. Never zero. */
+  amount Decimal       @db.Decimal(12, 2)
+  bearer ExpenseBearer
+  spentAt DateTime?    @db.Date
+
+  /** The receipt, when there is one — it often arrives after the expense. */
+  storagePath String?
+  fileName    String?
+
+  recordedById String? @db.Uuid
+  recordedBy   User?   @relation("RentalExpenseRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([rentalId, bearer])
+  @@map("rental_expenses")
 }
 
 model RentalOccupant {

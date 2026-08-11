@@ -8,15 +8,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { convertDemande } from "@/features/demandes/actions/convert-demande";
 import { setDemandeLost } from "@/features/demandes/actions/set-demande-outcome";
+import { Combobox } from "@/components/ui/combobox";
 
 type PropertyChoice = {
   id: string;
@@ -136,23 +130,15 @@ export function DemandeActions({
           N&apos;importe quel bien que vous gérez — pas seulement ceux de la
           demande.
         </p>
-        <Select
-          value={propertyId}
-          onValueChange={(v) => v !== null && setPropertyId(v)}
-          items={properties.map((p) => ({ value: p.id, label: label(p) }))}
+        <Combobox
+          id="convert-villa"
+          value={propertyId || null}
+          onValueChange={setPropertyId}
+          options={properties.map((p) => ({ value: p.id, label: label(p) }))}
+          placeholder="Rechercher un bien…"
+          emptyLabel="Aucun bien ne correspond."
           disabled={isPending}
-        >
-          <SelectTrigger id="convert-villa" className="w-full">
-            <SelectValue placeholder="Choisir un bien" />
-          </SelectTrigger>
-          <SelectContent>
-            {properties.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {label(p)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
