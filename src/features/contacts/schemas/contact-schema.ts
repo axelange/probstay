@@ -4,6 +4,7 @@ import {
   ContactKind,
   ContactSpecialty,
   ContactType,
+  MaritalStatus,
 } from "@/generated/prisma/enums";
 
 const optionalText = (max: number) =>
@@ -41,6 +42,18 @@ export const companyDetailFields = {
   repBirthDate: optionalDate,
   repBirthPlace: optionalText(160),
   repNationality: optionalText(120),
+  // Collected from the client's own intake form, so the two must agree: a
+  // field the client can fill and an agent cannot is a field that silently
+  // reverts the next time the fiche is saved.
+  mainActivity: optionalText(160),
+  officePostalCode: optionalText(20),
+  officeCity: optionalText(120),
+  officeCountry: optionalText(80),
+  repOccupation: optionalText(120),
+  repPhone: optionalText(40),
+  repEmail: optionalText(160),
+  repIdDocType: optionalIdDocType,
+  repIdDocNumber: optionalText(60),
   // Régime parahôtelier: this company owner charges 10% VAT on their net
   // rental income, which the documents then add to the client total.
   paraHotelRegime: z.boolean().default(false),
@@ -63,6 +76,15 @@ export const individualDetailFields = {
   idDocType: optionalIdDocType,
   idDocNumber: optionalText(60),
   address: optionalText(300),
+  // Same set the client's intake form collects — see companyDetailFields.
+  occupation: optionalText(120),
+  maritalStatus: z
+    .union([z.literal(""), z.enum(MaritalStatus)])
+    .transform((v) => (v === "" ? undefined : v))
+    .optional(),
+  postalCode: optionalText(20),
+  city: optionalText(120),
+  country: optionalText(80),
 };
 
 /**

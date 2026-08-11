@@ -146,6 +146,13 @@ export async function getContactDetail(id: string, user: CurrentUser) {
       idDocType: true,
       idDocNumber: true,
       address: true,
+      // Collected on the client's own intake form as well, so the fiche shows
+      // and edits exactly what they can send.
+      occupation: true,
+      maritalStatus: true,
+      postalCode: true,
+      city: true,
+      country: true,
       // BSTAY's own company block, following the contact's own visibility.
       company: {
         select: {
@@ -158,6 +165,15 @@ export async function getContactDetail(id: string, user: CurrentUser) {
           repBirthDate: true,
           repBirthPlace: true,
           repNationality: true,
+          mainActivity: true,
+          officePostalCode: true,
+          officeCity: true,
+          officeCountry: true,
+          repOccupation: true,
+          repPhone: true,
+          repEmail: true,
+          repIdDocType: true,
+          repIdDocNumber: true,
           paraHotelRegime: true,
         },
       },

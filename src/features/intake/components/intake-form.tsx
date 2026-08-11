@@ -7,7 +7,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ID_DOC_TYPES } from "@/features/contacts/components/contact-type-labels";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PERSON_ID_DOC_TYPES } from "@/features/contacts/components/contact-type-labels";
 import { submitIntake } from "@/features/intake/actions/submit-intake";
 import { uploadIntakeId } from "@/features/intake/actions/upload-intake-id";
 import { missingIntakeFields } from "@/features/intake/schemas/required-fields";
@@ -94,23 +101,31 @@ function Choice({
   onChange: (v: string) => void;
   options: readonly (readonly [string, string])[];
 }) {
+  // The blank entry becomes the placeholder: a list whose first row is a dash
+  // reads as an option one could choose.
+  const choices = options.filter(([v]) => v !== "");
+
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id} className="text-xs">
         {label}
       </Label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+      <Select
+        value={value || null}
+        onValueChange={(v) => v !== null && onChange(v)}
+        items={choices.map(([v, l]) => ({ value: v, label: l }))}
       >
-        {options.map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue placeholder="Choisir… / Select…" />
+        </SelectTrigger>
+        <SelectContent>
+          {choices.map(([v, l]) => (
+            <SelectItem key={v} value={v}>
+              {l}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -121,7 +136,9 @@ function Choice({
  */
 const ID_DOC_OPTIONS = [
   ["", "—"] as const,
-  ...ID_DOC_TYPES.map((t) => [t.value, `${t.label} / ${t.labelEn}`] as const),
+  ...PERSON_ID_DOC_TYPES.map(
+    (t) => [t.value, `${t.label} / ${t.labelEn}`] as const
+  ),
 ];
 
 /**

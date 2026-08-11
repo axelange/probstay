@@ -12,6 +12,12 @@ import {
 import { getContactDetail } from "@/features/contacts/services/contact-service";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
+import { ContactDocuments } from "@/features/contacts/components/contact-documents";
+import {
+  listContactDocuments,
+  listContactRentals,
+} from "@/features/contacts/services/contact-documents";
+import { ContactRentals } from "@/features/contacts/components/contact-rentals";
 
 export const metadata = { title: "Contact — BSTAY PRO" };
 
@@ -37,6 +43,11 @@ export default async function ContactDetailPage({
     [contact.firstName, contact.lastName].filter(Boolean).join(" ") ||
     "Sans nom";
   const types = CONTACT_TYPES.filter((t) => contact.types.includes(t));
+
+  const [documents, rentals] = await Promise.all([
+    listContactDocuments(contact.id),
+    listContactRentals(contact.id),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -76,6 +87,35 @@ export default async function ContactDetailPage({
           canEdit={canEdit}
           canSeeBankingDetails={contact.canSeeBankingDetails}
         />
+
+        <div className="space-y-8">
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium">
+              Pièces et justificatifs{" "}
+              <span className="text-muted-foreground tabular-nums">
+                ({documents.length})
+              </span>
+            </h3>
+            <ContactDocuments
+              contactId={contact.id}
+              isCompany={contact.kind === "COMPANY"}
+              documents={documents}
+              canEdit={canEdit}
+            />
+          </section>
+
+          {/* The bookings behind the contact, both sides of them, each one a
+              link back — a name in the address book is rarely what someone
+              came here for. */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium">
+              Locations{" "}
+              <span className="text-muted-foreground tabular-nums">
+                ({rentals.length})
+              </span>
+            </h3>
+            <ContactRentals rentals={rentals} />
+          </section>
 
         <div className="space-y-3">
           <h3 className="text-sm font-medium">
@@ -121,6 +161,7 @@ export default async function ContactDetailPage({
               ? "Contact créé dans BSTAY PRO. Aucune synchronisation ne le modifie."
               : `Synchronisé depuis APIMO (réf. ${contact.apimoId}).`}
           </p>
+        </div>
         </div>
       </div>
     </div>

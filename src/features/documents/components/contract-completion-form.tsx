@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ID_DOC_TYPES } from "@/features/contacts/components/contact-type-labels";
+import { PERSON_ID_DOC_TYPES } from "@/features/contacts/components/contact-type-labels";
 import { saveContractCompletion } from "@/features/documents/actions/save-contract-completion";
 import type { CompletionData } from "@/features/documents/services/build-completion-data";
 
@@ -283,7 +283,7 @@ export function ContractCompletionForm({
               <Select
                 value={form.idDocType || null}
                 onValueChange={(v) => v !== null && set("idDocType", v)}
-                items={ID_DOC_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+                items={PERSON_ID_DOC_TYPES.map((t) => ({ value: t.value, label: t.label }))}
                 disabled={isPending}
               >
                 <SelectTrigger
@@ -293,7 +293,7 @@ export function ContractCompletionForm({
                   <SelectValue placeholder="Choisir…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ID_DOC_TYPES.map((t) => (
+                  {PERSON_ID_DOC_TYPES.map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
                     </SelectItem>

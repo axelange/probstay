@@ -154,6 +154,8 @@ enum IdentityDocumentType {
   ID_CARD
   DRIVING_LICENSE
   RESIDENCE_PERMIT
+  /** KBIS, or the equivalent extract abroad. A company, not a person. */
+  COMPANY_REGISTRATION
 }
 
 // A demande (request) is its own thing, distinct from a rental: the first
@@ -199,6 +201,19 @@ enum ExpenseBearer {
 }
 
 /** Which of the three sums a receipt belongs to. */
+/**
+ * What an agency-added calendar entry is. Arrivals and departures are not
+ * here: those are the rentals themselves, and a copy would drift.
+ */
+enum CalendarEventKind {
+  MAINTENANCE
+  CLEANING
+  VIEWING
+  OWNER_STAY
+  BLOCKED
+  OTHER
+}
+
 enum RentalPaymentKind {
   DEPOSIT
   BALANCE
@@ -287,6 +302,7 @@ model User {
   documentsSigned       SignedDocument[]    @relation("SignedDocumentUploader")
   intakeLinksCreated    ClientIntakeLink[]  @relation("IntakeLinkCreatedBy")
   paymentsRecorded      RentalPayment[]     @relation("RentalPaymentRecordedBy")
+  calendarEvents        CalendarEvent[]     @relation("CalendarEventCreatedBy")
   expensesRecorded      RentalExpense[]     @relation("RentalExpenseRecordedBy")
   touristTaxesUpdated   TouristTax[]       @relation("TouristTaxUpdatedBy")
   agencyUpdates         Agency[]           @relation("AgencyUpdatedBy")
@@ -659,6 +675,9 @@ model Property {
   notes String?
 
   pictures PropertyPicture[]
+  // Agency-added calendar entries against this villa: a caretaker's visit, a
+  // pool service, an owner's own stay.
+  calendarEvents CalendarEvent[]
   rentals  Rental[]
 
   createdAt  DateTime  @default(now())
@@ -812,6 +831,7 @@ model Rental {
   // What has actually come in, under each of the three statuses. A status
   // says "partially paid"; these say how much, and when.
   payments          RentalPayment[]
+  calendarEvents    CalendarEvent[]
   // What the stay cost, and who carries each one.
   expenses          RentalExpense[]
 
@@ -967,6 +987,12 @@ model IdentityDocument {
   // The number as read off the document. Optional: the copy is the evidence,
   // the number only a convenience, and a client may upload without typing it.
   number      String?
+  /**
+   * When the document was issued. Only meaningful for a registration extract,
+   * which must be recent when the contract is signed — a passport is valid or
+   * expired on its own terms.
+   */
+  issuedAt    DateTime? @db.Date
   storagePath String
 
   uploadedAt   DateTime @default(now())
@@ -1176,6 +1202,40 @@ enum SignedDocumentKind {
  * `securityDepositReturnedAt` milestone: a different event, with a date and a
  * meaning of its own.
  */
+/**
+ * Something on the calendar that no booking records.
+ *
+ * A caretaker's visit, a pool service, an owner staying in their own villa, a
+ * viewing. Both links are optional: an agency meeting belongs to no villa, and
+ * an event about a booking points at it without pretending to be one.
+ */
+model CalendarEvent {
+  id    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title String
+  kind  CalendarEventKind @default(OTHER)
+
+  /** Day-granular, and `endsOn` is inclusive: a one-day event repeats its date. */
+  startsOn DateTime @db.Date
+  endsOn   DateTime @db.Date
+
+  propertyId String?   @db.Uuid
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  rentalId   String?   @db.Uuid
+  rental     Rental?   @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  notes String?
+
+  createdById String? @db.Uuid
+  createdBy   User?   @relation("CalendarEventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startsOn, endsOn])
+  @@index([propertyId])
+  @@map("calendar_events")
+}
+
 model RentalPayment {
   id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   rentalId String @db.Uuid

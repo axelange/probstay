@@ -21,7 +21,7 @@ import {
 import { updateContact } from "@/features/contacts/actions/update-contact";
 import {
   CONTACT_TYPES,
-  ID_DOC_TYPES,
+  PERSON_ID_DOC_TYPES,
   contactTypeLabel,
 } from "@/features/contacts/components/contact-type-labels";
 import {
@@ -49,6 +49,15 @@ export type EditableContact = {
     repBirthDate: Date | null;
     repBirthPlace: string | null;
     repNationality: string | null;
+    mainActivity: string | null;
+    officePostalCode: string | null;
+    officeCity: string | null;
+    officeCountry: string | null;
+    repOccupation: string | null;
+    repPhone: string | null;
+    repEmail: string | null;
+    repIdDocType: string | null;
+    repIdDocNumber: string | null;
     paraHotelRegime: boolean;
   } | null;
   // Civil identity of an individual (contracts).
@@ -58,6 +67,11 @@ export type EditableContact = {
   idDocType: string | null;
   idDocNumber: string | null;
   address: string | null;
+  occupation: string | null;
+  maritalStatus: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
   specialties: ContactSpecialty[];
   otherSpecialty: string | null;
   apimoId: number | null;
@@ -67,6 +81,16 @@ export type EditableContact = {
 function toDateInput(date: Date | null): string {
   return date ? new Date(date).toISOString().slice(0, 10) : "";
 }
+
+/** Same order and wording as the client's own form. */
+const MARITAL_STATUSES = [
+  ["SINGLE", "Célibataire"],
+  ["MARRIED", "Marié(e)"],
+  ["PACS", "Pacsé(e)"],
+  ["DIVORCED", "Divorcé(e)"],
+  ["WIDOWED", "Veuf ou veuve"],
+  ["OTHER", "Autre"],
+] as const;
 
 export function EditContactForm({
   contact,
@@ -97,6 +121,16 @@ export function EditContactForm({
     repBirthDate: toDateInput(contact.company?.repBirthDate ?? null),
     repBirthPlace: contact.company?.repBirthPlace ?? "",
     repNationality: contact.company?.repNationality ?? "",
+    // The set the client's own intake form collects, so both writers agree.
+    mainActivity: contact.company?.mainActivity ?? "",
+    officePostalCode: contact.company?.officePostalCode ?? "",
+    officeCity: contact.company?.officeCity ?? "",
+    officeCountry: contact.company?.officeCountry ?? "",
+    repOccupation: contact.company?.repOccupation ?? "",
+    repPhone: contact.company?.repPhone ?? "",
+    repEmail: contact.company?.repEmail ?? "",
+    repIdDocType: contact.company?.repIdDocType ?? "",
+    repIdDocNumber: contact.company?.repIdDocNumber ?? "",
     paraHotelRegime: contact.company?.paraHotelRegime ?? false,
     // Individual civil identity.
     birthDate: toDateInput(contact.birthDate),
@@ -105,6 +139,11 @@ export function EditContactForm({
     idDocType: contact.idDocType ?? "",
     idDocNumber: contact.idDocNumber ?? "",
     address: contact.address ?? "",
+    occupation: contact.occupation ?? "",
+    maritalStatus: contact.maritalStatus ?? "",
+    postalCode: contact.postalCode ?? "",
+    city: contact.city ?? "",
+    country: contact.country ?? "",
   });
   const [kind, setKind] = React.useState<ContactKind>(contact.kind);
   const [types, setTypes] = React.useState<ContactType[]>(contact.types);
@@ -317,6 +356,17 @@ export function EditContactForm({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="mainActivity">Activité principale</Label>
+            <Input
+              id="mainActivity"
+              value={form.mainActivity}
+              onChange={(e) => set("mainActivity", e.target.value)}
+              disabled={disabled}
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="registeredOffice">Siège social</Label>
             <Input
               id="registeredOffice"
@@ -325,6 +375,39 @@ export function EditContactForm({
               disabled={disabled}
               autoComplete="off"
             />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="officePostalCode">Code postal</Label>
+                <Input
+                  id="officePostalCode"
+                  value={form.officePostalCode}
+                  onChange={(e) => set("officePostalCode", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="officeCity">Ville</Label>
+                <Input
+                  id="officeCity"
+                  value={form.officeCity}
+                  onChange={(e) => set("officeCity", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="officeCountry">Pays</Label>
+                <Input
+                  id="officeCountry"
+                  value={form.officeCountry}
+                  onChange={(e) => set("officeCountry", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
           </div>
 
           <label className="flex items-start gap-3 rounded-md border p-3">
@@ -413,6 +496,69 @@ export function EditContactForm({
                   autoComplete="off"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="repOccupation">Profession</Label>
+                <Input
+                  id="repOccupation"
+                  value={form.repOccupation}
+                  onChange={(e) => set("repOccupation", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repPhone">Téléphone</Label>
+                <Input
+                  id="repPhone"
+                  value={form.repPhone}
+                  onChange={(e) => set("repPhone", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repEmail">Adresse e-mail</Label>
+                <Input
+                  id="repEmail"
+                  value={form.repEmail}
+                  onChange={(e) => set("repEmail", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repIdDocType">Pièce d&apos;identité</Label>
+                <Select
+                  value={form.repIdDocType || null}
+                  onValueChange={(v) => v !== null && set("repIdDocType", v)}
+                  items={PERSON_ID_DOC_TYPES.map((t) => ({
+                    value: t.value,
+                    label: t.label,
+                  }))}
+                  disabled={disabled}
+                >
+                  <SelectTrigger id="repIdDocType" className="w-full">
+                    <SelectValue placeholder="Choisir…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERSON_ID_DOC_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repIdDocNumber">Numéro de la pièce</Label>
+                <Input
+                  id="repIdDocNumber"
+                  value={form.repIdDocNumber}
+                  onChange={(e) => set("repIdDocNumber", e.target.value)}
+                  disabled={disabled}
+                  autoComplete="off"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -464,16 +610,49 @@ export function EditContactForm({
               <Select
                 value={form.idDocType || null}
                 onValueChange={(v) => v !== null && set("idDocType", v)}
-                items={ID_DOC_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+                items={PERSON_ID_DOC_TYPES.map((t) => ({ value: t.value, label: t.label }))}
                 disabled={disabled}
               >
                 <SelectTrigger id="idDocType" className="w-full">
                   <SelectValue placeholder="Choisir…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ID_DOC_TYPES.map((t) => (
+                  {PERSON_ID_DOC_TYPES.map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="occupation">Profession</Label>
+              <Input
+                id="occupation"
+                value={form.occupation}
+                onChange={(e) => set("occupation", e.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maritalStatus">Situation matrimoniale</Label>
+              <Select
+                value={form.maritalStatus || null}
+                onValueChange={(v) => v !== null && set("maritalStatus", v)}
+                items={MARITAL_STATUSES.map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
+                disabled={disabled}
+              >
+                <SelectTrigger id="maritalStatus" className="w-full">
+                  <SelectValue placeholder="Choisir…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MARITAL_STATUSES.map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -485,6 +664,36 @@ export function EditContactForm({
                 id="address"
                 value={form.address}
                 onChange={(e) => set("address", e.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="postalCode">Code postal</Label>
+              <Input
+                id="postalCode"
+                value={form.postalCode}
+                onChange={(e) => set("postalCode", e.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="city">Ville</Label>
+              <Input
+                id="city"
+                value={form.city}
+                onChange={(e) => set("city", e.target.value)}
+                disabled={disabled}
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="country">Pays</Label>
+              <Input
+                id="country"
+                value={form.country}
+                onChange={(e) => set("country", e.target.value)}
                 disabled={disabled}
                 autoComplete="off"
               />

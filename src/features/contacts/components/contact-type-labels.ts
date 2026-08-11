@@ -51,11 +51,30 @@ export const ID_DOC_TYPES = [
     label: "Titre de séjour",
     labelEn: "Residence permit",
   },
+  {
+    value: "COMPANY_REGISTRATION",
+    label: "Extrait KBIS ou équivalent",
+    labelEn: "Company registration extract",
+  },
 ] as const satisfies readonly {
   value: IdentityDocumentType;
   label: string;
   labelEn: string;
 }[];
+
+/**
+ * The documents a natural person presents.
+ *
+ * The registration extract sits in the same table and the same bucket — it
+ * identifies a party too — but it is a company's paper, so it never belongs in
+ * a picker asking someone which ID they hold.
+ */
+export const PERSON_ID_DOC_TYPES = ID_DOC_TYPES.filter(
+  (t) => t.value !== "COMPANY_REGISTRATION"
+);
+
+/** How recent a registration extract must be, in months, at signature. */
+export const COMPANY_REGISTRATION_MAX_AGE_MONTHS = 3;
 
 /**
  * The English label sits beside the French one because two audiences read
