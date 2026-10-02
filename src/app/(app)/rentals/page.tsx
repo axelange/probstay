@@ -9,7 +9,7 @@ import {
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
-export const metadata = { title: "Locations — BSTAY PRO" };
+export const metadata = { title: "Locations — PROBSTAY" };
 
 export default async function RentalsPage() {
   const user = await getCurrentUser();
@@ -41,7 +41,7 @@ export default async function RentalsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">Locations</h2>
+          <h2 className="page-title">Locations</h2>
           <p className="text-muted-foreground text-sm">
             Réservations, issues d&apos;une demande ou créées directement.
             {active > 0 ? ` ${active} en cours.` : ""}

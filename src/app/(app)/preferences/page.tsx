@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { MandatePreferenceField } from "@/features/preferences/components/mandate-preference-field";
 import { getCurrentUser } from "@/lib/auth";
 
-export const metadata = { title: "Préférences — BSTAY PRO" };
+export const metadata = { title: "Préférences — PROBSTAY" };
 
 /**
  * The signed-in user's own preferences.
@@ -18,7 +18,7 @@ export default async function PreferencesPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold tracking-tight">Préférences</h2>
+        <h2 className="page-title">Préférences</h2>
         <p className="text-muted-foreground text-sm">
           Vos réglages personnels. Ils ne concernent que votre affichage et ne
           modifient rien pour vos collègues.

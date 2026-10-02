@@ -16,7 +16,7 @@ type Decimalish = { toNumber(): number };
  *                     the tenant-side co-agent carried from the demande.
  *   anyone else    -> nothing
  */
-function rentalVisibilityFilter(
+export function rentalVisibilityFilter(
   user: CurrentUser
 ): Prisma.RentalWhereInput | null {
   if (hasPermission(user, "MANAGE_RENTALS")) return {};

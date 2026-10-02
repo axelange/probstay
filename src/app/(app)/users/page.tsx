@@ -13,7 +13,7 @@ import {
   hasPermission,
 } from "@/lib/permissions";
 
-export const metadata = { title: "Utilisateurs — BSTAY PRO" };
+export const metadata = { title: "Utilisateurs — PROBSTAY" };
 
 export default async function UsersPage() {
   const user = await getCurrentUser();
@@ -38,7 +38,7 @@ export default async function UsersPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">
+          <h2 className="page-title">
             Utilisateurs
           </h2>
           <p className="text-muted-foreground text-sm">

@@ -5,7 +5,7 @@ import { listContacts } from "@/features/contacts/services/contact-service";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
-export const metadata = { title: "Contacts — BSTAY PRO" };
+export const metadata = { title: "Contacts — PROBSTAY" };
 
 export default async function ContactsPage() {
   const user = await getCurrentUser();
@@ -25,7 +25,7 @@ export default async function ContactsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">Contacts</h2>
+          <h2 className="page-title">Contacts</h2>
           {/* The running total lives with the list, which re-counts as
               you filter. What belongs here is what a count cannot say:
               how many are owners, and how many nobody can reach —

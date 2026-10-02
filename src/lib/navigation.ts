@@ -14,6 +14,8 @@ export type NavIcon =
   | "calendar"
   | "documents"
   | "invoices"
+  | "fundCalls"
+  | "catalog"
   | "users"
   | "settings";
 
@@ -62,17 +64,41 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Documents",
     items: [
       { href: "/documents", label: "Documents", icon: "documents" },
+      { href: "/documents/preview", label: "Aperçu", icon: "documents" },
       {
         href: "/documents/templates",
         label: "Modèles",
         icon: "documents",
         permission: "MANAGE_DOCUMENT_TEMPLATES",
       },
+    ],
+  },
+  {
+    // Its own section, because billing is its own trade: two registers that
+    // must not be confused — fees the agency earns, and funds it calls for a
+    // booking — plus the catalogue both draw their lines from.
+    //
+    // Either financial permission throughout: MANAGE_INVOICES issues,
+    // VIEW_FINANCIALS reads. Each page refuses anyone else itself.
+    label: "Facturation",
+    items: [
       {
         href: "/invoices",
         label: "Factures",
         icon: "invoices",
-        permission: "MANAGE_INVOICES",
+        permission: ["MANAGE_INVOICES", "VIEW_FINANCIALS"],
+      },
+      {
+        href: "/payment-requests",
+        label: "Avis de paiement",
+        icon: "fundCalls",
+        permission: ["MANAGE_INVOICES", "VIEW_FINANCIALS"],
+      },
+      {
+        href: "/catalog",
+        label: "Catalogue",
+        icon: "catalog",
+        permission: ["MANAGE_INVOICES", "VIEW_FINANCIALS"],
       },
     ],
   },

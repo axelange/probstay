@@ -37,6 +37,7 @@ const DOC_TYPES = [
   { value: "CONFIRMATION", label: "Confirmation de location (propriétaire)" },
 ];
 
+
 /**
  * Document preview, driven by selection rather than typing: pick a document
  * type and a rental, and the fields are pre-filled from that rental
@@ -78,6 +79,10 @@ export default function ContratPreview({
       <ContratLocationSaisonniere data={contrat!} />
     );
 
+  const fileName = data
+    ? documentFileName(docType, data.reference, data.tenant.name)
+    : "";
+
   const [isSaving, setIsSaving] = React.useState(false);
 
   /**
@@ -93,7 +98,7 @@ export default function ContratPreview({
       url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = documentFileName(docType, data.reference, data.tenant.name);
+      a.download = fileName;
       a.click();
     } catch {
       toast.error("Le document n'a pas pu être téléchargé.");
@@ -173,7 +178,7 @@ export default function ContratPreview({
           </Button>
           {data ? (
             <p className="text-muted-foreground truncate text-xs">
-              {documentFileName(docType, data.reference, data.tenant.name)}
+              {fileName}
             </p>
           ) : null}
         </div>

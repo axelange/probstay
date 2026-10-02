@@ -3,7 +3,7 @@ import { PropertiesList } from "@/features/properties/components/properties-list
 import { listProperties } from "@/features/properties/services/property-service";
 import { getCurrentUser } from "@/lib/auth";
 
-export const metadata = { title: "Biens — BSTAY PRO" };
+export const metadata = { title: "Biens — PROBSTAY" };
 
 export default async function PropertiesPage() {
   const user = await getCurrentUser();
@@ -14,7 +14,7 @@ export default async function PropertiesPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold tracking-tight">Biens</h2>
+        <h2 className="page-title">Biens</h2>
         <p className="text-muted-foreground text-sm">
           Synchronisés depuis APIMO — lecture seule.
         </p>

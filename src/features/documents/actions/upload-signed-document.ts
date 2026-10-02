@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase-server";
+import { normalizeFileName } from "@/lib/uploads";
 import {
   canReachRental,
   SIGNED_BUCKET,
@@ -82,6 +83,7 @@ export async function uploadSignedDocument(
   }
 
   const storagePath = `${rentalId}/${crypto.randomUUID()}`;
+  const fileName = normalizeFileName(file.name);
 
   // The session client, not a service key: the bucket's policies mirror rental
   // visibility, so an agent uploading to someone else's rental is refused by
@@ -102,7 +104,7 @@ export async function uploadSignedDocument(
         rentalId,
         type,
         kind,
-        fileName: file.name,
+        fileName,
         mimeType: file.type,
         sizeBytes: file.size,
         storagePath,
@@ -118,5 +120,6 @@ export async function uploadSignedDocument(
   }
 
   revalidatePath(`/rentals/${rentalId}`);
-  return { status: "success", fileName: file.name };
+  revalidatePath("/documents");
+  return { status: "success", fileName };
 }

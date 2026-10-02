@@ -13,7 +13,7 @@ import { listBookableProperties } from "@/features/rentals/services/rental-servi
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
-export const metadata = { title: "Journée — BSTAY PRO" };
+export const metadata = { title: "Journée — PROBSTAY" };
 
 /**
  * The hours the agency actually works.
@@ -94,7 +94,7 @@ export default async function DayPage({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold tracking-tight">
+        <h2 className="page-title">
           {WEEKDAYS[day.getDay()]} {day.getDate()}{" "}
           {MONTH_NAMES[day.getMonth()]} {day.getFullYear()}
         </h2>

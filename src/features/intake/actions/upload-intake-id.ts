@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { normalizeFileName } from "@/lib/uploads";
 
 /** Mirrors the bucket's own limits, so a refusal is explained here first. */
 const BUCKET = "identity-documents";
@@ -86,5 +87,9 @@ export async function uploadIntakeId(
     return { status: "error", message: "Envoi impossible." };
   }
 
-  return { status: "success", storagePath, fileName: file.name };
+  return {
+    status: "success",
+    storagePath,
+    fileName: normalizeFileName(file.name),
+  };
 }

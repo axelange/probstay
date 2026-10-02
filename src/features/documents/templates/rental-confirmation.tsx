@@ -84,20 +84,23 @@ export type ConfirmationData = {
 // markers and every hairline; the navy is used once, for the French caption
 // under the title. Body copy is pure black, secondary copy grey, and the data
 // cards sit on a near-white ground with no border and no radius.
-const black = "#000000";
-const gold = "#a8936c";
-const navy = "#041c2c";
-const grey = "#6f6f6f";
-const cardBg = "#f9f9f9";
+// Two brand colours and the five-step grey ramp, as house-style states them.
+// Restated here rather than imported because this template already keeps its
+// own copy of the scale — see the note above; both must move together.
+const ink = "#111110";
+const paper = "#f0ede8";
+const rule = "#c3c1bd"; // Gris 20 — hairlines
+const grey = "#6a6966"; // Gris 60 — secondary copy
+const cardBg = "#dad7d2"; // Gris 10 — data cards
 
-const SERIF = "Passenger Display";
-const SANS = "Familjen Grotesk";
+const TITLE = "Albertus Nova";
+const BODY = "Archivo";
 
 // Bundled PNGs. On the server read from disk (absolute path); in the browser
 // served from /public. No node import so this also bundles for the preview.
 // The marks are drawn as vector, not placed as PNGs — the lettering is
 // hairline and a raster of it goes grey at these sizes. See ./logo.
-import { LogoVertical, Monogram } from "@/features/documents/templates/logo";
+import { BstayLogo, BstayMonogram } from "@/features/documents/templates/logo";
 
 // The frame's spacing scale, halved: 40 px gaps between top-level blocks, 20 px
 // inside a section, 14 px between a label and its value, 10 px between the two
@@ -121,11 +124,11 @@ const s = StyleSheet.create({
     // the gold rule.
     paddingBottom: 109,
     paddingHorizontal: 50,
-    fontFamily: SANS,
+    fontFamily: BODY,
     fontWeight: 400,
     fontSize: 10,
     lineHeight: 1.2,
-    color: black,
+    color: ink,
   },
 
   // Masthead — page 1 only, in flow (no logo repeats on later pages).
@@ -133,8 +136,16 @@ const s = StyleSheet.create({
   logo: { width: 75, height: 82.5 },
 
   head: { flexDirection: "row", alignItems: "flex-end" },
-  headTitle: { fontFamily: SERIF, fontSize: 29, color: gold, lineHeight: LH },
-  headSub: { fontFamily: SERIF, fontSize: 15, color: navy, lineHeight: LH },
+  headTitle: {
+    fontFamily: TITLE,
+    fontWeight: 200,
+    fontSize: 29,
+    color: ink,
+    lineHeight: LH,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+  },
+  headSub: { fontFamily: TITLE, fontWeight: 200, fontSize: 15, color: ink, lineHeight: LH },
   headMeta: { flex: 1, alignItems: "flex-end" },
   headMetaLabel: {
     fontSize: 7.5,
@@ -144,10 +155,10 @@ const s = StyleSheet.create({
     lineHeight: LH,
     marginBottom: LABEL_GAP + 0.5,
   },
-  headMetaVal: { fontFamily: SERIF, fontSize: 15, color: navy, lineHeight: LH },
+  headMetaVal: { fontFamily: BODY, fontWeight: 500, fontSize: 15, color: ink, lineHeight: LH },
 
   intro: { marginTop: BLOCK },
-  introEn: { fontSize: 10, color: black, lineHeight: LH },
+  introEn: { fontSize: 10, color: ink, lineHeight: LH },
   introFr: {
     fontSize: 10,
     color: grey,
@@ -161,7 +172,7 @@ const s = StyleSheet.create({
   sectionRow: { flexDirection: "row" },
   sectionEn: {
     fontSize: 10,
-    color: gold,
+    color: ink,
     letterSpacing: 1,
     textTransform: "uppercase",
     lineHeight: LH,
@@ -175,8 +186,8 @@ const s = StyleSheet.create({
     lineHeight: LH,
     marginLeft: GAP,
   },
-  sectionRule: { height: 0.5, backgroundColor: gold, marginTop: GAP, marginBottom: GAP },
-  headRule: { height: 0.5, backgroundColor: gold, marginTop: GAP },
+  sectionRule: { height: 0.5, backgroundColor: rule, marginTop: GAP, marginBottom: GAP },
+  headRule: { height: 0.5, backgroundColor: rule, marginTop: GAP },
 
   // Cards — flat, square, no border.
   card: { backgroundColor: cardBg, paddingHorizontal: 12, paddingVertical: 9.5 },
@@ -194,20 +205,21 @@ const s = StyleSheet.create({
   capFr: { fontStyle: "italic" },
 
   name: {
-    fontFamily: SERIF,
+    fontFamily: BODY,
+    fontWeight: 500,
     fontSize: 14,
-    color: black,
+    color: ink,
     lineHeight: LH,
     marginTop: LABEL_GAP,
   },
-  detailVal: { fontSize: 10, color: black, lineHeight: LH },
+  detailVal: { fontSize: 10, color: ink, lineHeight: LH },
   detailMuted: { fontSize: 10, color: grey, lineHeight: LH, marginTop: PAIR_GAP },
 
   // Structured label/value row (tenant informations) — the label runs inline
   // with its value rather than in a fixed column, as drawn.
   infoRow: { flexDirection: "row", alignItems: "baseline", marginTop: LABEL_GAP },
   infoLabel: { marginRight: 6 },
-  infoValue: { fontSize: 10, color: black, lineHeight: LH },
+  infoValue: { fontSize: 10, color: ink, lineHeight: LH },
 
   // Stay
   statCard: {
@@ -218,9 +230,10 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   statVal: {
-    fontFamily: SERIF,
+    fontFamily: BODY,
+    fontWeight: 500,
     fontSize: 14,
-    color: black,
+    color: ink,
     lineHeight: LH,
     marginTop: LABEL_GAP,
     textAlign: "center",
@@ -228,7 +241,7 @@ const s = StyleSheet.create({
 
   // Services list — the label, then the items on a tighter gap of their own.
   svcList: { marginTop: LABEL_GAP, gap: PAIR_GAP },
-  svcItem: { fontSize: 10, color: black, lineHeight: LH },
+  svcItem: { fontSize: 10, color: ink, lineHeight: LH },
   svcItemFr: { fontStyle: "italic" },
 
   // Financial. Rows are near-touching (4 px in the master) and the amounts stay
@@ -242,8 +255,8 @@ const s = StyleSheet.create({
     paddingVertical: 9.5,
     marginBottom: 2,
   },
-  finDesc: { fontSize: 10, color: black, lineHeight: LH },
-  finAmt: { fontSize: 12, color: black, lineHeight: LH },
+  finDesc: { fontSize: 10, color: ink, lineHeight: LH },
+  finAmt: { fontSize: 12, color: ink, lineHeight: LH },
   // The total is the one boxed row: a grey hairline, no fill, even padding.
   finTotal: {
     flexDirection: "row",
@@ -256,27 +269,27 @@ const s = StyleSheet.create({
   },
   finTotalLabel: {
     fontSize: 10,
-    color: black,
+    color: ink,
     textTransform: "uppercase",
     lineHeight: LH,
   },
-  finTotalAmt: { fontSize: 12, color: black, lineHeight: LH },
+  finTotalAmt: { fontSize: 12, color: ink, lineHeight: LH },
 
   // Payments. The card's own heading is set at body size, not as a grey cap.
   payLabel: {
     fontSize: 10,
-    color: black,
+    color: ink,
     textTransform: "uppercase",
     lineHeight: LH,
   },
   payLabelFr: { color: grey, fontStyle: "italic" },
-  payAmt: { fontSize: 12, color: black, lineHeight: LH, marginTop: LABEL_GAP },
+  payAmt: { fontSize: 12, color: ink, lineHeight: LH, marginTop: LABEL_GAP },
   payDue: { marginTop: LABEL_GAP },
-  payDueVal: { fontSize: 10, color: black, lineHeight: LH, marginTop: LABEL_GAP },
+  payDueVal: { fontSize: 10, color: ink, lineHeight: LH, marginTop: LABEL_GAP },
   note: { marginTop: GAP, gap: PAIR_GAP },
 
   // Prose (justified)
-  paraEn: { fontSize: 10, color: black, lineHeight: LH },
+  paraEn: { fontSize: 10, color: ink, lineHeight: LH },
   paraFr: { fontSize: 10, color: grey, fontStyle: "italic", lineHeight: LH },
   proseGroup: { gap: PAIR_GAP },
 
@@ -287,16 +300,17 @@ const s = StyleSheet.create({
   signBox: { borderWidth: 0.5, borderColor: grey, height: 119 },
   signMeta: { alignItems: "center", marginTop: 9.5 },
   signName: {
-    fontFamily: SERIF,
+    fontFamily: BODY,
+    fontWeight: 500,
     fontSize: 14,
-    color: black,
+    color: ink,
     lineHeight: LH,
     marginTop: LABEL_GAP,
     textAlign: "center",
   },
   signRep: {
     fontSize: 10,
-    color: black,
+    color: ink,
     lineHeight: LH,
     marginTop: LABEL_GAP,
     textAlign: "center",
@@ -312,13 +326,29 @@ const s = StyleSheet.create({
     left: 50,
     right: 50,
     borderTopWidth: 0.5,
-    borderTopColor: gold,
+    borderTopColor: rule,
     paddingTop: GAP,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
-  footMono: { width: 33, height: 40 },
+  // Spacer inside the footer; the mark itself is drawn on the layer below.
+  // Reserves the box the absolutely-positioned monogram occupies, so the legal
+  // lines clear it — wider than the mark by one GAP, which is the clearance
+  // itself. The mark it replaces could get away with reserving its own width
+  // exactly: the old B sat inside its artboard with white around it. This one
+  // is an octagon that runs to all four edges of a square viewBox, so its ink
+  // ends where the box ends, and text set flush against that box touches the
+  // outline. The gap has to be added here rather than taken from the drawing.
+  footMono: { width: 38 + GAP, height: 38 },
+  // The rule's 0.5 pt is folded into the padding, not restated as a
+  // transparent border — that darkened the hairline where the layers met.
+  footMonoLayer: {
+    position: "absolute",
+    bottom: 48,
+    left: 50,
+    paddingTop: GAP + 0.5,
+  },
   footLine: { fontSize: 8, color: grey, lineHeight: LH },
   footRight: { width: 170.5, alignItems: "flex-end" },
   footPage: { fontSize: 8, color: grey, lineHeight: LH, textAlign: "right" },
@@ -450,52 +480,55 @@ function ServiceItem({ it }: { it: Bilingual }) {
 /**
  * Monogram · legal · page + initials, pinned to the bottom of every page.
  *
- * The page counter has to be resolved on the footer itself: a `render` callback
- * on a nested Text makes react-pdf drop every sibling that precedes it, which
- * silently swallowed the monogram and the legal block. `fixed` is kept so that
- * if a page ever overflows, the spill still carries a footer.
+ * Two layers, for the reasons set out on the same footer in house-style: the
+ * counter needs the callback (a `Text` with its own `render` disappears under
+ * an inherited lineHeight), and the mark needs to be outside it (a Svg built
+ * by a callback is never measured, so it draws at 75×92 pt and is clipped).
  */
 function Footer({ a }: { a: ConfirmationData["agency"] }) {
   return (
-    <View
-      style={s.footer}
-      fixed
-      render={(props) => {
-        // react-pdf passes totalPages to any render callback but only declares
-        // it on Text's, so read it through the wider shape.
-        const { pageNumber, totalPages } = props as typeof props & {
-          totalPages?: number;
-        };
-        return (
-          <>
-            <Monogram width={33} height={40} />
-            <View>
-              <Text style={s.footLine}>
-                {a.legalName} — {a.address}
-              </Text>
-              <Text style={s.footLine}>
-                {a.rcs} — {a.cartePro}
-              </Text>
-              <Text style={s.footLine}>
-                {a.garantieFinanciere} — {a.rcp}
-              </Text>
-              <Text style={s.footLine}>
-                {a.web} — {a.phone}
-              </Text>
-            </View>
-            <View style={s.footRight}>
-              <Text style={s.footPage}>
-                Page {pageNumber}/{totalPages}
-              </Text>
-              <View style={s.footInitialsRow}>
-                <Text style={s.footInitialsLabel}>Initials / Paraphes</Text>
-                <View style={s.footInitialsBox} />
+    <>
+      <View style={s.footMonoLayer} fixed>
+        <BstayMonogram width={38} height={38} />
+      </View>
+      <View
+        style={s.footer}
+        fixed
+        render={(props) => {
+          const { pageNumber, totalPages } = props as typeof props & {
+            totalPages?: number;
+          };
+          return (
+            <>
+              <View style={s.footMono} />
+              <View>
+                <Text style={s.footLine}>
+                  {a.legalName} — {a.address}
+                </Text>
+                <Text style={s.footLine}>
+                  {a.rcs} — {a.cartePro}
+                </Text>
+                <Text style={s.footLine}>
+                  {a.garantieFinanciere} — {a.rcp}
+                </Text>
+                <Text style={s.footLine}>
+                  {a.web} — {a.phone}
+                </Text>
               </View>
-            </View>
-          </>
-        );
-      }}
-    />
+              <View style={s.footRight}>
+                <Text style={s.footPage}>
+                  Page {pageNumber}/{totalPages}
+                </Text>
+                <View style={s.footInitialsRow}>
+                  <Text style={s.footInitialsLabel}>Initials / Paraphes</Text>
+                  <View style={s.footInitialsBox} />
+                </View>
+              </View>
+            </>
+          );
+        }}
+      />
+    </>
   );
 }
 
@@ -516,7 +549,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
       <Page size="A4" style={s.page}>
         {/* Masthead (page 1, in flow) */}
         <View style={s.logoWrap}>
-          <LogoVertical width={75} height={82.5} />
+          <BstayLogo width={170} height={50.7} />
         </View>
         <View style={s.head}>
           <View>

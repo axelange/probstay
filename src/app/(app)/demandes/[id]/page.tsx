@@ -21,7 +21,7 @@ import { formatDate, formatStay } from "@/features/rentals/components/rental-lab
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
-export const metadata = { title: "Demande — BSTAY PRO" };
+export const metadata = { title: "Demande — PROBSTAY" };
 
 const MONEY = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -90,7 +90,7 @@ export default async function DemandeDetailPage({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold tracking-tight">{name}</h2>
+        <h2 className="page-title normal-case">{name}</h2>
         <Badge variant="secondary" className="font-normal">
           Demande {modeLabel(demande.mode).toLowerCase()}
         </Badge>

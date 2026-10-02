@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createFundCallsOnSignature } from "@/features/invoices/services/fund-calls-on-signature";
 import { Prisma } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -354,6 +355,22 @@ export async function updateRental(
           ]
         : []),
     ]);
+    // The signature is the moment the dossier freezes, so it is the moment
+    // the booking's payment requests are drawn up — as drafts, which carry no
+    // number and so cannot touch the series.
+    //
+    // After the transaction and outside it, on purpose: a contract that has
+    // been signed stays signed whatever happens to the billing side. If this
+    // throws, the reminders on the dashboard still show what is missing.
+    if (update.contractSignedAt !== undefined) {
+      try {
+        await createFundCallsOnSignature(rental.id, user.id);
+        revalidatePath("/payment-requests");
+      } catch (error) {
+        console.error("createFundCallsOnSignature failed", error);
+      }
+    }
+
     revalidatePath("/rentals");
     revalidatePath(`/rentals/${rental.id}`);
     return { status: "success" };

@@ -8,7 +8,7 @@ import { demandeStatus } from "@/features/demandes/components/demande-labels";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
-export const metadata = { title: "Demandes — BSTAY PRO" };
+export const metadata = { title: "Demandes — PROBSTAY" };
 
 export default async function DemandesPage() {
   const user = await getCurrentUser();
@@ -23,7 +23,7 @@ export default async function DemandesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">Demandes</h2>
+          <h2 className="page-title">Demandes</h2>
           <p className="text-muted-foreground text-sm">
             Premier contact d&apos;un client. Une demande peut être convertie
             en location.

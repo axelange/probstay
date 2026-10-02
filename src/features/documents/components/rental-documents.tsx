@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { generateDocumentAction } from "@/features/documents/actions/generate-document";
-import { getDocumentUrl } from "@/features/documents/actions/get-document-url";
+import { documentDownloadHref } from "@/features/documents/download";
 import {
   DOCUMENT_NAME,
   DOCUMENT_TYPE_OF_TEMPLATE,
@@ -63,21 +63,6 @@ export function RentalDocuments({
       .finally(() => setBusy(null));
   }
 
-  function download(id: string) {
-    setBusy(id);
-    void getDocumentUrl({ id })
-      .then((result) => {
-        if (result.status === "error") {
-          toast.error(result.message);
-          return;
-        }
-        // The signed link carries the readable file name and expires shortly,
-        // so it is followed immediately rather than rendered into the page.
-        window.location.href = result.url;
-      })
-      .finally(() => setBusy(null));
-  }
-
   function Row({ doc, muted }: { doc: GeneratedDocumentRow; muted?: boolean }) {
     return (
       <li className="flex items-center gap-3 py-1.5">
@@ -98,14 +83,13 @@ export function RentalDocuments({
           </p>
         </div>
         <Button
-          type="button"
           variant="ghost"
           size="sm"
-          onClick={() => download(doc.id)}
-          disabled={busy !== null}
+          nativeButton={false}
+          render={<a href={documentDownloadHref("generated", doc.id)} />}
         >
           <Download aria-hidden="true" />
-          {busy === doc.id ? "…" : "Télécharger"}
+          Télécharger
         </Button>
       </li>
     );

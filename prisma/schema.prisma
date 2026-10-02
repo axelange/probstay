@@ -323,6 +323,8 @@ model User {
   paymentsRecorded      RentalPayment[]     @relation("RentalPaymentRecordedBy")
   calendarEvents        CalendarEvent[]     @relation("CalendarEventCreatedBy")
   expensesRecorded      RentalExpense[]     @relation("RentalExpenseRecordedBy")
+  invoicesCreated       Invoice[]           @relation("InvoiceCreatedBy")
+  productsCreated       Product[]           @relation("ProductCreatedBy")
   touristTaxesUpdated   TouristTax[]       @relation("TouristTaxUpdatedBy")
   agencyUpdates         Agency[]           @relation("AgencyUpdatedBy")
   demandesCreated       Demande[]          @relation("DemandeCreatedBy")
@@ -476,6 +478,7 @@ model Contact {
   rentalsOwned      Rental[]
   rentalTenants     RentalTenant[]
   identityDocuments IdentityDocument[]
+  invoices          Invoice[]
   demandes          Demande[]          @relation("DemandeProspect")
   intakeLinks       ClientIntakeLink[]
   intakeSubmissions ClientIntakeSubmission[]
@@ -859,6 +862,9 @@ model Rental {
   intakeSubmissions ClientIntakeSubmission[]
   // The copies that came back signed, one row per upload.
   signedDocuments   SignedDocument[]
+  // Invoices raised against this booking. Optional on their side: a sale or a
+  // concierge service is invoiced without any rental behind it.
+  invoices          Invoice[]
   // Extra services the agent adds and prices for this booking, on top of
   // the stay amount and the property's own included services.
   services          RentalService[]
@@ -1488,4 +1494,210 @@ model DemandeProperty {
   @@unique([demandeId, propertyId])
   @@index([propertyId])
   @@map("demande_properties")
+}
+
+/// Which of the two documents this is.
+///
+/// A fee invoice is the agency's own revenue. A fund call asks a tenant for
+/// money the agency holds on behalf of an owner — the deposit, the balance,
+/// the security deposit — and is not an invoice: it must not print the word,
+/// it runs its own numbering series and it feeds its own register.
+enum InvoiceFamily {
+  FEE
+  FUND_CALL
+}
+
+// A draft carries no number: it is a working document, editable and
+// abandonable. Issuing draws the next number from the series and freezes the
+// content — enforced by a trigger, not only here. From then on an invoice may
+// be paid or cancelled, never edited and never deleted.
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  CANCELLED
+}
+
+/// Where the PDF comes from. Some invoices are drawn up outside — an
+/// accountant's software, a one-off — and are recorded here rather than
+/// produced here. They take a number from the same series all the same.
+enum InvoiceSource {
+  GENERATED
+  UPLOADED
+}
+
+/**
+ * Une facture — a legal accounting document.
+ *
+ * Immutable once issued, which is the rule the whole shape follows: no delete,
+ * no editing of the lines, and the identity and figures printed on the paper
+ * snapshotted here rather than read live through the relations. A client who
+ * moves house must not silently rewrite an invoice already in their hands.
+ */
+model Invoice {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  /// The counter behind the printed number, drawn from `invoices_number_seq`
+  /// at issue — never at insert, so an abandoned draft costs the series
+  /// nothing. Null exactly while the invoice is a draft, which a CHECK
+  /// constraint enforces alongside `issuedOn`. The printed form ("2026-0240"
+  /// for an invoice, "LOC-2026-0001" for a fund call) is assembled in
+  /// `features/invoices/reference.ts`. The invoice counter opens at 240: the
+  /// agency's series predates this software and continues through it.
+  ///
+  /// Unique per family, not outright: the two series run side by side and
+  /// both start at 1. Which sequence it is drawn from — `invoices_number_seq`
+  /// or `fund_calls_number_seq` — is decided at issue.
+  number Int?
+
+  family InvoiceFamily @default(FEE)
+  status InvoiceStatus @default(DRAFT)
+  source InvoiceSource @default(GENERATED)
+
+  /// The document's own heading — "Balance Payment Request / Demande de
+  /// paiement du solde" — filled from the catalogue when the draft is opened
+  /// and free text thereafter. Null falls back to the family's own title.
+  title String?
+
+  /// What the document is for, printed under the title. Free text on a fee
+  /// invoice; on a payment request, the booking, the property, where it is and
+  /// the stay, composed from the rental when the draft is written. Newlines
+  /// are printed as written.
+  ///
+  /// There is no category anywhere behind it: what is being asked for is the
+  /// lines, and those come from the catalogue.
+  description String?
+
+  clientId      String  @db.Uuid
+  client        Contact @relation(fields: [clientId], references: [id])
+  clientName    String
+  clientAddress String?
+
+  rentalId String? @db.Uuid
+  rental   Rental? @relation(fields: [rentalId], references: [id])
+
+  /// Set at issue, with the number. Null exactly while the invoice is a draft.
+  issuedOn DateTime? @db.Date
+  dueOn    DateTime? @db.Date
+  paidOn   DateTime? @db.Date
+
+  /// The rate this invoice was issued under. A rate is a legal parameter that
+  /// changes by decree, so it is stored rather than read from the code.
+  vatRate Decimal @default(20) @db.Decimal(5, 2)
+
+  /// Snapshots. TTC is deliberately absent: it is HT + TVA, an exact addition
+  /// that cannot drift, while these two involve rounding.
+  totalHt   Decimal @db.Decimal(12, 2)
+  vatAmount Decimal @db.Decimal(12, 2)
+
+  notes String?
+
+  /// The rendered PDF, once produced. Null while it has not been — a render
+  /// that fails must not take the number down with it.
+  storagePath String? @unique
+  fileName    String?
+
+  lines InvoiceLine[]
+
+  createdById String? @db.Uuid
+  createdBy   User?   @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([family, number], map: "invoices_family_number_key")
+  @@index([issuedOn(sort: Desc)], map: "invoices_issued_idx")
+  @@index([clientId], map: "invoices_client_idx")
+  @@index([rentalId], map: "invoices_rental_idx")
+  @@map("invoices")
+}
+
+/// A billed line. Freely rewritten while the invoice is a draft, sealed with it
+/// at issue — editing one afterwards would change a document already sent.
+model InvoiceLine {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId String  @db.Uuid
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  /// The order the agent wrote them in. A total is a sum and does not care;
+  /// the reader comparing paper to screen does.
+  position Int
+
+  label     String
+  /// An optional second line under the title: what the cleaning covered, which
+  /// nights the chef came. Printed smaller, beneath it.
+  description String?
+  quantity    Decimal @default(1) @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(12, 2)
+
+  /// Where the line came from, when it came from the catalogue. The label and
+  /// price above are still copies: an invoice must keep saying what was billed
+  /// after the catalogue moves on, so this records the origin, never the
+  /// current value.
+  productId String?  @db.Uuid
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([invoiceId, position], map: "invoice_lines_order_idx")
+  @@map("invoice_lines")
+}
+
+
+/**
+ * Le catalogue — what the agency bills, written down once.
+ *
+ * A starting point rather than a constraint: most lines are one-offs and are
+ * still typed freely. What is here is what recurs, so that a cleaning fee is
+ * worded and priced the same way on every invoice that carries it.
+ */
+/// What a catalogue entry stands for in a payment request, when it stands for
+/// something the software reads off the dossier. A stable key rather than a
+/// name match: renaming the entry must not unhook it.
+///
+/// The first three head a request of their own and carry its title; the last
+/// two only ever appear beside a rent line. A request is recognised by the
+/// line that heads it — nothing on the invoice records a category.
+enum ProductRole {
+  DEPOSIT
+  SECURITY_DEPOSIT
+  RENT
+  TOURIST_TAX
+  DEPOSIT_PAID
+}
+
+model Product {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  label       String
+  description String?
+  unitPrice   Decimal @db.Decimal(12, 2)
+
+  /// Set on the entries the software composes a request from. Their price is
+  /// ignored — the amount comes from the dossier.
+  role ProductRole?
+
+  /// The heading the document takes when this entry opens one, in the same
+  /// "EN / FR" form the labels use. Only the three that head a request have
+  /// one.
+  documentTitle String?
+
+  /// Wording carried onto the document's observations when this product is put
+  /// on a line. The mentions a security deposit must travel with are why this
+  /// exists, and why it is edited in the catalogue rather than in the code.
+  notes String?
+
+  /// Withdrawn rather than deleted: a product that has been billed is part of
+  /// what past invoices were built from, and the list should stop offering it
+  /// without erasing where those lines came from.
+  archivedAt DateTime?
+
+  lines InvoiceLine[]
+
+  createdById String? @db.Uuid
+  createdBy   User?   @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([role], map: "products_role_key")
+  @@index([label], map: "products_label_idx")
+  @@map("products")
 }

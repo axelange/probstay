@@ -14,7 +14,7 @@ import { listBookableProperties } from "@/features/rentals/services/rental-servi
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
-export const metadata = { title: "Calendrier — BSTAY PRO" };
+export const metadata = { title: "Calendrier — PROBSTAY" };
 
 /** How far ahead the movements list looks. */
 const UPCOMING_DAYS = 30;
@@ -98,7 +98,7 @@ export default async function CalendarPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">Calendrier</h2>
+          <h2 className="page-title">Calendrier</h2>
           <p className="text-muted-foreground text-sm">
             Les séjours et ce que l&apos;agence a prévu, par bien.
           </p>

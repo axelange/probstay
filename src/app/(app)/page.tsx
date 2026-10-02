@@ -4,6 +4,8 @@ import {
   Building2,
   Clock,
   FileSignature,
+  Receipt,
+  Stamp,
   TriangleAlert,
   Undo2,
   Wallet,
@@ -16,6 +18,7 @@ import {
   agencyFigures,
   listTasks,
 } from "@/features/dashboard/services/dashboard-service";
+import { listBillingReminders } from "@/features/invoices/services/billing-reminders";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
@@ -30,6 +33,9 @@ const TASK_ICON = {
   SIGN_CONTRACT: FileSignature,
   AWAITING_CLIENT: Clock,
   OVERDUE_PAYMENT: Wallet,
+  ISSUE_DOCUMENT: Stamp,
+  PREPARE_FUND_CALL: Receipt,
+  OVERDUE_DOCUMENT: Wallet,
 } as const;
 
 const TASK_LABEL = {
@@ -37,7 +43,17 @@ const TASK_LABEL = {
   SIGN_CONTRACT: "Contrat",
   AWAITING_CLIENT: "En attente",
   OVERDUE_PAYMENT: "Paiement",
+  ISSUE_DOCUMENT: "À émettre",
+  PREPARE_FUND_CALL: "À préparer",
+  OVERDUE_DOCUMENT: "Impayé",
 } as const;
+
+/** The kinds that are shown in amber: money late, or a client waiting on us. */
+const PRESSING = new Set([
+  "RETURN_DEPOSIT",
+  "OVERDUE_PAYMENT",
+  "OVERDUE_DOCUMENT",
+]);
 
 export default async function DashboardPage() {
   // The layout has already established there is a user; this only reads them.
@@ -47,8 +63,9 @@ export default async function DashboardPage() {
   const now = new Date();
   const canSeeFigures = hasPermission(user, "VIEW_FINANCIALS");
 
-  const [tasks, month, figures] = await Promise.all([
+  const [rentalTasks, reminders, month, figures] = await Promise.all([
     listTasks(user),
+    listBillingReminders(user),
     listMonth(
       user,
       new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)),
@@ -57,10 +74,17 @@ export default async function DashboardPage() {
     canSeeFigures ? agencyFigures(now.getFullYear()) : Promise.resolve(null),
   ]);
 
+  // One list, sorted as one: what is late sits above what is merely due,
+  // whichever side of the agency it came from. Billing reminders are only
+  // ever there for someone who may see them — the service checks.
+  const tasks = [...rentalTasks, ...reminders].sort(
+    (a, b) => a.urgency - b.urgency
+  );
+
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold tracking-tight">
+        <h2 className="page-title normal-case">
           Bonjour {user.fullName.split(" ")[0]}
         </h2>
         <p className="text-muted-foreground text-sm">
@@ -135,7 +159,8 @@ export default async function DashboardPage() {
           {tasks.length === 0 ? (
             <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-8 text-center text-sm">
               Aucune action en attente. Les cautions à rendre, les contrats non
-              signés et les paiements en retard apparaîtront ici.
+              signés, les avis de paiement à préparer et les documents à émettre
+              apparaîtront ici.
             </p>
           ) : (
             <ul className="divide-y rounded-lg border">
@@ -150,8 +175,7 @@ export default async function DashboardPage() {
                       <Icon
                         aria-hidden="true"
                         className={
-                          task.kind === "RETURN_DEPOSIT" ||
-                          task.kind === "OVERDUE_PAYMENT"
+                          PRESSING.has(task.kind)
                             ? "size-4 shrink-0 text-amber-600"
                             : "text-muted-foreground size-4 shrink-0"
                         }

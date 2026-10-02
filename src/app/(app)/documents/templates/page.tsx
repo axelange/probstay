@@ -4,7 +4,7 @@ import { listTemplatesWithContent } from "@/features/documents/services/template
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
-export const metadata = { title: "Modèles de documents — BSTAY PRO" };
+export const metadata = { title: "Modèles de documents — PROBSTAY" };
 
 export default async function TemplatesPage() {
   const user = await getCurrentUser();
@@ -22,7 +22,7 @@ export default async function TemplatesPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold tracking-tight">
+        <h2 className="page-title">
           Modèles de documents
         </h2>
         <p className="text-muted-foreground text-sm">

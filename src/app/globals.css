@@ -11,9 +11,14 @@
      preset shipped `--font-sans: var(--font-sans)`, a cycle that made
      the property invalid, so every `font-sans` fell through to the
      browser's default serif. */
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-space-grotesk);
+  --font-sans: var(--font-archivo);
+  --font-display: var(--font-albertus-nova);
+  /* There is no monospace face any more — the direction allows Albertus Nova
+     and Archivo and nothing else. The token stays because a dozen call sites
+     use `font-mono` for a reference, an IBAN or a document id, and what they
+     actually want there is figures that line up. They get Archivo with
+     tabular figures (below), which does that job without a third family. */
+  --font-mono: var(--font-archivo);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -53,72 +58,96 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  /* The direction's two colours and its five greys, and nothing else. Each
+     grey is the ink laid into the paper at the percentage it is named for, so
+     the ramp cannot drift off the brand: Gris 60 is #6a6966, which is exactly
+     60 % of #111110 over #f0ede8.
+
+       ink      #111110   Gris 80  #3e3d3b   Gris 20  #c3c1bd
+       paper    #f0ede8   Gris 60  #6a6966   Gris 10  #dad7d2
+                          Gris 40  #979592
+
+     The interface sits on the paper, unlike a document, which prints on the
+     white of the sheet it is put through. Surfaces that have to lift off that
+     ground — a card, a popover, the sidebar — take white, which is the only
+     value here that is not on the ramp and is doing a job the ramp cannot. */
+  --background: #f0ede8;
+  --foreground: #111110;
+  --card: #ffffff;
+  --card-foreground: #111110;
+  --popover: #ffffff;
+  --popover-foreground: #111110;
+  --primary: #111110;
+  --primary-foreground: #f0ede8;
+  --secondary: #dad7d2;
+  --secondary-foreground: #111110;
+  --muted: #dad7d2;
+  --muted-foreground: #6a6966;
+  --accent: #dad7d2;
+  --accent-foreground: #111110;
+  /* The one hue left in the interface, and deliberately. "No colour" is a
+     statement about the brand, not about a confirmation dialog: an irreversible
+     action signalled in grey is signalled to nobody, and this is the only place
+     where losing the signal costs a user their data. */
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: #c3c1bd;
+  --input: #c3c1bd;
+  --ring: #979592;
+  /* Charts read the ramp straight through, light to dark. Five series is
+     exactly what it holds, which is also a useful ceiling: a sixth would have
+     to be invented. */
+  --chart-1: #dad7d2;
+  --chart-2: #c3c1bd;
+  --chart-3: #979592;
+  --chart-4: #6a6966;
+  --chart-5: #3e3d3b;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #111110;
+  --sidebar-primary: #111110;
+  --sidebar-primary-foreground: #f0ede8;
+  --sidebar-accent: #dad7d2;
+  --sidebar-accent-foreground: #111110;
+  --sidebar-border: #c3c1bd;
+  --sidebar-ring: #979592;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  /* The ramp inverted: the ink becomes the ground and the paper the type.
+     Nothing mounts this yet — no theme provider is installed — but it is kept
+     on the same two colours so it cannot be the one place the old neutral
+     scale survives. */
+  --background: #111110;
+  --foreground: #f0ede8;
+  --card: #3e3d3b;
+  --card-foreground: #f0ede8;
+  --popover: #3e3d3b;
+  --popover-foreground: #f0ede8;
+  --primary: #f0ede8;
+  --primary-foreground: #111110;
+  --secondary: #3e3d3b;
+  --secondary-foreground: #f0ede8;
+  --muted: #3e3d3b;
+  --muted-foreground: #979592;
+  --accent: #3e3d3b;
+  --accent-foreground: #f0ede8;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: #3e3d3b;
+  --input: #3e3d3b;
+  --ring: #6a6966;
+  --chart-1: #3e3d3b;
+  --chart-2: #6a6966;
+  --chart-3: #979592;
+  --chart-4: #c3c1bd;
+  --chart-5: #dad7d2;
+  --sidebar: #111110;
+  --sidebar-foreground: #f0ede8;
+  --sidebar-primary: #f0ede8;
+  --sidebar-primary-foreground: #111110;
+  --sidebar-accent: #3e3d3b;
+  --sidebar-accent-foreground: #f0ede8;
+  --sidebar-border: #3e3d3b;
+  --sidebar-ring: #6a6966;
 }
 
 @layer base {
@@ -131,17 +160,39 @@
   html {
     @apply font-sans;
   }
-  /* Headings take the display face automatically, so it can't be
-     forgotten on a new page and drift out of step. Everything else —
-     body copy, tables, forms — stays on Inter. */
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: var(--font-heading);
+  /* No blanket rule on h1–h6 any more. Albertus Nova is a display face
+     reserved for the title of a page and the title block of a document;
+     putting it on every heading would hand it to each card and panel
+     subtitle, which is both wrong for the brand and hard to read at 14 px.
+     Those stay on Archivo, like the rest of the interface. */
+  /* `font-mono` no longer changes the face, so it has to keep earning its
+     place some other way: it is used on references, IBANs and ids, where what
+     matters is that digits sit in a column. Archivo has tabular figures, so
+     the class now means "same face, figures aligned". */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
   }
+
+  /* The title of a page, and the one place Albertus Nova appears in the
+     interface. Set in capitals: it is an incised face whose capitals carry
+     the drawing, and the agency's documents are lettered the same way.
+     Letterspacing because caps set solid close up — the tighter `tracking-tight`
+     the rest of the interface uses would be wrong here.
+     Thin, which is the cut the titles are drawn in. It is a hairline weight,
+     so the capitals and the letterspacing are what give the title its presence
+     rather than any mass — and it is the lightest thing on the page by some
+     margin, which is why nothing else may borrow it.
+     A title made of data — someone's name, a villa's — takes `normal-case`
+     alongside this, since a proper noun in capitals reads as an error. */
+  .page-title {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    line-height: var(--text-xl--line-height);
+    font-weight: 200;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
   /* Tailwind v4's preflight sets buttons to `cursor: default`, so every
      button in the app loses the pointer cursor. Restored once here
      rather than adding cursor-pointer to each component. Links keep the

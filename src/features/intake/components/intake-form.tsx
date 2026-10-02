@@ -482,7 +482,7 @@ export function IntakeForm({
           priority
           className="mx-auto"
         />
-        <h1 className="text-xl font-semibold tracking-tight">
+        <h1 className="page-title">
           Vos informations / Your details
         </h1>
         <div className="text-muted-foreground space-y-1 text-sm">

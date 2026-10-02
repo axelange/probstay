@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { GoogleSignInButton } from "./google-sign-in-button";
+import { ProbstayLogo } from "@/components/probstay-logo";
 
-export const metadata = { title: "Connexion — BSTAY PRO" };
+export const metadata = { title: "Connexion — PROBSTAY" };
 
 export default async function LoginPage({
   searchParams,
@@ -19,7 +20,7 @@ export default async function LoginPage({
     <main className="flex min-h-svh items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">BSTAY PRO</h1>
+          <ProbstayLogo className="mx-auto h-7 w-auto" />
           <p className="text-muted-foreground text-sm">
             Application interne. Accès sur invitation.
           </p>

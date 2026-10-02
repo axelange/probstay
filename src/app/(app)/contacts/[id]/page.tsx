@@ -19,7 +19,7 @@ import {
 } from "@/features/contacts/services/contact-documents";
 import { ContactRentals } from "@/features/contacts/components/contact-rentals";
 
-export const metadata = { title: "Contact — BSTAY PRO" };
+export const metadata = { title: "Contact — PROBSTAY" };
 
 export default async function ContactDetailPage({
   // Next 16: params is a promise.
@@ -65,7 +65,7 @@ export default async function ContactDetailPage({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold tracking-tight">{name}</h2>
+        <h2 className="page-title normal-case">{name}</h2>
         {contact.kind === "COMPANY" ? (
           <Badge className="font-normal">Société</Badge>
         ) : null}
@@ -76,7 +76,7 @@ export default async function ContactDetailPage({
         ))}
         {contact.apimoId === null ? (
           <Badge variant="outline" className="font-normal">
-            BSTAY
+            PROBSTAY
           </Badge>
         ) : null}
       </div>
@@ -158,7 +158,7 @@ export default async function ContactDetailPage({
 
           <p className="text-muted-foreground text-xs">
             {contact.apimoId === null
-              ? "Contact créé dans BSTAY PRO. Aucune synchronisation ne le modifie."
+              ? "Contact créé dans PROBSTAY. Aucune synchronisation ne le modifie."
               : `Synchronisé depuis APIMO (réf. ${contact.apimoId}).`}
           </p>
         </div>

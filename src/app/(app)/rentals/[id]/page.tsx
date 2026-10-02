@@ -22,6 +22,8 @@ import {
 import { IntakeLinkPanel } from "@/features/intake/components/intake-link-panel";
 import { SignedDocuments } from "@/features/documents/components/signed-documents";
 import { RentalDocuments } from "@/features/documents/components/rental-documents";
+import { RentalInvoices } from "@/features/invoices/components/rental-invoices";
+import { listRentalInvoices } from "@/features/invoices/services/invoice-service";
 import {
   canManageRental,
   getRentalDetail,
@@ -39,7 +41,7 @@ function toDateInput(date: Date): string {
   }).format(date);
 }
 
-export const metadata = { title: "Location — BSTAY PRO" };
+export const metadata = { title: "Location — PROBSTAY" };
 
 function Field({
   label,
@@ -126,6 +128,11 @@ export default async function RentalDetailPage({
       canManage={canManage}
     />
   ) : undefined;
+
+  // What has been billed on this booking. Visibility is the invoices' own —
+  // the two financial permissions see everything, an agent sees the documents
+  // of the bookings they handle — so this is empty for anyone else.
+  const billing = await listRentalInvoices(rental.id, user);
 
   // The client's own identification (LCB-FT / TRACFIN), collected through a
   // link they fill in themselves. Tied to the primary tenant, since that is
@@ -225,7 +232,7 @@ export default async function RentalDetailPage({
       {/* Status now lives in the funnel's stepper, so the header just
           names the booking. */}
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold tracking-tight">
+        <h2 className="page-title normal-case">
           {rental.property.marketingName ?? rental.property.city ?? "Sans nom"}
         </h2>
         <span className="text-muted-foreground text-sm">
@@ -295,6 +302,8 @@ export default async function RentalDetailPage({
         </div>
 
         <div className="space-y-6">
+          <RentalInvoices invoices={billing} />
+
           <section className="space-y-3">
             <h3 className="text-sm font-medium">Séjour</h3>
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">

@@ -7,7 +7,7 @@ import { agencySchema } from "@/features/settings/schemas/agency-schema";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
-export const metadata = { title: "Paramètres — BSTAY PRO" };
+export const metadata = { title: "Paramètres — PROBSTAY" };
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
@@ -30,7 +30,7 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold tracking-tight">Paramètres</h2>
+        <h2 className="page-title">Paramètres</h2>
         <p className="text-muted-foreground text-sm">
           Configuration de l&apos;application.
         </p>

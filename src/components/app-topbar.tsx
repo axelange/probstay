@@ -31,7 +31,7 @@ function usePageTitle() {
     }
   }
 
-  return "BSTAY PRO";
+  return "PROBSTAY";
 }
 
 export function AppTopbar({

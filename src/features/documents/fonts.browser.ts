@@ -1,9 +1,11 @@
 import { Font } from "@react-pdf/renderer";
 
-// Client-side font registration for the live preview. Same brand files as
-// the server (served from /public/fonts), so the browser preview is
-// byte-for-byte what the server will render: Passenger Display for titles,
-// Neue Haas Grotesk Display Pro for body.
+// Client-side font registration for the live preview. The same files as the
+// server (served from /public/fonts), so the browser preview is what the
+// server will render: Albertus Nova for the title block, Archivo for the rest.
+//
+// See fonts.node.ts for why Albertus is the OTF and Archivo the static cuts —
+// both choices are forced by react-pdf and must stay in step on both sides.
 let done = false;
 
 export function registerDocumentFontsBrowser() {
@@ -13,30 +15,21 @@ export function registerDocumentFontsBrowser() {
   const u = (f: string) => `/fonts/${f}`;
 
   Font.register({
-    family: "Passenger Display",
-    fonts: [{ src: u("PassengerDisplay-Regular.ttf"), fontWeight: 400 }],
-  });
-
-  Font.register({
-    family: "Neue Haas Grotesk",
+    family: "Albertus Nova",
     fonts: [
-      { src: u("NeueHaasGrotesk-Light.otf"), fontWeight: 300 },
-      { src: u("NeueHaasGrotesk-Roman.otf"), fontWeight: 400 },
-      { src: u("NeueHaasGrotesk-Italic.otf"), fontWeight: 400, fontStyle: "italic" },
-      { src: u("NeueHaasGrotesk-Medium.otf"), fontWeight: 500 },
-      { src: u("NeueHaasGrotesk-Bold.otf"), fontWeight: 700 },
+      { src: u("albertusnovathin.otf"), fontWeight: 200 },
     ],
   });
 
-  // Familjen Grotesk (Google Fonts, OFL) — grotesque alternative to Neue Haas.
   Font.register({
-    family: "Familjen Grotesk",
+    family: "Archivo",
     fonts: [
-      { src: u("FamiljenGrotesk-Regular.woff"), fontWeight: 400 },
-      { src: u("FamiljenGrotesk-Italic.woff"), fontWeight: 400, fontStyle: "italic" },
-      { src: u("FamiljenGrotesk-Medium.woff"), fontWeight: 500 },
+      { src: u("Archivo-Regular.ttf"), fontWeight: 400 },
+      { src: u("Archivo-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: u("Archivo-Medium.ttf"), fontWeight: 500 },
+      { src: u("Archivo-Bold.ttf"), fontWeight: 700 },
     ],
   });
 
-  Font.registerHyphenationCallback((w) => [w]);
+  Font.registerHyphenationCallback((word) => [word]);
 }

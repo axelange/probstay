@@ -8,7 +8,7 @@ import { listBookableProperties } from "@/features/rentals/services/rental-servi
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
-export const metadata = { title: "Nouvelle demande — BSTAY PRO" };
+export const metadata = { title: "Nouvelle demande — PROBSTAY" };
 
 export default async function NewDemandePage() {
   const user = await getCurrentUser();
@@ -40,7 +40,7 @@ export default async function NewDemandePage() {
       </div>
 
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold tracking-tight">
+        <h2 className="page-title">
           Nouvelle demande
         </h2>
         <p className="text-muted-foreground text-sm">

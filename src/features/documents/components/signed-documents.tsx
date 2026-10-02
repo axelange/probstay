@@ -6,7 +6,8 @@ import { Download, FileCheck2, FilePlus2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getSignedDocumentUrl } from "@/features/documents/actions/get-signed-document-url";
+import { documentDownloadHref } from "@/features/documents/download";
+import { formatFileSize } from "@/features/documents/format";
 import { uploadSignedDocument } from "@/features/documents/actions/upload-signed-document";
 import type { SignedDocumentRow } from "@/features/documents/services/signed-document-service";
 import { formatDate } from "@/features/rentals/components/rental-labels";
@@ -22,12 +23,6 @@ type SlotType = (typeof SLOTS)[number]["type"];
 type Kind = "SIGNED" | "AMENDMENT";
 /** Unique per control, so two file inputs on one row stay distinguishable. */
 const slotKey = (type: SlotType, kind: Kind) => `${type}:${kind}`;
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} o`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
-}
 
 /**
  * The copies that came back signed.
@@ -89,19 +84,6 @@ export function SignedDocuments({
       .finally(() => setBusy(null));
   }
 
-  function download(id: string) {
-    setBusy(id);
-    void getSignedDocumentUrl({ id })
-      .then((result) => {
-        if (result.status === "error") {
-          toast.error(result.message);
-          return;
-        }
-        window.location.href = result.url;
-      })
-      .finally(() => setBusy(null));
-  }
-
   return (
     <div className="space-y-3 rounded-md border p-3">
       <p className="text-xs font-medium">Documents signés</p>
@@ -122,7 +104,7 @@ export function SignedDocuments({
                 <span className="block truncate">{slot.label}</span>
                 {doc ? (
                   <span className="text-muted-foreground block truncate text-xs">
-                    {doc.fileName} · {formatSize(doc.sizeBytes)} ·{" "}
+                    {doc.fileName} · {formatFileSize(doc.sizeBytes)} ·{" "}
                     {formatDate(doc.uploadedAt)}
                     {doc.uploaderName ? ` · ${doc.uploaderName}` : ""}
                   </span>
@@ -135,11 +117,10 @@ export function SignedDocuments({
 
               {doc ? (
                 <Button
-                  type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => download(doc.id)}
-                  disabled={busy !== null}
+                  nativeButton={false}
+                  render={<a href={documentDownloadHref("signed", doc.id)} />}
                 >
                   <Download aria-hidden="true" />
                   Télécharger
@@ -189,15 +170,14 @@ export function SignedDocuments({
                   className="text-muted-foreground flex items-center justify-between gap-3 text-xs"
                 >
                   <span className="min-w-0 truncate">
-                    Avenant — {rider.fileName} · {formatSize(rider.sizeBytes)} ·{" "}
+                    Avenant — {rider.fileName} · {formatFileSize(rider.sizeBytes)} ·{" "}
                     {formatDate(rider.uploadedAt)}
                   </span>
                   <Button
-                    type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => download(rider.id)}
-                    disabled={busy !== null}
+                    nativeButton={false}
+                    render={<a href={documentDownloadHref("signed", rider.id)} />}
                   >
                     <Download aria-hidden="true" />
                   </Button>
@@ -267,11 +247,10 @@ export function SignedDocuments({
                   {d.fileName} · {formatDate(d.uploadedAt)}
                 </span>
                 <Button
-                  type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => download(d.id)}
-                  disabled={busy !== null}
+                  nativeButton={false}
+                  render={<a href={documentDownloadHref("signed", d.id)} />}
                 >
                   <Download aria-hidden="true" />
                 </Button>

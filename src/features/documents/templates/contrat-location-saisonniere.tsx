@@ -7,23 +7,25 @@ import {
   Image,
   StyleSheet,
 } from "@react-pdf/renderer";
+import { BstayLogo } from "@/features/documents/templates/logo";
 import {
   Cap,
   Footer,
-  Masthead,
   Section,
   SubHeading,
   Tick,
   TitledBlock,
   h,
-  black,
+  ink,
+  paper,
   cardBg,
   grey,
   GAP,
+  TIGHT_GAP,
   LABEL_GAP,
   PAIR_GAP,
   LH,
-  SERIF,
+  TITLE,
   type AgencyIdentity,
 } from "@/features/documents/templates/house-style";
 
@@ -143,42 +145,31 @@ export type ContratData = {
   };
 };
 
-const s = StyleSheet.create({
-  // Cover gallery. The master gives the block 813 px — 553 px of hero over a
-  // 250 px band of three — on the 10 px gap that separates every cover element.
-  gallery: { marginTop: 0, gap: PAIR_GAP },
-  hero: { width: "100%", height: 276.5, objectFit: "cover" },
-  thumbRow: { flexDirection: "row", gap: PAIR_GAP, height: 125 },
-  thumb: { flex: 1, height: "100%", objectFit: "cover" },
 
-  coverCard: {
-    backgroundColor: cardBg,
-    paddingHorizontal: 12,
-    paddingVertical: 9.5,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: PAIR_GAP,
-  },
+const s = StyleSheet.create({
+  // The cover's own styles have moved to the house sheet, where the three
+  // full-bleed bands are defined together — a gallery inset in a padded page
+  // and a band that runs to the trim are not two settings of one idea.
 
   itemFr: { fontStyle: "italic", color: grey },
 
   // Parties
   partyLabel: { marginTop: GAP },
-  partyName: { fontFamily: SERIF, fontSize: 14, color: black, lineHeight: LH, marginTop: LABEL_GAP },
-  partyDetail: { fontSize: 10, color: black, lineHeight: LH, marginTop: PAIR_GAP },
+  partyName: { fontFamily: TITLE, fontWeight: 200, fontSize: 14, color: ink, lineHeight: LH, marginTop: LABEL_GAP },
+  partyDetail: { fontSize: 10, color: ink, lineHeight: LH, marginTop: PAIR_GAP },
   lead: { fontSize: 10, color: grey, fontStyle: "italic", lineHeight: LH, marginTop: GAP },
 
   // Articles
   article: { marginTop: GAP },
   articleTitle: {
     fontSize: 10,
-    color: black,
+    color: ink,
     lineHeight: LH,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: LABEL_GAP,
   },
-  para: { fontSize: 10, color: black, lineHeight: LH, marginBottom: PAIR_GAP },
+  para: { fontSize: 10, color: ink, lineHeight: LH, marginBottom: PAIR_GAP },
 
   // Money
   finRow: {
@@ -190,8 +181,8 @@ const s = StyleSheet.create({
     paddingVertical: 9.5,
     marginBottom: 2,
   },
-  finDesc: { fontSize: 10, color: black, lineHeight: LH },
-  finAmt: { fontSize: 12, color: black, lineHeight: LH },
+  finDesc: { fontSize: 10, color: ink, lineHeight: LH },
+  finAmt: { fontSize: 12, color: ink, lineHeight: LH },
   finTotal: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -201,17 +192,19 @@ const s = StyleSheet.create({
     padding: 12,
     marginTop: 2,
   },
-  finTotalLabel: { fontSize: 10, color: black, textTransform: "uppercase", lineHeight: LH },
-  finTotalAmt: { fontSize: 12, color: black, lineHeight: LH },
+  finTotalLabel: { fontSize: 10, color: ink, textTransform: "uppercase", lineHeight: LH },
+  finTotalAmt: { fontSize: 12, color: ink, lineHeight: LH },
 
   // Signatures
   signRow: { flexDirection: "row", gap: GAP, marginTop: 26 },
   signBox: { borderWidth: 0.5, borderColor: grey, height: 119 },
-  signMeta: { alignItems: "center", marginTop: 9.5 },
+  // Reserved so the two columns stay level when only one of them is filled.
+  signMeta: { alignItems: "center", marginTop: 9.5, minHeight: 62 },
   signName: {
-    fontFamily: SERIF,
+    fontFamily: TITLE,
+    fontWeight: 200,
     fontSize: 14,
-    color: black,
+    color: ink,
     lineHeight: LH,
     marginTop: LABEL_GAP,
     textAlign: "center",
@@ -407,22 +400,33 @@ function MoneyTotal({
   );
 }
 
-/** The cover's gallery: one hero over up to three smaller frames. */
-function Gallery({ photos }: { photos: string[] }) {
+/**
+ * The cover's photographs: a hero band over a row of three, both full bleed.
+ *
+ * Butted to the masthead and to each other, with a 1.5 pt white gutter between
+ * the three — enough to read as three frames rather than one strip, and little
+ * enough that the row still reads as a band. Each is cropped to fill rather
+ * than fitted, so a portrait photograph does not open a white gap in a band
+ * whose whole point is that it has no edges.
+ */
+function CoverPhotos({ photos }: { photos: string[] }) {
   if (photos.length === 0) return null;
   const [hero, ...rest] = photos;
   const thumbs = rest.slice(0, 3);
   return (
-    <View style={s.gallery}>
-      <Image src={hero} style={s.hero} />
+    <>
+      <Image src={hero} style={h.coverHero} />
       {thumbs.length > 0 ? (
-        <View style={s.thumbRow}>
+        <View style={h.coverThumbRow}>
           {thumbs.map((p, i) => (
-            <Image key={i} src={p} style={s.thumb} />
+            <React.Fragment key={i}>
+              {i > 0 ? <View style={h.coverThumbGap} /> : null}
+              <Image src={p} style={h.coverThumb} />
+            </React.Fragment>
           ))}
         </View>
       ) : null}
-    </View>
+    </>
   );
 }
 
@@ -434,59 +438,81 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
       title={`Contrat de location saisonnière — ${data.reference}`}
       author={a.legalName}
     >
-      {/* Page 1 — the cover */}
-      <Page size="A4" style={h.page}>
-        <Masthead
-          titleEn="Seasonal Rental Agreement"
-          titleFr="Contrat de location Saisonnière"
-          reference={data.reference}
-        />
+      {/* Page 1 — the cover.
+          Three full-bleed bands and no footer: the page carries no padding of
+          its own and the agreement proper starts overleaf. See `coverPage`. */}
+      <Page size="A4" style={h.coverPage}>
+        <View style={h.coverBand}>
+          <View style={h.coverLogo}>
+            {/* Paper, not ink: the mark is on the dark ground here. */}
+            <BstayLogo width={160} height={47.7} color={paper} />
+          </View>
 
-        <View style={{ marginTop: 20 }}>
-          <Gallery photos={data.property.photos} />
+          <View style={h.coverHead}>
+            <View style={h.coverTitleWrap}>
+              <Text style={h.coverTitle}>Seasonal Rental Agreement</Text>
+              <Text style={h.coverSubtitle}>Contrat de location saisonnière</Text>
+            </View>
+            <View style={h.coverMeta}>
+              <Text style={h.coverMetaLabel}>Référence</Text>
+              <Text style={h.coverMetaValue}>{data.reference}</Text>
+            </View>
+          </View>
 
-          <View style={s.coverCard}>
-            <View>
-              <Cap en="Property" fr="Bien loué" />
-              <Text style={h.name}>{data.property.name}</Text>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
-              <Cap en="Tenant" fr="Locataire" />
-              <Text style={[h.name, { textAlign: "right" }]}>{t.name}</Text>
-            </View>
+          <View style={h.coverRule} />
+
+          {/* What the agreement is about, in one line: which property, for
+              whom, and when. The dates are joined by an arrow rather than
+              labelled — the pair reads as a span without a word for it. */}
+          <View style={h.coverFoot}>
+            <Text style={h.coverFootText}>
+              {data.property.name} — {t.name}
+            </Text>
+            <Text style={h.coverFootText}>
+              {data.stay.checkIn} → {data.stay.checkOut}
+            </Text>
           </View>
         </View>
 
-        <Footer a={a} />
+        <CoverPhotos photos={data.property.photos} />
       </Page>
 
-      {/* Page 2 — the parties and the property */}
+      {/* Page 2 — the parties and the property.
+          On the tightened scale throughout: the tenant and the property have
+          to be set out one under the other here, and article 2 opens on a
+          marker bound to its card that misses the page by some seven points.
+          See TIGHT_GAP — this is the only page that uses it. */}
       <Page size="A4" style={h.page}>
         <Prose clause={data.clauses.preamble} />
 
-        <View style={h.section}>
-          <Section first en="1 - Parties" />
+        <View style={h.sectionTight}>
+          <Section first en="1 - Parties" tight />
         </View>
 
-        <SubHeading first en="1.1 The Agent" fr="Le Mandataire" />
-        <View style={{ marginTop: GAP }}>
+        <SubHeading first en="1.1 The Agent" fr="Le Mandataire" tight />
+        <View style={{ marginTop: TIGHT_GAP }}>
           <Prose clause={data.clauses.agent} />
         </View>
 
-        <SubHeading en="1.2 The Tenant" fr="Le Locataire" />
-        <View style={[h.card, { marginTop: GAP }]} wrap={false}>
+        <SubHeading en="1.2 The Tenant" fr="Le Locataire" tight />
+        <View style={[h.cardTight, { marginTop: TIGHT_GAP }]} wrap={false}>
           <Cap en="Full name" fr="Nom complet" />
           <Text style={h.name}>{t.name}</Text>
-          <View style={{ marginTop: GAP }}>
+          <View style={{ marginTop: TIGHT_GAP }}>
             {t.details.map((d, i) => (
               <InfoRow key={i} label={d.label} value={d.value} />
             ))}
           </View>
         </View>
 
-        <Section en="2 - The Property" fr="Le bien">
-          <TitledBlock first en="2.1 Property informations" fr="Informations du bien">
-            <View style={[h.card, { marginTop: GAP }]} wrap={false}>
+        <Section en="2 - The Property" fr="Le bien" tight>
+          <TitledBlock
+            first
+            en="2.1 Property informations"
+            fr="Informations du bien"
+            tight
+          >
+            <View style={[h.cardTight, { marginTop: TIGHT_GAP }]} wrap={false}>
               <View style={{ flexDirection: "row", gap: GAP }}>
                 <View style={{ flexShrink: 1 }}>
                   <Cap en="Type & reference" fr="Type & référence" />
@@ -499,7 +525,7 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
                   </Text>
                 </View>
               </View>
-              <View style={{ marginTop: GAP }}>
+              <View style={{ marginTop: TIGHT_GAP }}>
                 {data.property.details.map((d, i) => (
                   <InfoRow key={i} label={d.label} value={d.value} />
                 ))}
@@ -508,11 +534,12 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           </TitledBlock>
         </Section>
 
-        <Footer a={a} />
-      </Page>
-
-      {/* Page 3 — the property described */}
-      <Page size="A4" style={h.page}>
+        {/* The property carries on here rather than on a page of its own.
+            Section 2 opens on an indivisible marker-plus-card about 195 pt
+            tall and the parties leave roughly 190 of them, so it was always
+            pushed over — and, with a page break right behind it, sat alone on
+            an otherwise empty page. Left to flow, whatever follows comes up
+            with it and fills the page out. */}
         <SubHeading en="2.2 Property description" fr="Description du bien" />
         <View style={{ marginTop: GAP }}>
           <Description description={data.property.description} />
@@ -533,12 +560,10 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           <Prose clause={data.clauses.photographs} />
         </View>
 
-        <Footer a={a} />
-      </Page>
-
-      {/* Page 4 — how the property was presented, and the terms */}
-      <Page size="A4" style={h.page}>
-        <Section first en="3 - Property presentation" fr="Présentation du bien" />
+        {/* Same reasoning: the body is one flow. Fixed breaks between
+            articles only pushed indivisible blocks over and left the page
+            they came from half empty. */}
+        <Section en="3 - Property presentation" fr="Présentation du bien" />
         <Prose clause={data.clauses.presentation} />
 
         <View style={[h.card, { marginTop: GAP }]} wrap={false}>
@@ -638,6 +663,20 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
         />
 
         <SubHeading en="4.3 Charges" />
+        {/* Bound, unlike the stay amount above, and on purpose. The two cards
+            are a comparison — what is included against what is not — and the
+            comparison is the reason they are side by side; split across a page
+            it stops being one. Two columns also break badly, each running to
+            its own depth and leaving the pair out of step.
+
+            It carries the same ceiling every bound block does: measured, the
+            row survives about sixty lines in its taller column and loses its
+            contents past roughly eighty. The included side comes from the
+            property's own list of included services, which is typed by hand
+            and runs to a dozen, so the ceiling sits far outside anything the
+            data can produce. Said here so it is a known limit rather than a
+            surprise — if that list ever becomes machine-filled, this block
+            needs the treatment the stay amount got. */}
         <View style={[h.row, { marginTop: GAP }]} wrap={false}>
           {/* Only when the property actually lists them; a heading over an
               empty card reads as an omission rather than "nothing included". */}
@@ -730,8 +769,13 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           <Prose clause={data.clauses.financialSummary} />
         </View>
 
-        <TitledBlock en="Stay amount" fr="Montant du séjour">
-          <View style={{ marginTop: GAP }} wrap={false}>
+        {/* The one money block whose height is not fixed: a booking may carry
+            any number of billed services. Breakable for that reason — see
+            TitledBlock — and the rows are free to split between pages because
+            each carries its own label, so a continuation reads on its own
+            without a header repeated above it. */}
+        <TitledBlock breakable en="Stay amount" fr="Montant du séjour">
+          <View style={{ marginTop: GAP }}>
             <MoneyRow en="Rent" fr="Loyer" amount={data.money.rent} />
             {data.money.vat ? (
               <MoneyRow
@@ -744,19 +788,24 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
             {data.money.services.map((sv, i) => (
               <MoneyRow key={i} en={sv.label} note="*" amount={sv.amount} />
             ))}
-            <MoneyRow
-              en="Tourist tax"
-              fr="Taxe de séjour"
-              {...(data.money.touristTaxBasis
-                ? { note: `(${data.money.touristTaxBasis})` }
-                : {})}
-              amount={data.money.touristTax}
-            />
-            <MoneyTotal
-              en="Total stay amount (excluding security deposit)"
-              fr="Total (sans caution)"
-              amount={data.money.total}
-            />
+            {/* The two that may not be parted: a total alone at the top of a
+                page is a figure with nothing behind it, and the tourist tax is
+                the last line it sums. */}
+            <View wrap={false}>
+              <MoneyRow
+                en="Tourist tax"
+                fr="Taxe de séjour"
+                {...(data.money.touristTaxBasis
+                  ? { note: `(${data.money.touristTaxBasis})` }
+                  : {})}
+                amount={data.money.touristTax}
+              />
+              <MoneyTotal
+                en="Total stay amount (excluding security deposit)"
+                fr="Total (sans caution)"
+                amount={data.money.total}
+              />
+            </View>
           </View>
         </TitledBlock>
         {data.money.services.length > 0 ? (
@@ -870,7 +919,7 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           <Prose clause={data.clauses.validity} />
         </View>
 
-        <Footer a={a} />
+        <Footer a={a} reference={data.reference} />
       </Page>
 
       {/* Governing law and the signatures that close the agreement. */}
@@ -882,19 +931,39 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
         />
         <Prose clause={data.clauses.governingLaw} />
 
-        <Section en="9 - Signatures" />
+        <Section en="9 - Signatures of the parties" fr="Signatures des parties" />
         <Prose clause={data.clauses.signatures} />
 
         <Text style={[s.para, { marginTop: GAP }]}>
           Fait à {data.place}, le {data.date}.
         </Text>
 
+        {/* Both columns carry the same structure, and the block below each box
+            holds the same height whether or not it is filled.
+            
+            Before, the tenant's side stopped at a name while the agent's ran on
+            with a representative, so two identical boxes sat over two unequal
+            columns and the client's half read as unfinished. A tenant that is a
+            company has a representative too, and it is printed; an individual
+            signs for themself, and the space stays reserved rather than closing
+            up. Nothing is invented to fill it — the symmetry comes from the
+            layout, not from the data. */}
         <View style={s.signRow} wrap={false}>
           <View style={{ flex: 1 }}>
             <View style={s.signBox} />
             <View style={s.signMeta}>
               <Cap en="The Tenant" fr="le Locataire" />
               <Text style={s.signName}>{t.name}</Text>
+              {t.representative ? (
+                <>
+                  <View style={{ marginTop: LABEL_GAP }}>
+                    <Cap en="Represented by" fr="Représenté par" />
+                  </View>
+                  <Text style={[h.infoValue, { marginTop: GAP }]}>
+                    {[t.representative, t.capacity].filter(Boolean).join(", ")}
+                  </Text>
+                </>
+              ) : null}
             </View>
           </View>
           <View style={{ flex: 1 }}>
@@ -912,7 +981,7 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           </View>
         </View>
 
-        <Footer a={a} />
+        <Footer a={a} reference={data.reference} initials={false} />
       </Page>
     </Document>
   );

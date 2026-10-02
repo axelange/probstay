@@ -1,12 +1,16 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ProbstayLogo } from "@/components/probstay-logo";
 import {
   Building2,
   CalendarDays,
   FileText,
+  HandCoins,
   Inbox,
+  PackageSearch,
   LayoutDashboard,
   type LucideIcon,
   Receipt,
@@ -38,6 +42,8 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   calendar: CalendarDays,
   documents: FileText,
   invoices: Receipt,
+  fundCalls: HandCoins,
+  catalog: PackageSearch,
   users: UsersRound,
   settings: Settings,
 };
@@ -45,19 +51,41 @@ const ICONS: Record<NavIcon, LucideIcon> = {
 export function AppSidebar({ sections }: { sections: NavSection[] }) {
   const pathname = usePathname();
 
+  // The most specific matching item, and only that one: /documents holds
+  // three routes beneath it, so a plain startsWith would highlight the
+  // section's parent alongside the page actually open.
+  const activeHref = React.useMemo(() => {
+    const matches = sections
+      .flatMap((section) => section.items)
+      .filter((item) =>
+        item.href === "/"
+          ? pathname === "/"
+          : pathname === item.href || pathname.startsWith(`${item.href}/`)
+      );
+    return matches.reduce(
+      (longest, item) => (item.href.length > longest.length ? item.href : longest),
+      ""
+    );
+  }, [sections, pathname]);
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <Link
           href="/"
-          className="focus-visible:ring-ring flex items-center gap-2 rounded-md px-2 py-1.5 focus-visible:ring-2 focus-visible:outline-none"
+          className="focus-visible:ring-ring flex items-center rounded-md px-2 py-1.5 focus-visible:ring-2 focus-visible:outline-none"
+          aria-label="PROBSTAY — accueil"
         >
-          <div className="bg-sidebar-primary text-sidebar-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold">
-            BP
-          </div>
-          <span className="font-heading truncate font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
-            BSTAY PRO
-          </span>
+          {/* The wordmark when there is room for it, the monogram alone
+              when the rail is collapsed to icons. */}
+          <ProbstayLogo className="h-5 w-auto group-data-[collapsible=icon]:hidden" />
+          {/* A size up on the wordmark: the monogram's interlocking strokes
+              close into a blot at 20px, and the collapsed rail is a square it
+              can afford to fill. */}
+          <ProbstayLogo
+            mark
+            className="hidden h-6 w-auto group-data-[collapsible=icon]:block"
+          />
         </Link>
       </SidebarHeader>
 
@@ -71,11 +99,7 @@ export function AppSidebar({ sections }: { sections: NavSection[] }) {
               <SidebarMenu>
                 {section.items.map((item) => {
                   const Icon = ICONS[item.icon];
-                  // "/" would otherwise match every route.
-                  const isActive =
-                    item.href === "/"
-                      ? pathname === "/"
-                      : pathname.startsWith(item.href);
+                  const isActive = item.href === activeHref;
 
                   return (
                     <SidebarMenuItem key={item.href}>

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase-server";
+import { normalizeFileName } from "@/lib/uploads";
 import { canManageRental } from "@/features/rentals/services/rental-service";
 
 const BUCKET = "expense-receipts";
@@ -77,5 +78,9 @@ export async function uploadExpenseReceipt(
     console.error("uploadExpenseReceipt failed", error);
     return { status: "error", message: "Envoi impossible." };
   }
-  return { status: "success", storagePath, fileName: file.name };
+  return {
+    status: "success",
+    storagePath,
+    fileName: normalizeFileName(file.name),
+  };
 }

@@ -113,7 +113,7 @@ export default async function PropertyDetailPage({
           lookup key, so it sits small and grey in the corner. */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <h2 className="truncate text-xl font-semibold tracking-tight">
+          <h2 className="page-title truncate normal-case">
             {property.marketingName ?? property.city ?? "Sans nom"}
           </h2>
           <span className="text-muted-foreground text-sm">
