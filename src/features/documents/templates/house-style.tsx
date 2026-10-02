@@ -434,23 +434,41 @@ export const h = StyleSheet.create({
     borderTopWidth: 0.5,
     borderTopColor: rule,
     paddingTop: GAP,
+    height: 48.5,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
-  // Holds the mark's place inside the footer, which is drawn on its own layer
-  // just below — see Footer.
-  // Reserves the box the absolutely-positioned monogram occupies, so the legal
-  // lines clear it — wider than the mark by one GAP, which is the clearance
-  // itself. The mark it replaces could get away with reserving its own width
-  // exactly: the old B sat inside its artboard with white around it. This one
-  // is an octagon that runs to all four edges of a square viewBox, so its ink
-  // ends where the box ends, and text set flush against that box touches the
-  // outline. The gap has to be added here rather than taken from the drawing.
+  // The mark, in the flow of the footer rather than on a layer of its own.
+  //
+  // It used to be positioned absolutely at the same `bottom: 48` as the footer,
+  // which held only while the two boxes were the same height. They are not: the
+  // footer grows upward with its content, so the day the right-hand column
+  // gained a line the text rose and the mark stayed where it was, a dozen
+  // points adrift. Anchoring two boxes to the same edge does not align their
+  // opposite edges — putting the mark in the row does.
+  //
+  // The margin is the clearance the drawing does not provide: the monogram is
+  // an octagon that runs to all four edges of its viewBox, so its ink ends
+  // where its box ends and text set flush against it touches the outline.
+  // The box is stated, not left to the row. Put in the flow without one, the
+  // mark was handed whatever width the flex distribution left and came out
+  // squashed into diagonal strokes — an Svg stretches to its container, and a
+  // container with no width in a row has none of its own.
+  // Reserves the mark's box in the row, the mark itself being drawn on the
+  // layer below. Wider than the mark by one GAP, which is the clearance the
+  // drawing does not provide: the monogram is an octagon running to all four
+  // edges of its viewBox, so its ink ends where its box ends and text set
+  // flush against it touches the outline.
   footMono: { width: 38 + GAP, height: 38 },
-  // That layer. Same anchor as the footer, and the rule's 0.5 pt folded into
-  // the padding rather than restated as a transparent border — a border set to
-  // "transparent" still darkened the hairline where the two overlapped.
+  // The layer. Both it and the footer are anchored to `bottom: 48`, which
+  // aligns their bottoms and says nothing about their tops — and the top is
+  // where the mark has to meet the first legal line. The footer used to take
+  // whatever height its content wanted, so the day the right-hand column
+  // gained a line the text rose and the mark stayed, a dozen points adrift.
+  // Stating the height is what makes the two agree: 10 of padding over 38.5 of
+  // content, which is the four agency lines at 8 pt, and the same 48.5 this
+  // layer stands at.
   footMonoLayer: {
     position: "absolute",
     bottom: 48,
@@ -459,6 +477,16 @@ export const h = StyleSheet.create({
   },
   footLine: { fontSize: 8, color: grey, lineHeight: LH },
   footRight: { width: 170.5, alignItems: "flex-end" },
+  // Reference and page on one line, not stacked.
+  //
+  // Stacked, they read as one cramped block — and the stack made this column
+  // taller than the four legal lines opposite, which is what pushed the footer
+  // upward and left the mark behind. One line answers both: which document,
+  // then where in it, separated rather than piled.
+  footIdentity: { flexDirection: "row", alignItems: "baseline" },
+  // Its own element rather than a character glued to the reference: inside the
+  // string the trailing space collapsed and the two ran together.
+  footIdentitySep: { fontSize: 8, color: grey, marginHorizontal: 4, lineHeight: LH },
   // The reference carries the ink while the rest of the footer stays grey: it
   // is the one thing down here that identifies the document rather than the
   // agency, and it has to be findable at a glance on a loose page.
@@ -469,14 +497,13 @@ export const h = StyleSheet.create({
     color: ink,
     lineHeight: LH,
     textAlign: "right",
-    marginBottom: 1.5,
   },
   footPage: { fontSize: 8, color: grey, lineHeight: LH, textAlign: "right" },
   footInitialsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    marginTop: 12,
+    marginTop: GAP,
   },
   footInitialsLabel: {
     fontSize: 7,
@@ -761,9 +788,13 @@ export function Footer({
   return (
     <>
       <View style={h.footMonoLayer} fixed>
+        {/* On its own layer, outside the footer's `render`. Inside it the mark
+            drew at its viewBox scale and overflowed its box — react-pdf does
+            not resolve an Svg's viewBox within a render callback, and no width
+            on the element or its container changes that. */}
         {/* The same grey as the lines beside it. At full ink the mark was the
-            heaviest thing on the page, outweighing the agreement above it —
-            a footer signs the page, it does not announce it. */}
+            heaviest thing on the page, outweighing the agreement above it — a
+            footer signs the page, it does not announce it. */}
         <BstayMonogram width={38} height={38} color={grey} />
       </View>
       <View
@@ -795,17 +826,20 @@ export function Footer({
               <View style={h.footRight}>
                 {/* Identity before pagination: which agreement, then where in
                     it. A page number alone answers the less useful question. */}
-                {reference ? (
-                  <Text style={h.footReference}>
-                    {reference}
-                    {templateVersion !== undefined ? (
-                      <Text style={h.footLine}> · modèle v{templateVersion}</Text>
-                    ) : null}
+                <View style={h.footIdentity}>
+                  {reference ? (
+                    <Text style={h.footReference}>
+                      {reference}
+                      {templateVersion !== undefined ? (
+                        <Text style={h.footLine}> · v{templateVersion}</Text>
+                      ) : null}
+                    </Text>
+                  ) : null}
+                  {reference ? <Text style={h.footIdentitySep}>·</Text> : null}
+                  <Text style={h.footPage}>
+                    Page {pageNumber}/{totalPages}
                   </Text>
-                ) : null}
-                <Text style={h.footPage}>
-                  Page {pageNumber}/{totalPages}
-                </Text>
+                </View>
                 {/* Not on the signed page. Initials attest that a page was
                     read; the page carrying the signatures is attested by the
                     signatures themselves, and a box asking to initial what you

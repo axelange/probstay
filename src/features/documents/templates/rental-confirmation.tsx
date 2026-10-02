@@ -87,75 +87,41 @@ export type ConfirmationData = {
 // Two brand colours and the five-step grey ramp, as house-style states them.
 // Restated here rather than imported because this template already keeps its
 // own copy of the scale — see the note above; both must move together.
-const ink = "#111110";
-const paper = "#f0ede8";
-const rule = "#c3c1bd"; // Gris 20 — hairlines
-const grey = "#6a6966"; // Gris 60 — secondary copy
-const cardBg = "#dad7d2"; // Gris 10 — data cards
 
-const TITLE = "Albertus Nova";
-const BODY = "Archivo";
 
 // Bundled PNGs. On the server read from disk (absolute path); in the browser
 // served from /public. No node import so this also bundles for the preview.
 // The marks are drawn as vector, not placed as PNGs — the lettering is
 // hairline and a raster of it goes grey at these sizes. See ./logo.
-import { BstayLogo, BstayMonogram } from "@/features/documents/templates/logo";
+import { BstayLogo } from "@/features/documents/templates/logo";
+import {
+  Cap,
+  Footer,
+  Section,
+  h,
+  ink,
+  grey,
+  cardBg,
+  BLOCK,
+  GAP,
+  LABEL_GAP,
+  PAIR_GAP,
+  LH,
+  TITLE,
+} from "@/features/documents/templates/house-style";
 
 // The frame's spacing scale, halved: 40 px gaps between top-level blocks, 20 px
 // inside a section, 14 px between a label and its value, 10 px between the two
 // lines of a value pair.
-const BLOCK = 20;
-const GAP = 10;
-const LABEL_GAP = 7;
-const PAIR_GAP = 5;
 
 // The master's `leading: normal` measures 1.2 on every text node (a 58 px title
 // occupies 70 px, a 16 px label 20 px). It has to be repeated on each text
 // style rather than inherited from the page: inside a row, react-pdf measures a
 // Text without the cascaded line height and collapses it onto the next line.
-const LH = 1.2;
 
 const s = StyleSheet.create({
-  page: {
-    paddingTop: 50,
-    // The fixed footer's top edge is 99 pt off the bottom. Content stops 10 pt
-    // (20 px) above it rather than against it, so a last line never sits on
-    // the gold rule.
-    paddingBottom: 109,
-    paddingHorizontal: 50,
-    fontFamily: BODY,
-    fontWeight: 400,
-    fontSize: 10,
-    lineHeight: 1.2,
-    color: ink,
-  },
 
-  // Masthead — page 1 only, in flow (no logo repeats on later pages).
-  logoWrap: { alignItems: "center", marginBottom: 40 },
-  logo: { width: 75, height: 82.5 },
 
-  head: { flexDirection: "row", alignItems: "flex-end" },
-  headTitle: {
-    fontFamily: TITLE,
-    fontWeight: 200,
-    fontSize: 29,
-    color: ink,
-    lineHeight: LH,
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-  },
-  headSub: { fontFamily: TITLE, fontWeight: 200, fontSize: 15, color: ink, lineHeight: LH },
-  headMeta: { flex: 1, alignItems: "flex-end" },
-  headMetaLabel: {
-    fontSize: 7.5,
-    color: grey,
-    letterSpacing: 0.75,
-    textTransform: "uppercase",
-    lineHeight: LH,
-    marginBottom: LABEL_GAP + 0.5,
-  },
-  headMetaVal: { fontFamily: BODY, fontWeight: 500, fontSize: 15, color: ink, lineHeight: LH },
 
   intro: { marginTop: BLOCK },
   introEn: { fontSize: 10, color: ink, lineHeight: LH },
@@ -167,59 +133,13 @@ const s = StyleSheet.create({
     marginTop: PAIR_GAP,
   },
 
-  // Section marker: gold label + grey-italic French + a full-width hairline.
-  section: { marginTop: BLOCK },
-  sectionRow: { flexDirection: "row" },
-  sectionEn: {
-    fontSize: 10,
-    color: ink,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    lineHeight: LH,
-  },
-  sectionFr: {
-    fontSize: 10,
-    color: grey,
-    fontStyle: "italic",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    lineHeight: LH,
-    marginLeft: GAP,
-  },
-  sectionRule: { height: 0.5, backgroundColor: rule, marginTop: GAP, marginBottom: GAP },
-  headRule: { height: 0.5, backgroundColor: rule, marginTop: GAP },
 
-  // Cards — flat, square, no border.
-  card: { backgroundColor: cardBg, paddingHorizontal: 12, paddingVertical: 9.5 },
   cardBordered: { borderWidth: 0.5, borderColor: grey, paddingHorizontal: 12, paddingVertical: 9.5 },
-  row: { flexDirection: "row", gap: GAP },
 
-  // Grey caps label ("EN / fr")
-  cap: {
-    fontSize: 8,
-    color: grey,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    lineHeight: LH,
-  },
-  capFr: { fontStyle: "italic" },
 
-  name: {
-    fontFamily: BODY,
-    fontWeight: 500,
-    fontSize: 14,
-    color: ink,
-    lineHeight: LH,
-    marginTop: LABEL_GAP,
-  },
   detailVal: { fontSize: 10, color: ink, lineHeight: LH },
   detailMuted: { fontSize: 10, color: grey, lineHeight: LH, marginTop: PAIR_GAP },
 
-  // Structured label/value row (tenant informations) — the label runs inline
-  // with its value rather than in a fixed column, as drawn.
-  infoRow: { flexDirection: "row", alignItems: "baseline", marginTop: LABEL_GAP },
-  infoLabel: { marginRight: 6 },
-  infoValue: { fontSize: 10, color: ink, lineHeight: LH },
 
   // Stay
   statCard: {
@@ -229,9 +149,13 @@ const s = StyleSheet.create({
     alignItems: "center",
     flexShrink: 0,
   },
+  // Albertus Thin, like every value on the agreement: the stay's figures are
+  // what a reader comes to this page for, and setting them in the title face
+  // is what tells them apart from the labels above them now that weight alone
+  // no longer does it.
   statVal: {
-    fontFamily: BODY,
-    fontWeight: 500,
+    fontFamily: TITLE,
+    fontWeight: 200,
     fontSize: 14,
     color: ink,
     lineHeight: LH,
@@ -288,10 +212,6 @@ const s = StyleSheet.create({
   payDueVal: { fontSize: 10, color: ink, lineHeight: LH, marginTop: LABEL_GAP },
   note: { marginTop: GAP, gap: PAIR_GAP },
 
-  // Prose (justified)
-  paraEn: { fontSize: 10, color: ink, lineHeight: LH },
-  paraFr: { fontSize: 10, color: grey, fontStyle: "italic", lineHeight: LH },
-  proseGroup: { gap: PAIR_GAP },
 
   // Signatures. The ruled boxes are 238 px tall in the master and sit 52 px
   // below the e-signature prose; the caption beneath each one is the master's
@@ -300,8 +220,8 @@ const s = StyleSheet.create({
   signBox: { borderWidth: 0.5, borderColor: grey, height: 119 },
   signMeta: { alignItems: "center", marginTop: 9.5 },
   signName: {
-    fontFamily: BODY,
-    fontWeight: 500,
+    fontFamily: TITLE,
+    fontWeight: 200,
     fontSize: 14,
     color: ink,
     lineHeight: LH,
@@ -316,112 +236,8 @@ const s = StyleSheet.create({
     textAlign: "center",
   },
 
-  // Footer (fixed): monogram · legal · page + initials, under a gold hairline.
-  // It sits 743 pt down the page in the master, i.e. 48 pt off the bottom edge.
-  // Kept as one flat row — nesting the row inside a wrapper stops react-pdf
-  // resolving the `render` page number and drops its siblings.
-  footer: {
-    position: "absolute",
-    bottom: 48,
-    left: 50,
-    right: 50,
-    borderTopWidth: 0.5,
-    borderTopColor: rule,
-    paddingTop: GAP,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  // Spacer inside the footer; the mark itself is drawn on the layer below.
-  // Reserves the box the absolutely-positioned monogram occupies, so the legal
-  // lines clear it — wider than the mark by one GAP, which is the clearance
-  // itself. The mark it replaces could get away with reserving its own width
-  // exactly: the old B sat inside its artboard with white around it. This one
-  // is an octagon that runs to all four edges of a square viewBox, so its ink
-  // ends where the box ends, and text set flush against that box touches the
-  // outline. The gap has to be added here rather than taken from the drawing.
-  footMono: { width: 38 + GAP, height: 38 },
-  // The rule's 0.5 pt is folded into the padding, not restated as a
-  // transparent border — that darkened the hairline where the layers met.
-  footMonoLayer: {
-    position: "absolute",
-    bottom: 48,
-    left: 50,
-    paddingTop: GAP + 0.5,
-  },
-  footLine: { fontSize: 8, color: grey, lineHeight: LH },
-  footRight: { width: 170.5, alignItems: "flex-end" },
-  footPage: { fontSize: 8, color: grey, lineHeight: LH, textAlign: "right" },
-  footInitialsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    marginTop: 12,
-  },
-  footInitialsLabel: {
-    fontSize: 7,
-    color: grey,
-    letterSpacing: 0.7,
-    textTransform: "uppercase",
-    lineHeight: LH,
-    marginRight: LABEL_GAP,
-  },
-  footInitialsBox: { width: 59.5, height: 18, borderWidth: 0.5, borderColor: grey },
 });
 
-/**
- * Grey caps label rendered as "EN / fr". The master sets the French half in
- * italic on the party and stay cards but leaves it upright on the property
- * card and the tenant heading, so the caller says which.
- */
-function Cap({
-  en,
-  fr,
-  italicFr = true,
-}: {
-  en: string;
-  fr?: string;
-  italicFr?: boolean;
-}) {
-  if (!fr) return <Text style={s.cap}>{en}</Text>;
-  return (
-    <Text style={s.cap}>
-      {en} / <Text style={italicFr ? [s.cap, s.capFr] : s.cap}>{fr}</Text>
-    </Text>
-  );
-}
-
-/**
- * Section marker: gold label, French caption, full-width hairline. `first`
- * drops the leading block gap so a section opening a page sits flush on the
- * top margin, the way each frame in the master starts.
- */
-function Section({
-  en,
-  fr,
-  first,
-}: {
-  en: string;
-  fr: string;
-  first?: boolean;
-}) {
-  return (
-    <View
-      style={first ? undefined : s.section}
-      wrap={false}
-      // A heading alone at the foot of a page announces something the reader
-      // has to turn over to find. Only bites when content has overflowed its
-      // frame, since each section here opens a page of its own.
-      minPresenceAhead={60}
-    >
-      <View style={s.sectionRow}>
-        <Text style={s.sectionEn}>{en}</Text>
-        <Text style={s.sectionFr}>{fr}</Text>
-      </View>
-      <View style={s.sectionRule} />
-    </View>
-  );
-}
 
 /** A bilingual prose block. `join` merges the sentences into one paragraph. */
 function Prose({
@@ -438,23 +254,23 @@ function Prose({
   // collapses to a single paragraph per language.
   return (
     <View style={{ gap: join ? PAIR_GAP : LABEL_GAP }}>
-      <View style={s.proseGroup}>
+      <View style={h.proseGroup}>
         {join ? (
-          <Text style={s.paraEn}>{en.join(" ")}</Text>
+          <Text style={h.paraEn}>{en.join(" ")}</Text>
         ) : (
           en.map((p, i) => (
-            <Text key={`e${i}`} style={s.paraEn}>
+            <Text key={`e${i}`} style={h.paraEn}>
               {p}
             </Text>
           ))
         )}
       </View>
-      <View style={s.proseGroup}>
+      <View style={h.proseGroup}>
         {join ? (
-          <Text style={s.paraFr}>{fr.join(" ")}</Text>
+          <Text style={h.paraFr}>{fr.join(" ")}</Text>
         ) : (
           fr.map((p, i) => (
-            <Text key={`f${i}`} style={s.paraFr}>
+            <Text key={`f${i}`} style={h.paraFr}>
               {p}
             </Text>
           ))
@@ -477,60 +293,6 @@ function ServiceItem({ it }: { it: Bilingual }) {
   );
 }
 
-/**
- * Monogram · legal · page + initials, pinned to the bottom of every page.
- *
- * Two layers, for the reasons set out on the same footer in house-style: the
- * counter needs the callback (a `Text` with its own `render` disappears under
- * an inherited lineHeight), and the mark needs to be outside it (a Svg built
- * by a callback is never measured, so it draws at 75×92 pt and is clipped).
- */
-function Footer({ a }: { a: ConfirmationData["agency"] }) {
-  return (
-    <>
-      <View style={s.footMonoLayer} fixed>
-        <BstayMonogram width={38} height={38} />
-      </View>
-      <View
-        style={s.footer}
-        fixed
-        render={(props) => {
-          const { pageNumber, totalPages } = props as typeof props & {
-            totalPages?: number;
-          };
-          return (
-            <>
-              <View style={s.footMono} />
-              <View>
-                <Text style={s.footLine}>
-                  {a.legalName} — {a.address}
-                </Text>
-                <Text style={s.footLine}>
-                  {a.rcs} — {a.cartePro}
-                </Text>
-                <Text style={s.footLine}>
-                  {a.garantieFinanciere} — {a.rcp}
-                </Text>
-                <Text style={s.footLine}>
-                  {a.web} — {a.phone}
-                </Text>
-              </View>
-              <View style={s.footRight}>
-                <Text style={s.footPage}>
-                  Page {pageNumber}/{totalPages}
-                </Text>
-                <View style={s.footInitialsRow}>
-                  <Text style={s.footInitialsLabel}>Initials / Paraphes</Text>
-                  <View style={s.footInitialsBox} />
-                </View>
-              </View>
-            </>
-          );
-        }}
-      />
-    </>
-  );
-}
 
 /**
  * Three fixed pages, one per frame in the master, rather than a single flowing
@@ -546,24 +308,24 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
       author={a.legalName}
     >
       {/* Page 1 — masthead, parties & property, stay */}
-      <Page size="A4" style={s.page}>
+      <Page size="A4" style={h.page}>
         {/* Masthead (page 1, in flow) */}
-        <View style={s.logoWrap}>
+        <View style={h.logoWrap}>
           <BstayLogo width={170} height={50.7} />
         </View>
-        <View style={s.head}>
+        <View style={h.head}>
           <View>
-            <Text style={s.headTitle}>Rental Confirmation</Text>
-            <Text style={s.headSub}>Confirmation de location</Text>
+            <Text style={h.headTitle}>Rental Confirmation</Text>
+            <Text style={h.headSub}>Confirmation de location</Text>
           </View>
           {data.reference ? (
-            <View style={s.headMeta}>
-              <Text style={s.headMetaLabel}>Référence</Text>
-              <Text style={s.headMetaVal}>{data.reference}</Text>
+            <View style={h.headMeta}>
+              <Text style={h.headMetaLabel}>Référence</Text>
+              <Text style={h.headMetaVal}>{data.reference}</Text>
             </View>
           ) : null}
         </View>
-        <View style={s.headRule} />
+        <View style={h.headRule} />
 
         <View style={s.intro}>
           {data.intro.en.map((p, i) => (
@@ -580,10 +342,10 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
 
         {/* Parties & property */}
         <Section en="Parties & Property" fr="Parties & bien" />
-        <View style={s.row} wrap={false}>
-          <View style={[s.card, { flex: 1 }]}>
+        <View style={h.row} wrap={false}>
+          <View style={[h.card, { flex: 1 }]}>
             <Cap en="Owner" fr="Propriétaire" />
-            <Text style={s.name}>{data.owner.name}</Text>
+            <Text style={h.name}>{data.owner.name}</Text>
             {data.owner.representedBy ? (
               <View style={{ marginTop: GAP }}>
                 <Cap en="Represented by" fr="Représenté par" />
@@ -601,18 +363,18 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
             ) : null}
           </View>
 
-          <View style={[s.card, { flex: 1 }]}>
+          <View style={[h.card, { flex: 1 }]}>
             <Cap en="Tenant" fr="Locataire" italicFr={false} />
-            <Text style={s.name}>{data.tenant.name}</Text>
+            <Text style={h.name}>{data.tenant.name}</Text>
             {data.tenant.details.length > 0 ? (
               <View style={{ marginTop: GAP }}>
                 <Cap en="Informations" />
                 {data.tenant.details.map((d, i) => (
-                  <View key={i} style={s.infoRow}>
-                    <View style={s.infoLabel}>
+                  <View key={i} style={h.infoRow}>
+                    <View style={h.infoLabel}>
                       <Cap en={d.label.en} fr={d.label.fr} />
                     </View>
-                    <Text style={s.infoValue}>{d.value}</Text>
+                    <Text style={h.infoValue}>{d.value}</Text>
                   </View>
                 ))}
               </View>
@@ -621,12 +383,12 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
         </View>
 
         <View
-          style={[s.card, { marginTop: GAP, flexDirection: "row", justifyContent: "space-between" }]}
+          style={[h.card, { marginTop: GAP, flexDirection: "row", justifyContent: "space-between" }]}
           wrap={false}
         >
           <View style={{ paddingRight: 12, flexShrink: 1 }}>
             <Cap en="Property" fr="Bien loué" italicFr={false} />
-            <Text style={s.name}>{data.property.name}</Text>
+            <Text style={h.name}>{data.property.name}</Text>
             <View style={{ marginTop: GAP }}>
               <Cap en="Adress" fr="Adresse" italicFr={false} />
               <Text style={[s.detailVal, { marginTop: LABEL_GAP }]}>
@@ -636,7 +398,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
           </View>
           <View style={{ alignItems: "flex-end", flexShrink: 0 }}>
             <Cap en="Security deposit" fr="Dépôt de garantie" italicFr={false} />
-            <Text style={[s.name, { textAlign: "right" }]}>
+            <Text style={[h.name, { textAlign: "right" }]}>
               {data.property.securityDeposit ?? "—"}
             </Text>
           </View>
@@ -644,34 +406,44 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
 
         {/* Rental period & occupancy */}
         <Section en="Rental Period and Occupancy" fr="Durée et occupation" />
-        <View style={s.row} wrap={false}>
+        {/* Three figures across, then the occupancy on a line of its own.
+        
+            It used to be the fourth card in this row, taking whatever width the
+            other three left it. That holds only while the value is short. It is
+            not a figure like the others: it reads "6 Guests / Occupants", and
+            a booking with children says "6 Guests / Occupants — incl. 2
+            children / dont 2 enfants". Squeezed into a quarter of the measure,
+            it wrapped and knocked the row out of line.
+        
+            A short figure and a bilingual sentence are not the same kind of
+            thing and do not belong in the same grid. The three dates and counts
+            share the row evenly; the sentence gets the full width, where it
+            fits on one line in either form. */}
+        <View style={h.row} wrap={false}>
           {[
             { en: "Check-in", fr: "Arrivée", v: data.stay.checkIn },
             { en: "Check-out", fr: "Départ", v: data.stay.checkOut },
             { en: "Nights", fr: "Nuitées", v: data.stay.nights },
           ].map((c) => (
-            <View key={c.en} style={s.statCard}>
+            <View key={c.en} style={[s.statCard, { flex: 1 }]}>
               <Cap en={c.en} fr={c.fr} />
               <Text style={s.statVal}>{c.v}</Text>
             </View>
           ))}
-          {/* Occupancy takes the remaining width, as in the master — where the
-              longest value ("4 Guests / Occupants") squeezes the card's own
-              padding from 24 px down to 18 px, i.e. 9 pt here. */}
-          <View style={[s.statCard, { flex: 1, flexShrink: 1, paddingHorizontal: 9 }]}>
-            <Cap en="Occupancy" fr="Occupation" />
-            <Text style={s.statVal}>{data.stay.occupancy}</Text>
-          </View>
+        </View>
+        <View style={[s.statCard, { marginTop: GAP }]} wrap={false}>
+          <Cap en="Occupancy" fr="Occupation" />
+          <Text style={s.statVal}>{data.stay.occupancy}</Text>
         </View>
 
-        <Footer a={a} />
+        <Footer a={a} reference={data.reference} />
       </Page>
 
       {/* Page 2 — services, money, cancellation */}
-      <Page size="A4" style={s.page}>
+      <Page size="A4" style={h.page}>
         <Section first en="Services" fr="Prestations" />
-        <View style={s.row} wrap={false}>
-          <View style={[s.card, { flex: 1 }]}>
+        <View style={h.row} wrap={false}>
+          <View style={[h.card, { flex: 1 }]}>
             <Cap en="Included in the rent" fr="Inclus dans le loyer" />
             <View style={s.svcList}>
               {data.services.included.map((it, i) => (
@@ -679,7 +451,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
               ))}
             </View>
           </View>
-          <View style={[s.card, { flex: 1 }]}>
+          <View style={[h.card, { flex: 1 }]}>
             <Cap en="Not included" fr="Non inclus" italicFr={false} />
             <View style={s.svcList}>
               {data.services.notIncluded.map((it, i) => (
@@ -714,9 +486,9 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
 
         {/* Payment terms */}
         <Section en="Payment Terms" fr="Conditions de paiement" />
-        <View style={s.row} wrap={false}>
+        <View style={h.row} wrap={false}>
           {data.payments.map((p, i) => (
-            <View key={i} style={[s.card, { flex: 1 }]}>
+            <View key={i} style={[h.card, { flex: 1 }]}>
               <Text style={s.payLabel}>
                 {p.label.en}
                 {p.label.fr ? (
@@ -732,11 +504,11 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
           ))}
         </View>
         <View style={s.note}>
-          <Text style={s.paraEn}>
+          <Text style={h.paraEn}>
             Payment to the Owner is subject to prior receipt of the corresponding
             funds from the Tenant.
           </Text>
-          <Text style={s.paraFr}>
+          <Text style={h.paraFr}>
             Le reversement au Propriétaire est subordonné à l&apos;encaissement
             préalable des fonds correspondants auprès du Locataire.
           </Text>
@@ -746,11 +518,11 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
         <Section en="Cancellation Policy" fr="Conditions d'annulation" />
         <Prose en={data.cancellation.en} fr={data.cancellation.fr} join />
 
-        <Footer a={a} />
+        <Footer a={a} reference={data.reference} />
       </Page>
 
       {/* Page 3 — framework, e-signature, signatures */}
-      <Page size="A4" style={s.page}>
+      <Page size="A4" style={h.page}>
         <Section first en="Contractual Framework" fr="Cadre contractuel" />
         <Prose en={data.framework.en} fr={data.framework.fr} />
 
@@ -789,7 +561,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
           </View>
         </View>
 
-        <Footer a={a} />
+        <Footer a={a} reference={data.reference} />
       </Page>
     </Document>
   );
