@@ -87,7 +87,17 @@ export const sampleContrat: ContratData = {
     rooms: "8 pièces dont 5 chambres",
     sleeps: "jusqu'à 10 personnes",
     photos: [],
-    includedCharges: ["Eau", "Électricité", "Internet (Wi-Fi)", "Ménage de fin de séjour"],
+    includedCharges: [
+      { en: "Eau" },
+      { en: "Électricité" },
+      { en: "Internet (Wi-Fi)" },
+      // From the booking, via the funnel's quick-add: bilingual, so the French
+      // half is set in italic grey like the column opposite.
+      {
+        en: "Bailiff check-in inspection",
+        fr: "État des lieux d'entrée par huissier",
+      },
+    ],
     details: [
       { label: { en: "Living area", fr: "Surface" }, value: "320 m²" },
       { label: { en: "Number of rooms, bedrooms", fr: "Nombre de pièces, chambres" }, value: "8 pièces, 5 chambres" },

@@ -213,6 +213,21 @@ export async function buildContratData(
   const tenant = rental.tenants[0]?.contact ?? null;
   const co = tenant?.company ?? null;
 
+  // A service label written "English / French", split back into the pair the
+  // charge cards print. The funnel's quick-add presets use that form, and an
+  // agent typing one by hand follows it; anything without the separator is
+  // English only, which is how the property's own list has always been.
+  //
+  // First separator wins: "Bailiff check-out inspection / État des lieux de
+  // sortie par huissier" has one, and a label whose French half contains
+  // another would otherwise lose everything past it.
+  const bilingual = (label: string): { en: string; fr?: string } => {
+    const at = label.indexOf(" / ");
+    return at === -1
+      ? { en: label.trim() }
+      : { en: label.slice(0, at).trim(), fr: label.slice(at + 3).trim() };
+  };
+
   // Loyer + billed (non-included) services + tourist tax → client total.
   const rent = n(rental.grossAmount);
   const billed = rental.services.filter((sv) => !sv.includedInStay);
@@ -307,7 +322,17 @@ export async function buildContratData(
     ),
     details: propertyDetails,
     // What the stay includes, as the agency maintains it on the property.
-    includedCharges: p.includedServices,
+    // The property's own list, then the booking's: a service recorded against
+    // this rental with "included" ticked is included in this rent, and was
+    // reaching the owner's confirmation but not the tenant's contract — so an
+    // entry inspection the agency bears appeared on neither side of the
+    // tenant's charge cards.
+    includedCharges: [
+      ...p.includedServices.map((label) => bilingual(label)),
+      ...rental.services
+        .filter((sv) => sv.includedInStay)
+        .map((sv) => bilingual(sv.label)),
+    ],
     // Blank lines separate paragraphs in the synced text; single newlines are
     // wrapping, not structure, so only blank lines split.
     description: {
@@ -462,9 +487,19 @@ export async function buildContratData(
   if (billed.length > 0) {
     const excluded = resolvedClauses.chargesExcluded;
     if (excluded) {
+      // Skipped when the clause already names it. The clause lists what the
+      // agency excludes from every rent and happens to name the bailiff's
+      // check-out inspection; a booking that also carries it as a billed
+      // service would otherwise print the line twice, once generically and
+      // once with its price. Matched on the English half, which is the part
+      // both spellings share — the French is the clause's own wording.
+      const named = new Set(excluded.en.map((item) => item.trim()));
+      const added = billed
+        .map((sv) => ({ ...bilingual(sv.label), amount: money(n(sv.amount)) }))
+        .filter((line) => !named.has(line.en));
       resolvedClauses.chargesExcluded = {
-        en: [...excluded.en, ...billed.map((sv) => `${sv.label} — ${money(n(sv.amount))}`)],
-        fr: [...excluded.fr, ...billed.map(() => "")],
+        en: [...excluded.en, ...added.map((l) => `${l.en} — ${l.amount}`)],
+        fr: [...excluded.fr, ...added.map((l) => l.fr ?? "")],
       };
     }
   }

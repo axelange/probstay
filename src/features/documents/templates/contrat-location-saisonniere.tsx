@@ -93,7 +93,13 @@ export type ContratData = {
      */
     photos: string[];
     /** What the stay includes, from the property's own list. */
-    includedCharges: string[];
+    /**
+     * What the rent covers, from the property's standing list and from the
+     * booking's own included services. Bilingual where the label carries both
+     * halves — the quick-add presets write "English / French" — and English
+     * only where it does not, which is how the property's list is kept.
+     */
+    includedCharges: { en: string; fr?: string }[];
     /** Labelled rows under the property card: area, rooms, occupancy. */
     details: { label: { en: string; fr?: string }; value: string }[];
     /**
@@ -691,7 +697,15 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
               <View style={{ marginTop: LABEL_GAP, gap: PAIR_GAP }}>
                 {data.property.includedCharges.map((c, i) => (
                   <Text key={i} style={h.paraEn}>
-                    {c}
+                    {c.en}
+                    {/* Same treatment as the excluded column opposite: the
+                        English carries the line, the French follows it in
+                        italic grey. The two cards sit side by side and are
+                        read against each other, so they cannot be set
+                        differently. */}
+                    {c.fr ? (
+                      <Text style={s.itemFr}> / {c.fr}</Text>
+                    ) : null}
                   </Text>
                 ))}
               </View>
