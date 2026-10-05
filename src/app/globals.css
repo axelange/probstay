@@ -58,97 +58,72 @@
 }
 
 :root {
-  /* The interface is white and the ink is #111110, with the brand's five greys
-     between them.
-
-       ink   #111110   Gris 80  #3e3d3b   Gris 40  #979592   Gris 10  #dad7d2
-       white #ffffff   Gris 60  #6a6966   Gris 20  #c3c1bd
-
-     White throughout — background, cards, popovers and the sidebar are the
-     same #ffffff, so the rail and the page it frames read as one surface.
-
-     Not the brand's off-white: #f0ede8 belongs to the printed communication
-     and appears nowhere in this file. It is still the ground the grey ramp was
-     mixed against — which is why these greys are warm rather than neutral, and
-     why they sit correctly on white — but the mixing happened once, when the
-     ramp was drawn. The interface paints the result, never the ingredient. */
-  --background: #ffffff;
-  --foreground: #111110;
-  --card: #ffffff;
-  --card-foreground: #111110;
-  --popover: #ffffff;
-  --popover-foreground: #111110;
-  --primary: #111110;
-  --primary-foreground: #ffffff;
-  --secondary: #dad7d2;
-  --secondary-foreground: #111110;
-  --muted: #dad7d2;
-  --muted-foreground: #6a6966;
-  --accent: #dad7d2;
-  --accent-foreground: #111110;
-  /* The one hue left in the interface, and deliberately. "No colour" is a
-     statement about the brand, not about a confirmation dialog: an irreversible
-     action signalled in grey is signalled to nobody, and this is the only place
-     where losing the signal costs a user their data. */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #c3c1bd;
-  --input: #c3c1bd;
-  --ring: #979592;
-  /* Charts read the ramp straight through, light to dark. Five series is
-     exactly what it holds, which is also a useful ceiling: a sixth would have
-     to be invented. */
-  --chart-1: #dad7d2;
-  --chart-2: #c3c1bd;
-  --chart-3: #979592;
-  --chart-4: #6a6966;
-  --chart-5: #3e3d3b;
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #111110;
-  --sidebar-primary: #111110;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #dad7d2;
-  --sidebar-accent-foreground: #111110;
-  --sidebar-border: #c3c1bd;
-  --sidebar-ring: #979592;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
-  /* The ramp inverted: the ink becomes the ground and the paper the type.
-     Nothing mounts this yet — no theme provider is installed — but it is kept
-     on the same two colours so it cannot be the one place the old neutral
-     scale survives. */
-  --background: #111110;
-  --foreground: #ffffff;
-  --card: #3e3d3b;
-  --card-foreground: #ffffff;
-  --popover: #3e3d3b;
-  --popover-foreground: #ffffff;
-  --primary: #ffffff;
-  --primary-foreground: #111110;
-  --secondary: #3e3d3b;
-  --secondary-foreground: #ffffff;
-  --muted: #3e3d3b;
-  --muted-foreground: #979592;
-  --accent: #3e3d3b;
-  --accent-foreground: #ffffff;
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: #3e3d3b;
-  --input: #3e3d3b;
-  --ring: #6a6966;
-  --chart-1: #3e3d3b;
-  --chart-2: #6a6966;
-  --chart-3: #979592;
-  --chart-4: #c3c1bd;
-  --chart-5: #dad7d2;
-  --sidebar: #111110;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #ffffff;
-  --sidebar-primary-foreground: #111110;
-  --sidebar-accent: #3e3d3b;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #3e3d3b;
-  --sidebar-ring: #6a6966;
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {
