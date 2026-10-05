@@ -58,27 +58,28 @@
 }
 
 :root {
-  /* The direction's two colours and its five greys, and nothing else. Each
-     grey is the ink laid into the paper at the percentage it is named for, so
-     the ramp cannot drift off the brand: Gris 60 is #6a6966, which is exactly
-     60 % of #111110 over #f0ede8.
+  /* The interface is white and the ink is #111110, with the brand's five greys
+     between them.
 
-       ink      #111110   Gris 80  #3e3d3b   Gris 20  #c3c1bd
-       paper    #f0ede8   Gris 60  #6a6966   Gris 10  #dad7d2
-                          Gris 40  #979592
+       ink   #111110   Gris 80  #3e3d3b   Gris 40  #979592   Gris 10  #dad7d2
+       white #ffffff   Gris 60  #6a6966   Gris 20  #c3c1bd
 
-     The interface sits on the paper, unlike a document, which prints on the
-     white of the sheet it is put through. Surfaces that have to lift off that
-     ground — a card, a popover, the sidebar — take white, which is the only
-     value here that is not on the ramp and is doing a job the ramp cannot. */
-  --background: #f0ede8;
+     White throughout — background, cards, popovers and the sidebar are the
+     same #ffffff, so the rail and the page it frames read as one surface.
+
+     Not the brand's off-white: #f0ede8 belongs to the printed communication
+     and appears nowhere in this file. It is still the ground the grey ramp was
+     mixed against — which is why these greys are warm rather than neutral, and
+     why they sit correctly on white — but the mixing happened once, when the
+     ramp was drawn. The interface paints the result, never the ingredient. */
+  --background: #ffffff;
   --foreground: #111110;
   --card: #ffffff;
   --card-foreground: #111110;
   --popover: #ffffff;
   --popover-foreground: #111110;
   --primary: #111110;
-  --primary-foreground: #f0ede8;
+  --primary-foreground: #ffffff;
   --secondary: #dad7d2;
   --secondary-foreground: #111110;
   --muted: #dad7d2;
@@ -105,7 +106,7 @@
   --sidebar: #ffffff;
   --sidebar-foreground: #111110;
   --sidebar-primary: #111110;
-  --sidebar-primary-foreground: #f0ede8;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #dad7d2;
   --sidebar-accent-foreground: #111110;
   --sidebar-border: #c3c1bd;
@@ -118,19 +119,19 @@
      on the same two colours so it cannot be the one place the old neutral
      scale survives. */
   --background: #111110;
-  --foreground: #f0ede8;
+  --foreground: #ffffff;
   --card: #3e3d3b;
-  --card-foreground: #f0ede8;
+  --card-foreground: #ffffff;
   --popover: #3e3d3b;
-  --popover-foreground: #f0ede8;
-  --primary: #f0ede8;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
   --primary-foreground: #111110;
   --secondary: #3e3d3b;
-  --secondary-foreground: #f0ede8;
+  --secondary-foreground: #ffffff;
   --muted: #3e3d3b;
   --muted-foreground: #979592;
   --accent: #3e3d3b;
-  --accent-foreground: #f0ede8;
+  --accent-foreground: #ffffff;
   --destructive: oklch(0.704 0.191 22.216);
   --border: #3e3d3b;
   --input: #3e3d3b;
@@ -141,11 +142,11 @@
   --chart-4: #c3c1bd;
   --chart-5: #dad7d2;
   --sidebar: #111110;
-  --sidebar-foreground: #f0ede8;
-  --sidebar-primary: #f0ede8;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
   --sidebar-primary-foreground: #111110;
   --sidebar-accent: #3e3d3b;
-  --sidebar-accent-foreground: #f0ede8;
+  --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #3e3d3b;
   --sidebar-ring: #6a6966;
 }

@@ -278,7 +278,12 @@ export const h = StyleSheet.create({
     lineHeight: LH,
     marginBottom: LABEL_GAP + 0.5,
   },
-  headMetaVal: { fontFamily: TITLE, fontWeight: 200, fontSize: 15, color: ink, lineHeight: LH },
+  // The same cut as the cover's reference — see coverMetaValue. A reference is
+  // a string of digits read one character at a time, not a title: Archivo at
+  // medium holds it, and Albertus Thin, which this carried, let it go faint
+  // beside a title set in the same face. Only the ground differs between the
+  // two, so they can sit on the same line of a document and be the same thing.
+  headMetaVal: { fontFamily: BODY, fontWeight: 500, fontSize: 15, color: ink, lineHeight: LH },
   headRule: { height: 0.5, backgroundColor: rule, marginTop: GAP },
 
   // Section marker: ink label + grey-italic French + a full-width hairline.

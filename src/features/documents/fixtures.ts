@@ -160,7 +160,7 @@ export const sampleConfirmation: ConfirmationData = {
   property: {
     name: "Villa Solea",
     address: "28 Avenue des Grands Pins — Saint-Tropez 83990",
-    securityDeposit: "—",
+    securityDeposit: "3 000,00 €",
   },
   stay: {
     checkIn: "15/07/2026",
@@ -180,8 +180,11 @@ export const sampleConfirmation: ConfirmationData = {
       },
     ],
     notIncluded: [
-      { en: "Tourist tax — 6,16 € / day / person", fr: "Taxe de séjour — 6,16 € / jour / personne" },
-      { en: "Seasonal rental insurance", fr: "Assurance" },
+      { en: "Tourist tax", fr: "Taxe de séjour" },
+      { en: "Seasonal rental insurance", fr: "Assurance location saisonnière" },
+      // From the booking: a service with "included" left unticked. The owner's
+      // document names it without pricing it.
+      { en: "Frais de ménage" },
       { en: "Linen and towels", fr: "Linge et serviette" },
       { en: "End-of-stay cleaning", fr: "ménage fin de séjour" },
       { en: "Bailiff check-out inspection", fr: "État des lieux de sortie par huissier" },

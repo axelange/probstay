@@ -368,7 +368,12 @@ function MoneyRow({
   amount: string;
 }) {
   return (
-    <View style={s.finRow}>
+    // Atomic. The block around it is allowed to break so a long list of billed
+    // services can run onto a second page; a row is the smallest thing that
+    // still means something, and split down the middle it leaves an amount at
+    // the top of a page with no label and a label at the foot of the previous
+    // one with no amount. Breaking between rows is fine — through one is not.
+    <View style={s.finRow} wrap={false}>
       <Text style={s.finDesc}>
         {en}
         {fr ? <Text style={s.itemFr}> / {fr}</Text> : null}
@@ -390,7 +395,7 @@ function MoneyTotal({
   amount: string;
 }) {
   return (
-    <View style={s.finTotal}>
+    <View style={s.finTotal} wrap={false}>
       <Text style={s.finTotalLabel}>
         {en}
         {fr ? <Text style={s.itemFr}> / {fr}</Text> : null}

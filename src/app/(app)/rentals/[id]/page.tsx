@@ -9,6 +9,7 @@ import {
   formatStay,
   nights,
 } from "@/features/rentals/components/rental-labels";
+import { formatRentalReference } from "@/features/documents/reference";
 import { modeLabel } from "@/features/demandes/components/demande-labels";
 import { ContractCompletionForm } from "@/features/documents/components/contract-completion-form";
 import { buildCompletionData } from "@/features/documents/services/build-completion-data";
@@ -235,6 +236,19 @@ export default async function RentalDetailPage({
         <h2 className="page-title normal-case">
           {rental.property.marketingName ?? rental.property.city ?? "Sans nom"}
         </h2>
+        {/* The booking's number, next to its name because that is the pair an
+            agent works from: the villa is how they recognise it, the reference
+            is how everyone else refers to it. Both documents print it — the
+            contract as SRA-0001240, the confirmation as RC-0001240 — so an
+            owner or a tenant quoting one was quoting a number that appeared
+            nowhere in the app that issued it.
+
+            Padded by the same helper the documents use, so the digits read the
+            same on screen and on paper. No prefix: those belong to the papers,
+            not to the booking they are drawn from. */}
+        <span className="text-muted-foreground font-mono text-sm">
+          {formatRentalReference(rental.reference)}
+        </span>
         <span className="text-muted-foreground text-sm">
           {formatStay(rental.checkIn, rental.checkOut)}
         </span>

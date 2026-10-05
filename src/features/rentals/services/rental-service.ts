@@ -149,6 +149,10 @@ export async function getRentalDetail(id: string, user: CurrentUser) {
     where: { ...visible, id, archivedAt: null },
     select: {
       id: true,
+      // The booking's own number. It was not selected here at all, so the
+      // reference printed on both documents — and quoted back by owners and
+      // tenants — could not be read anywhere in the app that produces them.
+      reference: true,
       checkIn: true,
       checkOut: true,
       guests: true,

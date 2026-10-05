@@ -314,7 +314,10 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
           <BstayLogo width={170} height={50.7} />
         </View>
         <View style={h.head}>
-          <View>
+          {/* headTitleWrap, not a bare View: without it the title sizes to its
+              own content and the reference is parked against it instead of at
+              the end of the line. */}
+          <View style={h.headTitleWrap}>
             <Text style={h.headTitle}>Rental Confirmation</Text>
             <Text style={h.headSub}>Confirmation de location</Text>
           </View>
@@ -465,7 +468,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
         <Section en="Financial Summary" fr="Récapitulatif financier" />
         <View wrap={false}>
           {data.financial.rows.map((r, i) => (
-            <View key={i} style={s.finRow}>
+            <View key={i} style={s.finRow} wrap={false}>
               <Text style={s.finDesc}>
                 {r.label.en}
                 {r.label.fr ? (
@@ -475,7 +478,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
               <Text style={s.finAmt}>{r.amount}</Text>
             </View>
           ))}
-          <View style={s.finTotal}>
+          <View style={s.finTotal} wrap={false}>
             <Text style={s.finTotalLabel}>
               Total VAT included{" "}
               <Text style={[s.finTotalLabel, s.payLabelFr]}>/ Total TTC</Text>
