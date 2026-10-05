@@ -106,6 +106,12 @@ export async function buildContratData(
       grossAmount: true,
       contractSignedAt: true,
       depositAmount: true,
+      // Read rather than inferred from the amount: a booking set to "no
+      // acompte" must drop every mention of one even if an earlier figure is
+      // still sitting in the column. The amount answers "how much", this
+      // answers "at all" — and only the second can be stated when the answer
+      // is none.
+      depositBasis: true,
       securityDepositAmount: true,
       tenantAgentId: true,
       owner: {
@@ -346,7 +352,8 @@ export async function buildContratData(
   // always printed and `documentReadiness` refuses to call the paperwork
   // complete without it. Hiding the section would bury the very thing that
   // needs fixing.
-  const hasDeposit = depositAmount > 0;
+  const hasDeposit =
+    rental.depositBasis !== "NONE" && depositAmount > 0;
 
   const moneyBlock = {
     rent: money(rent),
@@ -440,6 +447,27 @@ export async function buildContratData(
       resolveClause("SEASONAL_RENTAL_CONTRACT", key, clauses, variables),
     ])
   );
+
+  // The booking's own excluded charges, appended to the template's.
+  //
+  // The clause states what the agency excludes from every rent; a service
+  // recorded against this rental with "included" left unticked is excluded
+  // from this one. Both belong under the same heading — a tenant reading
+  // "Excluded charges" is owed the whole answer, and a 400 € cleaning fee that
+  // appears only in the price breakdown overleaf is not part of it.
+  //
+  // Appended to `en` alone, with `fr` padded to keep the two in step: the
+  // template pairs the languages by index, and a service label is free text an
+  // agent typed once, with no second version to print beside it.
+  if (billed.length > 0) {
+    const excluded = resolvedClauses.chargesExcluded;
+    if (excluded) {
+      resolvedClauses.chargesExcluded = {
+        en: [...excluded.en, ...billed.map((sv) => `${sv.label} — ${money(n(sv.amount))}`)],
+        fr: [...excluded.fr, ...billed.map(() => "")],
+      };
+    }
+  }
 
   // The tenant's identity, as the master's card lists it. Rows with nothing
   // behind them are dropped rather than printed empty — a contract showing a

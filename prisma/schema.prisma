@@ -106,6 +106,10 @@ enum CommissionBasis {
 enum DepositBasis {
   AMOUNT
   PERCENT
+  // No acompte on this booking, stated rather than inferred from a zero. The
+  // funnel, both documents and the payment requests all read this before they
+  // print or raise anything about an acompte.
+  NONE
 }
 
 enum PropertyPresentation {

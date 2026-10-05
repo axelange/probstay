@@ -1,0 +1,20 @@
+-- A booking may take no acompte at all, and say so.
+--
+-- Until now "no acompte" was an absence: depositPercent at 0, or depositAmount
+-- left null. Both read as "nobody has decided yet" as much as "it was decided
+-- there is none", and the funnel and the documents could only guess between
+-- them — which is why the contract still printed a payment schedule for
+-- bookings that had none, and why a zero could be undone by any later edit
+-- that recomputed the share.
+--
+-- NONE is the decision made explicit. It survives a change to the total, it
+-- tells the documents to drop the acompte rather than print it as zero, and it
+-- is a term like the others: writable until the contract is signed, frozen
+-- after.
+--
+-- Alone in its own migration: Postgres refuses to use an enum value in the
+-- transaction that adds it.
+--
+-- Not reversible in practice — removing a value from an enum means recreating
+-- the type and every column that references it.
+ALTER TYPE "DepositBasis" ADD VALUE IF NOT EXISTS 'NONE';

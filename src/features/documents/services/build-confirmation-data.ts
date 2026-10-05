@@ -78,6 +78,12 @@ export async function buildConfirmationData(
       grossAmount: true,
       netOwnerAmount: true,
       depositAmount: true,
+      // Read rather than inferred from the amount: a booking set to "no
+      // acompte" must drop every mention of one even if an earlier figure is
+      // still sitting in the column. The amount answers "how much", this
+      // answers "at all" — and only the second can be stated when the answer
+      // is none.
+      depositBasis: true,
       securityDepositAmount: true,
       touristTaxAmount: true,
       touristTaxRate: true,
@@ -227,7 +233,11 @@ export async function buildConfirmationData(
   // Anchor on the signature: contractSignedAt when signed, else today (the
   // confirmation is produced around signing, and the preview has no date yet).
   const signature = rental.contractSignedAt ?? new Date();
-  const deposit = n(rental.depositAmount);
+  // Nil when the booking takes no acompte, whatever the column still holds —
+  // the owner's schedule is derived from the tenant's, so dropping it here
+  // drops the owner's upfront line with it.
+  const deposit =
+    rental.depositBasis === "NONE" ? 0 : n(rental.depositAmount);
   const depositFraction = clientTotal > 0 ? deposit / clientTotal : 0;
   const ownerAcompte = Math.round(ownerEarnings * depositFraction * 100) / 100;
 
@@ -255,9 +265,37 @@ export async function buildConfirmationData(
       .filter((sv) => sv.includedInStay)
       .map((sv) => ({ en: sv.label })),
   ];
-  // The "payable by the lessee" column is tenant-facing; the owner's document
-  // omits it.
-  const notIncluded: Bilingual[] = [];
+  // What the rent never covers.
+  //
+  // Both lines are on every stay, so they are stated here rather than drawn
+  // from the booking: the tourist tax is levied by the commune on the occupant
+  // and is collected on top of the rent, and the seasonal rental insurance is
+  // the tenant's own to take out. Neither has ever been part of a BSTAY rent,
+  // and neither depends on the property or the dates — which is exactly why
+  // they belong in code and not in a field someone has to remember to fill.
+  //
+  // This column was empty before, on the reasoning that what the lessee pays
+  // is tenant-facing and the owner's document could omit it. The heading was
+  // printed all the same, so what an owner actually read was a card with
+  // nothing under it.
+  const notIncluded: Bilingual[] = [
+    { en: "Tourist tax", fr: "Taxe de séjour" },
+    { en: "Seasonal rental insurance", fr: "Assurance location saisonnière" },
+    // Then the booking's own: a service recorded against the rental with
+    // "included" left unticked is, by that very fact, not included. The two
+    // columns are the same list split by that checkbox — `included` reads it
+    // one way and this reads it the other, so a service can never fall between
+    // them or appear in both.
+    //
+    // The label alone, without the amount. This is the owner's document, and
+    // what the tenant is charged for an extra is between the tenant and the
+    // agency: the owner's interest is in what the rent does and does not
+    // cover, not in the price of what it does not. The tenant's own contract
+    // prints the figure, where it is the point.
+    ...rental.services
+      .filter((sv) => !sv.includedInStay)
+      .map((sv) => ({ en: sv.label })),
+  ];
 
   // ── Financial summary: earnings excl. VAT, VAT (para-hotel), total TTC ─────
   // The net is entered VAT-inclusive, so the earnings shown are net − VAT; the
@@ -365,8 +403,19 @@ export async function buildConfirmationData(
         [p.address, p.addressMore, [p.city, p.zipcode].filter(Boolean).join(" ")]
           .filter(Boolean)
           .join(" — ") || "adresse communiquée au preneur",
-      // The caution is a tenant charge; it is absent from the owner's document.
-      securityDeposit: undefined,
+      // The caution, when the booking carries one.
+      //
+      // It used to be omitted on the reasoning that it is a tenant charge and
+      // so none of the owner's business. The card was printed regardless, so
+      // what an owner read was "Security deposit — ", which says the booking
+      // takes none. An owner has a direct interest in the figure: it is what
+      // stands behind damage to their property.
+      //
+      // Undefined only when the booking genuinely has no caution, which is the
+      // one case the dash is right for.
+      securityDeposit: rental.securityDepositAmount
+        ? money(n(rental.securityDepositAmount))
+        : undefined,
     },
     stay: {
       checkIn: shortDate(rental.checkIn),

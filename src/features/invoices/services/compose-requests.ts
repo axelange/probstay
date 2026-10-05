@@ -78,6 +78,10 @@ export async function composeRequests(
       select: {
         grossAmount: true,
         depositAmount: true,
+        // Whether the booking takes an acompte at all. Without it a request
+        // could still be raised for one the contract never mentions, which is
+        // a bill for something nobody agreed to.
+        depositBasis: true,
         depositStatus: true,
         securityDepositAmount: true,
         touristTaxAmount: true,
@@ -115,7 +119,8 @@ export async function composeRequests(
   };
 
   const requests: ComposedRequest[] = [];
-  const deposit = n(rental.depositAmount);
+  const deposit =
+    rental.depositBasis === "NONE" ? 0 : n(rental.depositAmount);
 
   // The acompte, asked for on its own while it is still owed.
   if (deposit > 0 && rental.depositStatus !== "PAID") {

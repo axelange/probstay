@@ -68,6 +68,52 @@ type ServiceDraft = {
   includedInStay: boolean;
 };
 
+/**
+ * The services that come up on almost every booking, as one-click presets.
+ *
+ * Typed by hand they drift: "ménage d'entrée", "Menage entree", "Nettoyage
+ * avant arrivée" are one service under three names, and the documents print
+ * the label exactly as it was entered. Both papers set it bilingually, so the
+ * label is written "English / French" here once rather than guessed each time.
+ *
+ * The bailiff is a pair, not a line. The check-in inspection is the agency's
+ * to arrange and the owner's to bear, so it rides with the rent and takes no
+ * amount of its own; the check-out inspection falls to the tenant and is
+ * billed, so it comes in unticked with the amount left empty — the figure
+ * depends on the property and the agent fills it in.
+ *
+ * Amounts are deliberately blank throughout: a preset that arrived priced
+ * would be a price nobody chose.
+ */
+const SERVICE_PRESETS: { action: string; lines: ServiceDraft[] }[] = [
+  {
+    action: "Ajouter un ménage d'entrée",
+    lines: [
+      {
+        label: "Entry Cleaning / Ménage d'entrée",
+        amount: "",
+        includedInStay: true,
+      },
+    ],
+  },
+  {
+    action: "Ajouter un huissier",
+    lines: [
+      {
+        label:
+          "Bailiff check-in inspection / État des lieux d'entrée par huissier",
+        amount: "",
+        includedInStay: true,
+      },
+      {
+        label:
+          "Bailiff check-out inspection / État des lieux de sortie par huissier",
+        amount: "",
+        includedInStay: false,
+      },
+    ],
+  },
+];
 
 /**
  * How the property was shown to the tenant before signature.
@@ -659,10 +705,16 @@ export function RentalFunnel({
       })
     : [];
 
+  // Whether this booking takes an acompte at all. Read in a dozen places
+  // below, and by both documents — hence a named flag rather than a comparison
+  // repeated until one of them is forgotten.
+  const noDeposit = depositBasis === "NONE";
+
   // What the tenant pays up front, whichever way it was decided. This is the
   // figure that gets stored and that both documents quote.
-  const deposit =
-    depositBasis === "PERCENT"
+  const deposit = noDeposit
+    ? 0
+    : depositBasis === "PERCENT"
       ? total !== null && total > 0
         ? Math.round(total * (Number(depositPercent) || 0)) / 100
         : 0
@@ -892,21 +944,57 @@ export function RentalFunnel({
                       </button>
                     </div>
                   ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setExtras((list) => [
-                        ...list,
-                        { label: "", amount: "", includedInStay: false },
-                      ])
-                    }
-                    disabled={isPending}
-                  >
-                    <Plus aria-hidden="true" />
-                    Ajouter un service
-                  </Button>
+                  {/* The blank line first, then the two that fill themselves
+                      in. Wrapping rather than scrolling: three buttons do not
+                      fit the column on a narrow screen. */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setExtras((list) => [
+                          ...list,
+                          { label: "", amount: "", includedInStay: false },
+                        ])
+                      }
+                      disabled={isPending}
+                    >
+                      <Plus aria-hidden="true" />
+                      Ajouter un service
+                    </Button>
+                    {SERVICE_PRESETS.map((preset) => {
+                      // Disabled once its lines are in, rather than silently
+                      // refusing the click: a second bailiff pair is a mistake,
+                      // and a button that does nothing when pressed reads as a
+                      // bug. Matched on the label, which is what a preset sets
+                      // and what the agent can still edit afterwards.
+                      const already = preset.lines.every((line) =>
+                        extras.some((s) => s.label === line.label)
+                      );
+                      return (
+                        <Button
+                          key={preset.action}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setExtras((list) => [
+                              ...list,
+                              ...preset.lines.filter(
+                                (line) =>
+                                  !list.some((s) => s.label === line.label)
+                              ),
+                            ])
+                          }
+                          disabled={isPending || already}
+                        >
+                          <Plus aria-hidden="true" />
+                          {preset.action}
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -1135,6 +1223,7 @@ export function RentalFunnel({
                   SECURITY_DEPOSIT: Number(securityDepositAmount) || null,
                 }}
                 commission={Number(commission) || 0}
+                noDeposit={noDeposit}
                 disabled={isPending}
               />
             </>
@@ -1539,6 +1628,7 @@ function SplitFields(props: {
   balance: number | null;
   disabled: boolean;
 }) {
+  const noDeposit = props.depositBasis === "NONE";
   const byPercent = props.depositBasis === "PERCENT";
   // Inside the balance's notice period the whole amount is payable, so an
   // acompte is the exception rather than the rule. Stated, never imposed: the
@@ -1558,13 +1648,21 @@ function SplitFields(props: {
     <div className="space-y-2">
       <p className="text-sm font-medium">Échéancier</p>
 
-      {/* Which way the acompte is decided. A share follows the total as
-          services and the taxe de séjour move it; a figure stays put. */}
+      {/* Which way the acompte is decided — including that it is not.
+      
+          A share follows the total as services and the taxe de séjour move it;
+          a figure stays put; "Pas d'acompte" is the decision that there is
+          none, which is not the same as a percentage left at zero. A zero is
+          indistinguishable from a field nobody has filled in yet, and any later
+          edit that recomputes the share can undo it. Stated here, it survives
+          the total changing and it tells both documents to drop the acompte
+          rather than print it as nil. */}
       <div className="flex flex-wrap gap-4 text-sm">
         {(
           [
             ["PERCENT", "Pourcentage du total"],
             ["AMOUNT", "Montant fixe"],
+            ["NONE", "Pas d'acompte"],
           ] as const
         ).map(([value, label]) => (
           <label key={value} className="flex items-center gap-2">
@@ -1580,7 +1678,12 @@ function SplitFields(props: {
         ))}
       </div>
 
+      {/* No fields when there is no acompte: a disabled input showing 0 still
+          invites someone to fill it in, and the whole point of the choice is
+          that there is nothing to enter. The balance keeps its place — it is
+          the whole client total now, which is worth seeing. */}
       <div className="grid gap-3 sm:grid-cols-2">
+        {noDeposit ? null : (
         <Field label={byPercent ? "Acompte (%)" : "Acompte"}>
           {byPercent ? (
             <NumberInput
@@ -1605,7 +1708,8 @@ function SplitFields(props: {
                 : "Montant fixe. Laisser vide si le locataire règle le solde directement."}
           </p>
         </Field>
-        <Field label="Solde">
+        )}
+        <Field label={noDeposit ? "À régler" : "Solde"}>
           <p className="pt-2 text-sm tabular-nums">
             {props.balance !== null ? (
               <>
@@ -1623,15 +1727,26 @@ function SplitFields(props: {
         </Field>
       </div>
       <p className="text-muted-foreground text-xs">
-        {props.daysToArrival === null
-          ? null
-          : late
-            ? `Arrivée dans ${props.daysToArrival} jour(s) : le solde est déjà exigible, donc pas d'acompte par défaut. `
-            : `Plus de ${BALANCE_NOTICE_DAYS} jours avant l'arrivée : acompte de ${STANDARD_DEPOSIT_PERCENT} % par défaut. `}
-        Repris tel quel sur le contrat, avec ces pourcentages.
+        {noDeposit ? (
+          "Le total client est payable en une fois. Ni le contrat ni la confirmation ne mentionneront d'acompte, et aucun avis de paiement d'acompte ne sera émis."
+        ) : (
+          <>
+            {props.daysToArrival === null
+              ? null
+              : late
+                ? `Arrivée dans ${props.daysToArrival} jour(s) : le solde est déjà exigible, donc pas d'acompte par défaut. `
+                : `Plus de ${BALANCE_NOTICE_DAYS} jours avant l'arrivée : acompte de ${STANDARD_DEPOSIT_PERCENT} % par défaut. `}
+            Repris tel quel sur le contrat, avec ces pourcentages.
+          </>
+        )}
       </p>
 
-      {offSuggestion ? (
+      {/* Only the shortcut back to the house share remains. "Retirer
+          l'acompte" used to live here too; it is the third radio now, where a
+          choice between three belongs — a button that removes something, set
+          beside the fields it empties, reads as an action on this booking
+          rather than as one of its terms. */}
+      {offSuggestion && !noDeposit ? (
         <Button
           type="button"
           variant="ghost"
@@ -1642,9 +1757,7 @@ function SplitFields(props: {
             props.setDepositPercent(suggested.toString());
           }}
         >
-          {late
-            ? "Retirer l'acompte"
-            : `Appliquer l'acompte de ${STANDARD_DEPOSIT_PERCENT} %`}
+          {`Appliquer l'acompte de ${STANDARD_DEPOSIT_PERCENT} %`}
         </Button>
       ) : null}
 
@@ -2286,9 +2399,11 @@ function PaymentBlock(props: {
   due: Record<RentalPaymentKind, number | null>;
   /** The commission agreed on the contract, which a surplus adds to. */
   commission: number;
+  /** Set when the booking takes no acompte — see DepositBasis.NONE. */
+  noDeposit: boolean;
   disabled: boolean;
 }) {
-  const rows = [
+  const allRows = [
     ["DEPOSIT", "Acompte", props.depositStatus, props.setDepositStatus],
     ["BALANCE", "Solde", props.balanceStatus, props.setBalanceStatus],
     [
@@ -2298,6 +2413,18 @@ function PaymentBlock(props: {
       props.setSecurityDepositStatus,
     ],
   ] as const;
+
+  // The acompte line goes when the booking takes none — but not if money has
+  // already been received against it. A booking can be switched to "no
+  // acompte" after a payment was recorded, and receipts are append-only: a row
+  // that exists must stay visible, or the figure disappears from the screen
+  // while remaining in the ledger and in every total computed from it.
+  const depositTouched =
+    props.recorded.some((p) => p.kind === "DEPOSIT") ||
+    props.payments.some((p) => p.kind === "DEPOSIT");
+  const rows = allRows.filter(
+    ([kind]) => kind !== "DEPOSIT" || !props.noDeposit || depositTouched
+  );
 
   const patch = (index: number, field: keyof PaymentDraft, value: string) =>
     props.setPayments((list) =>
