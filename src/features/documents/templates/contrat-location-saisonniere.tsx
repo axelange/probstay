@@ -263,20 +263,33 @@ function Article({
  * A bilingual clause: English in black, the French translation grey and
  * italic beneath, each language's paragraphs on the tighter gap.
  */
+// How few lines a paragraph may leave behind or carry over.
+//
+// Three. Below that a break reads as an accident: two lines of French stranded
+// at the top of an otherwise empty page, which is what a confirmation did once
+// its charge lists grew enough to push the cancellation clause over the edge.
+//
+// `orphans` is the floor for what stays, `widows` for what follows. When a
+// paragraph cannot satisfy both it moves whole to the next page, which is the
+// behaviour wanted — and it degrades properly where `wrap={false}` would not:
+// a clause an agency has written long enough to outgrow a page still prints,
+// broken, instead of vanishing.
+const KEEP_LINES = 3;
+
 function Prose({ clause }: { clause?: { en: string[]; fr: string[] } }) {
   if (!clause) return null;
   return (
     <View style={{ gap: PAIR_GAP }}>
       <View style={h.proseGroup}>
         {clause.en.map((para, i) => (
-          <Text key={`e${i}`} style={h.paraEn}>
+          <Text key={`e${i}`} style={h.paraEn} orphans={KEEP_LINES} widows={KEEP_LINES}>
             {para}
           </Text>
         ))}
       </View>
       <View style={h.proseGroup}>
         {clause.fr.map((para, i) => (
-          <Text key={`f${i}`} style={h.paraFr}>
+          <Text key={`f${i}`} style={h.paraFr} orphans={KEEP_LINES} widows={KEEP_LINES}>
             {para}
           </Text>
         ))}
@@ -310,26 +323,26 @@ function Description({ description }: { description: { en: string[]; fr: string[
 function InfoRow({
   label,
   value,
-  stacked,
 }: {
   label: { en: string; fr?: string };
   value: string;
-  /**
-   * Set when this row is one of a column of them, so the values line up on the
-   * right instead of each starting where its own label ended.
-   *
-   * Cleared for the pairs that sit side by side in a row — "Du / Au", "IBAN /
-   * BIC". Those size to their content on purpose; stretching them would push
-   * two values to the middle of the page with a gulf before each.
-   */
-  stacked?: boolean;
 }) {
   return (
+    // The label is a direct child of the row, not wrapped in a View.
+    //
+    // The row aligns its children on their baselines, and only a Text has one:
+    // a View is a box, and react-pdf falls back to an edge of it. Wrapped, the
+    // 7 pt label and the 10 pt value were lined up on something that was not
+    // their baselines, and the value floated a point above its own name —
+    // visible on any card that sets a label beside a figure.
+    //
+    // The gap moves to the value for the same reason: it is what the wrapper
+    // was there to carry.
     <View style={h.infoRow}>
-      <View style={stacked ? h.infoLabelFill : h.infoLabel}>
+      <View style={h.infoLabel}>
         <Cap en={label.en} fr={label.fr} />
       </View>
-      <Text style={stacked ? h.infoValueEnd : h.infoValue}>{value}</Text>
+      <Text style={h.infoValue}>{value}</Text>
     </View>
   );
 }
@@ -560,7 +573,7 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           <Text style={h.name}>{t.name}</Text>
           <View style={{ marginTop: TIGHT_GAP }}>
             {t.details.map((d, i) => (
-              <InfoRow stacked key={i} label={d.label} value={d.value} />
+              <InfoRow key={i} label={d.label} value={d.value} />
             ))}
           </View>
         </View>
@@ -587,7 +600,7 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
               </View>
               <View style={{ marginTop: TIGHT_GAP }}>
                 {data.property.details.map((d, i) => (
-                  <InfoRow stacked key={i} label={d.label} value={d.value} />
+                  <InfoRow key={i} label={d.label} value={d.value} />
                 ))}
               </View>
             </View>
@@ -673,12 +686,10 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
                   />
                 </View>
                 <InfoRow
-                  stacked
                   label={{ en: "Number of nights", fr: "Nuitées" }}
                   value={data.stay.nights}
                 />
                 <InfoRow
-                  stacked
                   label={{ en: "Number of guests", fr: "Nombre d'occupants" }}
                   value={data.stay.guests}
                 />

@@ -369,26 +369,28 @@ export const h = StyleSheet.create({
 
   // A label running inline with its value, as the masters set identity rows.
   infoRow: { flexDirection: "row", alignItems: "baseline", marginTop: LABEL_GAP },
-  infoLabel: { marginRight: 6 },
+  // Raised so the label and its value read as one line rather than two things
+  // set beside each other.
+  //
+  // Two faults stack here, and neither is visible on its own. `alignItems:
+  // "baseline"` does not align baselines in react-pdf — measured against the
+  // output it behaves exactly as `flex-end`, putting the bottoms of the line
+  // boxes together, which leaves the 7 pt label 0.224 pt below the 10 pt
+  // value. And a baseline is the wrong thing to align anyway when one side is
+  // capitals and the other is lower case: their optical centres sit at
+  // different heights, so even a true baseline would read as a step.
+  //
+  // 0.453 pt = 0.224 to reach the shared baseline, then 0.229 to centre the
+  // label's cap height on the value's x-height. The second comes from
+  // Archivo's own metrics — capHeight 0.686, xHeight 0.526 — as
+  // (10 × 0.526)/2 − (7 × 0.686)/2.
+  //
+  // `top` and not a margin or padding: both were measured and neither moves
+  // the label relative to the value. A margin shifts the whole row, padding
+  // does nothing at all, and only relative positioning reaches inside the
+  // alignment.
+  infoLabel: { marginRight: 6, position: "relative", top: -0.453 },
   infoValue: { fontSize: 10, color: ink, lineHeight: LH },
-  // The stacked variant: label left, value against the right edge.
-  //
-  // Set in a column, these rows let each value start wherever its own label
-  // happened to end, so three facts under one heading sat at three different
-  // places across the card. A fixed label width cannot fix it either — the
-  // labels run from "IBAN" to "Number of rooms, bedrooms / Nombre de pièces,
-  // chambres", and a width that fits the longest leaves the shortest stranded.
-  //
-  // Aligning the values on the right instead holds whatever the labels do, and
-  // it is already how a card states a single pair elsewhere in these documents
-  // — the security deposit, the property against its tenant.
-  infoLabelFill: { flex: 1, marginRight: GAP },
-  infoValueEnd: {
-    fontSize: 10,
-    color: ink,
-    lineHeight: LH,
-    textAlign: "right",
-  },
 
   // A box the tenant ticks by hand. Square, hairline, never pre-filled: which
   // mode applied is recorded on paper at signature, not in the app.

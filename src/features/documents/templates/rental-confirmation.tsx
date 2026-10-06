@@ -240,6 +240,19 @@ const s = StyleSheet.create({
 
 
 /** A bilingual prose block. `join` merges the sentences into one paragraph. */
+// How few lines a paragraph may leave behind or carry over.
+//
+// Three. Below that a break reads as an accident: two lines of French stranded
+// at the top of an otherwise empty page, which is what a confirmation did once
+// its charge lists grew enough to push the cancellation clause over the edge.
+//
+// `orphans` is the floor for what stays, `widows` for what follows. When a
+// paragraph cannot satisfy both it moves whole to the next page, which is the
+// behaviour wanted — and it degrades properly where `wrap={false}` would not:
+// a clause an agency has written long enough to outgrow a page still prints,
+// broken, instead of vanishing.
+const KEEP_LINES = 3;
+
 function Prose({
   en,
   fr,
@@ -256,10 +269,12 @@ function Prose({
     <View style={{ gap: join ? PAIR_GAP : LABEL_GAP }}>
       <View style={h.proseGroup}>
         {join ? (
-          <Text style={h.paraEn}>{en.join(" ")}</Text>
+          <Text style={h.paraEn} orphans={KEEP_LINES} widows={KEEP_LINES}>
+            {en.join(" ")}
+          </Text>
         ) : (
           en.map((p, i) => (
-            <Text key={`e${i}`} style={h.paraEn}>
+            <Text key={`e${i}`} style={h.paraEn} orphans={KEEP_LINES} widows={KEEP_LINES}>
               {p}
             </Text>
           ))
@@ -267,10 +282,12 @@ function Prose({
       </View>
       <View style={h.proseGroup}>
         {join ? (
-          <Text style={h.paraFr}>{fr.join(" ")}</Text>
+          <Text style={h.paraFr} orphans={KEEP_LINES} widows={KEEP_LINES}>
+            {fr.join(" ")}
+          </Text>
         ) : (
           fr.map((p, i) => (
-            <Text key={`f${i}`} style={h.paraFr}>
+            <Text key={`f${i}`} style={h.paraFr} orphans={KEEP_LINES} widows={KEEP_LINES}>
               {p}
             </Text>
           ))
@@ -377,10 +394,12 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
               <View style={{ marginTop: GAP }}>
                 <Cap en="Informations" />
                 {data.tenant.details.map((d, i) => (
+                  // Label as a direct child: the row aligns on baselines and
+                  // only a Text has one. See the note on the contract's
+                  // InfoRow, which carried the same wrapper and the same
+                  // floating value.
                   <View key={i} style={h.infoRow}>
-                    <View style={h.infoLabel}>
-                      <Cap en={d.label.en} fr={d.label.fr} />
-                    </View>
+                    <Cap en={d.label.en} fr={d.label.fr} />
                     <Text style={h.infoValue}>{d.value}</Text>
                   </View>
                 ))}
@@ -522,8 +541,33 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
         </View>
 
         {/* Cancellation policy */}
-        <Section en="Cancellation Policy" fr="Conditions d'annulation" />
-        <Prose en={data.cancellation.en} fr={data.cancellation.fr} join />
+
+        {/* Bound so it moves whole rather than breaking.
+        
+            It closes this page, so when the charge lists above run long there
+            is room for the heading and three or four lines and no more, and
+            the rest lands alone on an otherwise blank sheet. Seen on a real
+            confirmation: the French paragraph cut after "En cas d'annulation
+            par le", its last two lines occupying a page by themselves.
+        
+            Widow and orphan counts do not answer this on their own. They set
+            how many lines may be left or carried, so they turn two stranded
+            lines into four — the page is just as empty. Bound, the clause
+            moves to the next page entire and this one simply ends earlier.
+        
+            Pinning it to the last page was tried and does not fit: measured,
+            the signature block needs about 180 pt and the clause leaves 177,
+            and no reduction of the boxes or their spacing closes that — the
+            page ends up carrying the signatures alone. Where it is, the pages
+            fill evenly.
+        
+            It carries the usual ceiling of a bound block: measured, it holds
+            to about twenty paragraphs per language and starts losing its tail
+            past that. The clause is one paragraph per language. */}
+        <View wrap={false}>
+          <Section en="Cancellation Policy" fr="Conditions d'annulation" />
+          <Prose en={data.cancellation.en} fr={data.cancellation.fr} join />
+        </View>
 
         <Footer a={a} reference={data.reference} />
       </Page>
