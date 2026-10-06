@@ -429,26 +429,26 @@ export const DEFAULT_CLAUSES: Record<
     cancellationTenant: {
       en: [
         "In the event of cancellation by the Tenant, the following conditions shall apply:",
-        "More than one hundred and twenty (120) days before the arrival date: full refund of the deposit paid.",
-        "Less than one hundred and twenty (120) days before the arrival date: the deposit shall be retained and the total rental amount shall remain due.",
+        "More than one hundred and twenty (120) days before the arrival date: full refund of any deposit paid.",
+        "Less than one hundred and twenty (120) days before the arrival date: any deposit paid shall be retained and the total rental amount shall remain due.",
         "Any cancellation must be notified in writing.",
         "The date of receipt of the cancellation shall be the effective date for the application of the above conditions.",
       ],
       fr: [
         "En cas d'annulation par le Locataire, les conditions suivantes s'appliquent :",
-        "Plus de cent vingt (120) jours avant la date d'arrivée : remboursement intégral de l'acompte versé.",
-        "Moins de cent vingt (120) jours avant la date d'arrivée : l'acompte reste acquis et la totalité du prix de la location reste due.",
+        "Plus de cent vingt (120) jours avant la date d'arrivée : remboursement intégral de l'acompte versé, le cas échéant.",
+        "Moins de cent vingt (120) jours avant la date d'arrivée : l'acompte éventuellement versé reste acquis et la totalité du prix de la location reste due.",
         "Toute annulation devra être notifiée par écrit.",
         "La date de réception de la notification fera foi pour l'application des présentes conditions.",
       ],
     },
     cancellationOwner: {
       en: [
-        "In the event of cancellation by the Owner after written confirmation of the booking has been signed and the first deposit has been received, the Tenant shall be refunded all amounts paid.",
+        "In the event of cancellation by the Owner after written confirmation of the booking has been signed and, where applicable, the first deposit has been received, the Tenant shall be refunded all amounts paid.",
         "The Agent will use reasonable efforts to offer alternative solutions to the Tenant, where possible.",
       ],
       fr: [
-        "En cas d'annulation par le Propriétaire après signature de la confirmation écrite de la réservation et encaissement du premier acompte, le Locataire sera remboursé de l'intégralité des sommes versées.",
+        "En cas d'annulation par le Propriétaire après signature de la confirmation écrite de la réservation et, le cas échéant, encaissement du premier acompte, le Locataire sera remboursé de l'intégralité des sommes versées.",
         "Le Mandataire s'efforcera de proposer au Locataire des solutions alternatives lorsque cela est possible.",
       ],
     },
