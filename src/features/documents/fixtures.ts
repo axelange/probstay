@@ -199,9 +199,10 @@ export const sampleConfirmation: ConfirmationData = {
     notIncluded: [
       { en: "Tourist tax", fr: "Taxe de séjour" },
       { en: "Seasonal rental insurance", fr: "Assurance location saisonnière" },
-      // From the booking: a service with "included" left unticked. The owner's
-      // document names it without pricing it.
-      { en: "Frais de ménage" },
+      // From the booking's quick-add: bilingual, so the French half is set in
+      // italic grey like every other line. The owner's document names the
+      // service without pricing it.
+      { en: "Entry Cleaning", fr: "Ménage d'entrée" },
       { en: "Linen and towels", fr: "Linge et serviette" },
       { en: "End-of-stay cleaning", fr: "ménage fin de séjour" },
       { en: "Bailiff check-out inspection", fr: "État des lieux de sortie par huissier" },

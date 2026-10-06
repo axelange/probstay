@@ -258,12 +258,20 @@ export async function buildConfirmationData(
     due: dueLine(addDays(rental.checkIn, -60), signature),
   });
 
+  // A service label written "English / French", split into the pair the charge
+  // cards print. The funnel's quick-add presets use that form; anything
+  // without the separator is one language and prints as one.
+  const bilingual = (label: string): Bilingual => {
+    const at = label.indexOf(" / ");
+    return at === -1
+      ? { en: label.trim() }
+      : { en: label.slice(0, at).trim(), fr: label.slice(at + 3).trim() };
+  };
+
   // ── Services (informational — what the stay includes) ─────────────────────
   const included: Bilingual[] = [
-    ...p.includedServices.map((label) => ({ en: label })),
-    ...rental.services
-      .filter((sv) => sv.includedInStay)
-      .map((sv) => ({ en: sv.label })),
+    ...p.includedServices.map(bilingual),
+    ...rental.services.filter((sv) => sv.includedInStay).map((sv) => bilingual(sv.label)),
   ];
   // What the rent never covers.
   //
@@ -294,7 +302,7 @@ export async function buildConfirmationData(
     // prints the figure, where it is the point.
     ...rental.services
       .filter((sv) => !sv.includedInStay)
-      .map((sv) => ({ en: sv.label })),
+      .map((sv) => bilingual(sv.label)),
   ];
 
   // ── Financial summary: earnings excl. VAT, VAT (para-hotel), total TTC ─────

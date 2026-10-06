@@ -310,16 +310,26 @@ function Description({ description }: { description: { en: string[]; fr: string[
 function InfoRow({
   label,
   value,
+  stacked,
 }: {
   label: { en: string; fr?: string };
   value: string;
+  /**
+   * Set when this row is one of a column of them, so the values line up on the
+   * right instead of each starting where its own label ended.
+   *
+   * Cleared for the pairs that sit side by side in a row — "Du / Au", "IBAN /
+   * BIC". Those size to their content on purpose; stretching them would push
+   * two values to the middle of the page with a gulf before each.
+   */
+  stacked?: boolean;
 }) {
   return (
     <View style={h.infoRow}>
-      <View style={h.infoLabel}>
+      <View style={stacked ? h.infoLabelFill : h.infoLabel}>
         <Cap en={label.en} fr={label.fr} />
       </View>
-      <Text style={h.infoValue}>{value}</Text>
+      <Text style={stacked ? h.infoValueEnd : h.infoValue}>{value}</Text>
     </View>
   );
 }
@@ -550,7 +560,7 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           <Text style={h.name}>{t.name}</Text>
           <View style={{ marginTop: TIGHT_GAP }}>
             {t.details.map((d, i) => (
-              <InfoRow key={i} label={d.label} value={d.value} />
+              <InfoRow stacked key={i} label={d.label} value={d.value} />
             ))}
           </View>
         </View>
@@ -577,7 +587,7 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
               </View>
               <View style={{ marginTop: TIGHT_GAP }}>
                 {data.property.details.map((d, i) => (
-                  <InfoRow key={i} label={d.label} value={d.value} />
+                  <InfoRow stacked key={i} label={d.label} value={d.value} />
                 ))}
               </View>
             </View>
@@ -663,10 +673,12 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
                   />
                 </View>
                 <InfoRow
+                  stacked
                   label={{ en: "Number of nights", fr: "Nuitées" }}
                   value={data.stay.nights}
                 />
                 <InfoRow
+                  stacked
                   label={{ en: "Number of guests", fr: "Nombre d'occupants" }}
                   value={data.stay.guests}
                 />

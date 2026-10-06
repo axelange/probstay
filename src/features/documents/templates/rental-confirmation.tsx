@@ -166,7 +166,7 @@ const s = StyleSheet.create({
   // Services list — the label, then the items on a tighter gap of their own.
   svcList: { marginTop: LABEL_GAP, gap: PAIR_GAP },
   svcItem: { fontSize: 10, color: ink, lineHeight: LH },
-  svcItemFr: { fontStyle: "italic" },
+  svcItemFr: { fontStyle: "italic", color: grey },
 
   // Financial. Rows are near-touching (4 px in the master) and the amounts stay
   // in the sans at 24 px — the serif is reserved for page 1's figures.
@@ -288,7 +288,11 @@ function ServiceItem({ it }: { it: Bilingual }) {
   return (
     <Text style={s.svcItem}>
       {it.en}
-      {it.fr ? <Text style={s.svcItemFr}> ({it.fr})</Text> : null}
+      {/* "English / French", the form every other bilingual line in both
+          documents takes. These cards used parentheses and an italic that
+          carried no grey, so the same pair of languages was set two ways
+          depending on which paper it landed on. */}
+      {it.fr ? <Text style={s.svcItemFr}> / {it.fr}</Text> : null}
     </Text>
   );
 }

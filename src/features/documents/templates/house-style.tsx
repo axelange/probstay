@@ -371,6 +371,24 @@ export const h = StyleSheet.create({
   infoRow: { flexDirection: "row", alignItems: "baseline", marginTop: LABEL_GAP },
   infoLabel: { marginRight: 6 },
   infoValue: { fontSize: 10, color: ink, lineHeight: LH },
+  // The stacked variant: label left, value against the right edge.
+  //
+  // Set in a column, these rows let each value start wherever its own label
+  // happened to end, so three facts under one heading sat at three different
+  // places across the card. A fixed label width cannot fix it either — the
+  // labels run from "IBAN" to "Number of rooms, bedrooms / Nombre de pièces,
+  // chambres", and a width that fits the longest leaves the shortest stranded.
+  //
+  // Aligning the values on the right instead holds whatever the labels do, and
+  // it is already how a card states a single pair elsewhere in these documents
+  // — the security deposit, the property against its tenant.
+  infoLabelFill: { flex: 1, marginRight: GAP },
+  infoValueEnd: {
+    fontSize: 10,
+    color: ink,
+    lineHeight: LH,
+    textAlign: "right",
+  },
 
   // A box the tenant ticks by hand. Square, hairline, never pre-filled: which
   // mode applied is recorded on paper at signature, not in the app.
