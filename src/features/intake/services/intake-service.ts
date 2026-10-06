@@ -23,6 +23,16 @@ export type IntakePrefill = {
   /** Present only when the link was opened for a booking. */
   stay: {
     property: string;
+    /**
+     * The booking's own property, for the banner — the client is shown the
+     * house they are coming to rather than a stock view of the coast.
+     *
+     * A plain URL on APIMO's CDN, which is what the sync stores: public, so a
+     * page carrying no session can load it without a signed URL being minted
+     * for an unauthenticated visitor. Null when the property has no picture,
+     * and the banner falls back to the agency's own.
+     */
+    coverPhoto: string | null;
     checkIn: Date;
     checkOut: Date;
     /** Adults besides the primary tenant, from the headcount. */
@@ -94,7 +104,20 @@ export async function resolveIntake(token: string): Promise<
           children: true,
           stayPurpose: true,
           stayPurposeOther: true,
-          property: { select: { marketingName: true, city: true } },
+          property: {
+            select: {
+              marketingName: true,
+              city: true,
+              // One picture, the first in the agency's own order. `rank` is
+              // nullable, so nulls are pushed last rather than winning the
+              // sort by accident and putting an arbitrary shot on the banner.
+              pictures: {
+                select: { url: true },
+                orderBy: { rank: "asc" },
+                take: 1,
+              },
+            },
+          },
           occupants: {
             orderBy: { createdAt: "asc" },
             select: { firstName: true, lastName: true, idDocType: true, idDocNumber: true },
@@ -121,6 +144,7 @@ export async function resolveIntake(token: string): Promise<
       stay: r
         ? {
             property: r.property.marketingName ?? r.property.city ?? "Le bien loué",
+            coverPhoto: r.property.pictures[0]?.url ?? null,
             checkIn: r.checkIn,
             checkOut: r.checkOut,
             // The tenant filling this in is one of the adults, so the others

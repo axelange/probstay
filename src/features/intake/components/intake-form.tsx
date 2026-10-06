@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
-import { CircleCheck, FileUp, Paperclip, Plus, X } from "lucide-react";
+import { CircleCheck, FileUp, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,19 +23,19 @@ import type { IntakePrefill } from "@/features/intake/services/intake-service";
 // cannot answer the question, however well the question is translated.
 const MARITAL = [
   ["", "—"],
-  ["SINGLE", "Célibataire / Single"],
-  ["MARRIED", "Marié(e) / Married"],
-  ["PACS", "Pacsé(e) / Civil partnership"],
-  ["DIVORCED", "Divorcé(e) / Divorced"],
-  ["WIDOWED", "Veuf ou veuve / Widowed"],
-  ["OTHER", "Autre / Other"],
+  ["SINGLE", "Single / Célibataire"],
+  ["MARRIED", "Married / Marié(e)"],
+  ["PACS", "Civil partnership / Pacsé(e)"],
+  ["DIVORCED", "Divorced / Divorcé(e)"],
+  ["WIDOWED", "Widowed / Veuf ou veuve"],
+  ["OTHER", "Other / Autre"],
 ] as const;
 
 const PURPOSES = [
-  ["HOLIDAY", "Vacances / Holiday"],
-  ["BUSINESS", "Professionnel / Business"],
-  ["EVENT", "Événement / Event"],
-  ["OTHER", "Autre / Other"],
+  ["HOLIDAY", "Holiday / Vacances"],
+  ["BUSINESS", "Business / Professionnel"],
+  ["EVENT", "Event / Événement"],
+  ["OTHER", "Other / Autre"],
 ] as const;
 
 type Occupant = {
@@ -47,6 +46,40 @@ type Occupant = {
   idDocPath: string;
   idDocFileName: string;
 };
+
+/**
+ * A bilingual label: English upright, French in italic grey after the slash.
+ *
+ * The same treatment the documents give a charge line, and for the same
+ * reason — a client reading one language should be able to skim past the
+ * other, and the shift in weight and colour does that faster than a slash
+ * alone. It also says which of the two is the original.
+ *
+ * Split on the FIRST separator only: "Representative — Last name / Nom" has to
+ * keep its prefix with the English half, and splitting on every slash would
+ * also cut "LCB-FT / TRACFIN", which is one name and not two languages.
+ *
+ * A label with no separator is one language and prints as it stands, which is
+ * what an agency-typed value does.
+ */
+function Bi({ children }: { children: string }) {
+  const at = children.indexOf(" / ");
+  if (at === -1) return <>{children}</>;
+  return (
+    <>
+      {children.slice(0, at)}
+      {/* The separator stays upright while the French leans. Set in the italic
+          run it read as though the space after it had been lost: an oblique
+          slash carries its top to the right, close to the next letter, and its
+          foot to the left, away from the previous one — so the same two spaces
+          look uneven. Upright, the stroke sits square between them. */}
+      <span className="text-muted-foreground"> / </span>
+      <span className="text-muted-foreground italic">
+        {children.slice(at + 3)}
+      </span>
+    </>
+  );
+}
 
 /** Bilingual, because the clients are not all French-speaking. */
 function Row({
@@ -67,7 +100,7 @@ function Row({
   return (
     <div className={`space-y-1.5 ${wide ? "sm:col-span-2" : ""}`}>
       <Label htmlFor={id} className="text-xs">
-        {label}
+        <Bi>{label}</Bi>
       </Label>
       <Input
         id={id}
@@ -108,7 +141,7 @@ function Choice({
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id} className="text-xs">
-        {label}
+        <Bi>{label}</Bi>
       </Label>
       <Select
         value={value || null}
@@ -116,12 +149,12 @@ function Choice({
         items={choices.map(([v, l]) => ({ value: v, label: l }))}
       >
         <SelectTrigger id={id} className="w-full">
-          <SelectValue placeholder="Choisir… / Select…" />
+          <SelectValue placeholder="Select… / Choisir…" />
         </SelectTrigger>
         <SelectContent>
           {choices.map(([v, l]) => (
             <SelectItem key={v} value={v}>
-              {l}
+              <Bi>{l}</Bi>
             </SelectItem>
           ))}
         </SelectContent>
@@ -205,7 +238,7 @@ function IdUpload({
           onClick={() => input.current?.click()}
         >
           <FileUp aria-hidden="true" />
-          {busy ? "Envoi…" : fileName ? "Remplacer / Replace" : "Joindre / Attach"}
+          {busy ? "Sending… / Envoi…" : fileName ? "Replace / Remplacer" : "Attach / Joindre"}
         </Button>
         {fileName ? (
           <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
@@ -255,43 +288,38 @@ function OccupantsSection({
   const expected = stay.otherAdults;
   const hint =
     scope === "OCCUPANTS"
-      ? `Merci d'indiquer les autres adultes du séjour${expected > 0 ? ` — ${expected} attendu(s)` : ""}. Les enfants ne sont pas à déclarer ici. / Please list the other adults; children are not declared here.`
-      : `Facultatif à ce stade${expected > 0 ? ` — ${expected} attendu(s)` : ""} ; ces informations vous seront redemandées avant l'arrivée. Les enfants ne sont pas à déclarer ici. / Optional for now; we will ask again before arrival.`;
+      ? `Please list the other adults${expected > 0 ? ` — ${expected} expected` : ""}; children are not declared here. / Merci d'indiquer les autres adultes du séjour. Les enfants ne sont pas à déclarer ici.`
+      : `Optional for now${expected > 0 ? ` — ${expected} expected` : ""}; we will ask again before arrival. Children are not declared here. / Facultatif à ce stade ; ces informations vous seront redemandées avant l'arrivée.`;
 
   return (
       <Section
-        title="Autres occupants / Other guests"
+        title="Other guests / Autres occupants"
         hint={hint}
       >
         <div className="space-y-3">
           {occupants.map((o, i) => (
-            <div key={i} className="space-y-3 rounded-lg border p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">
-                  Occupant {i + 2}
-                  <span className="text-muted-foreground ml-2 text-xs font-normal">
-                    {[o.firstName, o.lastName].filter(Boolean).join(" ") ||
-                      "à renseigner / to complete"}
-                  </span>
-                </p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Retirer cet occupant"
-                  onClick={() =>
-                    setOccupants((l) => l.filter((_, j) => j !== i))
-                  }
-                >
-                  <X aria-hidden="true" />
-                </Button>
-              </div>
+            <div key={i} className="bg-card border-border space-y-3 border p-5">
+              {/* No remove: the booking fixes how many adults there are, and a
+                  client who could delete a slot could submit a stay short of
+                  the headcount the agency is required to identify. A slot left
+                  blank reads as missing, which is the truth; a slot deleted
+                  would read as complete. */}
+              {/* Numbered from 2: the primary tenant is occupant 1 of the
+                  stay, declared in their own section, so the first of the
+                  other adults is the second person on the booking. */}
+              <p className="text-sm font-medium">
+                Occupant {i + 2}
+                <span className="text-muted-foreground ml-2 text-xs font-normal">
+                  {[o.firstName, o.lastName].filter(Boolean).join(" ") ||
+                    "à renseigner / to complete"}
+                </span>
+              </p>
               <div className="grid gap-3 sm:grid-cols-2">
-              <Row id={`o-${i}-last`} label="Nom / Last name" value={o.lastName} onChange={(v) => setOccupants((l) => l.map((x, j) => (j === i ? { ...x, lastName: v } : x)))} />
-              <Row id={`o-${i}-first`} label="Prénom / First name" value={o.firstName} onChange={(v) => setOccupants((l) => l.map((x, j) => (j === i ? { ...x, firstName: v } : x)))} />
+              <Row id={`o-${i}-last`} label="Last name / Nom" value={o.lastName} onChange={(v) => setOccupants((l) => l.map((x, j) => (j === i ? { ...x, lastName: v } : x)))} />
+              <Row id={`o-${i}-first`} label="First name / Prénom" value={o.firstName} onChange={(v) => setOccupants((l) => l.map((x, j) => (j === i ? { ...x, firstName: v } : x)))} />
               <Choice
                 id={`o-${i}-type`}
-                label="Pièce d'identité / ID document"
+                label="ID document / Pièce d'identité"
                 value={o.idDocType}
                 onChange={(v) =>
                   setOccupants((l) =>
@@ -300,7 +328,7 @@ function OccupantsSection({
                 }
                 options={ID_DOC_OPTIONS}
               />
-              <Row id={`o-${i}-num`} label="Numéro / Number" value={o.idDocNumber} onChange={(v) => setOccupants((l) => l.map((x, j) => (j === i ? { ...x, idDocNumber: v } : x)))} />
+              <Row id={`o-${i}-num`} label="Number / Numéro" value={o.idDocNumber} onChange={(v) => setOccupants((l) => l.map((x, j) => (j === i ? { ...x, idDocNumber: v } : x)))} />
               <IdUpload
                 token={token}
                 fileName={o.idDocFileName}
@@ -324,27 +352,6 @@ function OccupantsSection({
               </div>
             </div>
           ))}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setOccupants((l) => [
-                ...l,
-                {
-                  firstName: "",
-                  lastName: "",
-                  idDocType: "",
-                  idDocNumber: "",
-                  idDocPath: "",
-                  idDocFileName: "",
-                },
-              ])
-            }
-          >
-            <Plus aria-hidden="true" />
-            Ajouter un occupant / Add a guest
-          </Button>
         </div>
       </Section>
   );
@@ -360,9 +367,14 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3">
-      <div className="space-y-1">
-        <h2 className="text-sm font-medium">{title}</h2>
+    <section className="space-y-5">
+      <div className="space-y-2">
+        {/* The site marks a section with capitals over a hairline rather than
+            a heavier weight — there is one weight of Albertus here and the
+            letterspacing is what gives the line its rank. */}
+        <h2 className="brand-section border-border border-b pb-2 text-xs">
+          <Bi>{title}</Bi>
+        </h2>
         {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
       </div>
       {children}
@@ -394,18 +406,37 @@ export function IntakeForm({
   const [stayPurposeOther, setStayPurposeOther] = React.useState(
     prefill.stay?.stayPurposeOther ?? ""
   );
-  const [occupants, setOccupants] = React.useState<Occupant[]>(
-    prefill.stay?.occupants.map((o) => ({
-      firstName: o.firstName,
-      lastName: o.lastName,
-      idDocType: o.idDocType ?? "",
-      idDocNumber: o.idDocNumber ?? "",
-      // A copy already on file is not re-offered: the client would have to
-      // find the same document again to see anything here.
-      idDocPath: "",
-      idDocFileName: "",
-    })) ?? []
-  );
+  /**
+   * One slot per adult the booking expects, opened at that count and kept
+   * there — the client is not asked how many are coming, the booking already
+   * says so, and a page that opened empty behind an "add a guest" button asked
+   * them to work it out again.
+   *
+   * Whoever was recorded before comes back in order, the first into the first
+   * slot, so a client returning to a half-filled form finds their own answers
+   * where they left them rather than a blank page.
+   *
+   * `max` and not the headcount alone: if more adults were recorded than the
+   * booking expects — a guest added late, a headcount since corrected — the
+   * extra ones keep a slot instead of being silently dropped on open.
+   */
+  const [occupants, setOccupants] = React.useState<Occupant[]>(() => {
+    const recorded = prefill.stay?.occupants ?? [];
+    const slots = Math.max(prefill.stay?.otherAdults ?? 0, recorded.length);
+    return Array.from({ length: slots }, (_, i) => {
+      const o = recorded[i];
+      return {
+        firstName: o?.firstName ?? "",
+        lastName: o?.lastName ?? "",
+        idDocType: o?.idDocType ?? "",
+        idDocNumber: o?.idDocNumber ?? "",
+        // A copy already on file is not re-offered: the client would have to
+        // find the same document again to see anything here.
+        idDocPath: "",
+        idDocFileName: "",
+      };
+    });
+  });
   const [idDoc, setIdDoc] = React.useState({ path: "", fileName: "" });
   const [repIdDoc, setRepIdDoc] = React.useState({ path: "", fileName: "" });
   const [confirmed, setConfirmed] = React.useState(false);
@@ -425,7 +456,11 @@ export function IntakeForm({
       company: { ...company, repIdDocPath: repIdDoc.path },
       occupants,
     },
-    { scope: prefill.scope, isCompany: prefill.isCompany }
+    {
+      scope: prefill.scope,
+      isCompany: prefill.isCompany,
+      expectedOccupants: prefill.stay?.otherAdults ?? 0,
+    }
   );
 
   function submit() {
@@ -449,15 +484,15 @@ export function IntakeForm({
 
   if (done) {
     return (
-      <div className="space-y-3 rounded-lg border p-6 text-center">
-        <CircleCheck aria-hidden="true" className="mx-auto size-8 text-emerald-600" />
-        <h1 className="text-lg font-semibold">Merci</h1>
+      <div className="bg-card border-border space-y-4 border p-10 text-center">
+        <CircleCheck aria-hidden="true" className="text-muted-foreground mx-auto size-8" />
+        <h1 className="brand-section text-base">Thank you / Merci</h1>
         <p className="text-muted-foreground text-sm">
+          Your information has been sent to BSTAY. You may close this page.
+        </p>
+        <p className="text-muted-foreground text-xs italic">
           Vos informations ont bien été transmises à BSTAY. Vous pouvez fermer
           cette page.
-        </p>
-        <p className="text-muted-foreground text-xs">
-          Thank you — your information has been sent to BSTAY.
         </p>
       </div>
     );
@@ -469,81 +504,45 @@ export function IntakeForm({
         e.preventDefault();
         submit();
       }}
-      className="space-y-8"
+      className="space-y-12"
     >
-      <header className="space-y-4 text-center">
-        {/* The vertical lockup, as the documents use. SVG rather than the PNG:
-            the lettering is hairline and goes grey when rastered at this size. */}
-        <Image
-          src="/img/LogoVertical.svg"
-          alt="BSTAY"
-          width={90}
-          height={99}
-          priority
-          className="mx-auto"
-        />
-        <h1 className="page-title">
-          Vos informations / Your details
-        </h1>
-        <div className="text-muted-foreground space-y-1 text-sm">
-          <p>
-            {prefill.stay
-              ? `Pour votre séjour à ${prefill.stay.property}. Merci de vérifier et de compléter les informations ci-dessous.`
-              : "Merci de vérifier et de compléter les informations ci-dessous."}
-          </p>
-          <p>
-            {prefill.stay
-              ? `For your stay at ${prefill.stay.property}. Please check and complete the details below.`
-              : "Please check and complete the details below."}
-          </p>
-        </div>
-        <p className="text-muted-foreground text-xs">
-          Ces informations sont recueillies au titre de nos obligations légales
-          d&apos;identification (LCB-FT / TRACFIN) et conservées à ce titre.
-          <span className="block">
-            Collected under our legal identification obligations and retained on
-            that basis.
-          </span>
-        </p>
-      </header>
-
       {/* An OCCUPANTS link asks only for the other adults: the contracting
           party already declared and confirmed their own details, and showing
           them again would invite a second, contradictory answer. */}
       {prefill.scope === "OCCUPANTS" ? null : prefill.isCompany ? (
         <>
-          <Section title="Société / Company">
+          <Section title="Company / Société">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Row id="c-name" label="Dénomination sociale / Company name" value={company.companyName ?? ""} onChange={cmp("companyName")} wide />
-              <Row id="c-form" label="Forme juridique / Legal form" value={company.legalForm ?? ""} onChange={cmp("legalForm")} />
-              <Row id="c-reg" label="Numéro SIREN / Registration number" value={company.registrationNumber ?? ""} onChange={cmp("registrationNumber")} />
-              <Row id="c-act" label="Activité principale / Main business activity" value={company.mainActivity ?? ""} onChange={cmp("mainActivity")} wide />
-              <Row id="c-office" label="Adresse du siège social / Registered office" value={company.registeredOffice ?? ""} onChange={cmp("registeredOffice")} wide />
-              <Row id="c-zip" label="Code postal / Postal code" value={company.officePostalCode ?? ""} onChange={cmp("officePostalCode")} />
-              <Row id="c-city" label="Ville / City" value={company.officeCity ?? ""} onChange={cmp("officeCity")} />
-              <Row id="c-country" label="Pays / Country" value={company.officeCountry ?? ""} onChange={cmp("officeCountry")} />
-              <Row id="c-phone" label="Téléphone / Phone" value={company.companyPhone ?? ""} onChange={cmp("companyPhone")} />
-              <Row id="c-email" label="Adresse e-mail / Email" type="email" value={company.companyEmail ?? ""} onChange={cmp("companyEmail")} wide />
+              <Row id="c-name" label="Company name / Dénomination sociale" value={company.companyName ?? ""} onChange={cmp("companyName")} wide />
+              <Row id="c-form" label="Legal form / Forme juridique" value={company.legalForm ?? ""} onChange={cmp("legalForm")} />
+              <Row id="c-reg" label="Registration number / Numéro SIREN" value={company.registrationNumber ?? ""} onChange={cmp("registrationNumber")} />
+              <Row id="c-act" label="Main business activity / Activité principale" value={company.mainActivity ?? ""} onChange={cmp("mainActivity")} wide />
+              <Row id="c-office" label="Registered office / Adresse du siège social" value={company.registeredOffice ?? ""} onChange={cmp("registeredOffice")} wide />
+              <Row id="c-zip" label="Postal code / Code postal" value={company.officePostalCode ?? ""} onChange={cmp("officePostalCode")} />
+              <Row id="c-city" label="City / Ville" value={company.officeCity ?? ""} onChange={cmp("officeCity")} />
+              <Row id="c-country" label="Country / Pays" value={company.officeCountry ?? ""} onChange={cmp("officeCountry")} />
+              <Row id="c-phone" label="Phone / Téléphone" value={company.companyPhone ?? ""} onChange={cmp("companyPhone")} />
+              <Row id="c-email" label="Email / Adresse e-mail" type="email" value={company.companyEmail ?? ""} onChange={cmp("companyEmail")} wide />
             </div>
           </Section>
 
-          <Section title="Représentant légal / Legal representative">
+          <Section title="Legal representative / Représentant légal">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Row id="r-last" label="Nom / Last name" value={company.repLastName ?? ""} onChange={cmp("repLastName")} />
-              <Row id="r-first" label="Prénom / First name" value={company.repFirstName ?? ""} onChange={cmp("repFirstName")} />
-              <Row id="r-cap" label="Fonction / Position" value={company.repCapacity ?? ""} onChange={cmp("repCapacity")} />
-              <Row id="r-occ" label="Profession / Occupation" value={company.repOccupation ?? ""} onChange={cmp("repOccupation")} />
-              <Row id="r-nat" label="Nationalité / Nationality" value={company.repNationality ?? ""} onChange={cmp("repNationality")} />
-              <Row id="r-phone" label="Téléphone / Phone" value={company.repPhone ?? ""} onChange={cmp("repPhone")} />
-              <Row id="r-email" label="Adresse e-mail / Email" type="email" value={company.repEmail ?? ""} onChange={cmp("repEmail")} wide />
+              <Row id="r-last" label="Last name / Nom" value={company.repLastName ?? ""} onChange={cmp("repLastName")} />
+              <Row id="r-first" label="First name / Prénom" value={company.repFirstName ?? ""} onChange={cmp("repFirstName")} />
+              <Row id="r-cap" label="Position / Fonction" value={company.repCapacity ?? ""} onChange={cmp("repCapacity")} />
+              <Row id="r-occ" label="Occupation / Profession" value={company.repOccupation ?? ""} onChange={cmp("repOccupation")} />
+              <Row id="r-nat" label="Nationality / Nationalité" value={company.repNationality ?? ""} onChange={cmp("repNationality")} />
+              <Row id="r-phone" label="Phone / Téléphone" value={company.repPhone ?? ""} onChange={cmp("repPhone")} />
+              <Row id="r-email" label="Email / Adresse e-mail" type="email" value={company.repEmail ?? ""} onChange={cmp("repEmail")} wide />
               <Choice
                 id="r-idtype"
-                label="Pièce d'identité / ID document"
+                label="ID document / Pièce d'identité"
                 value={company.repIdDocType ?? ""}
                 onChange={cmp("repIdDocType")}
                 options={ID_DOC_OPTIONS}
               />
-              <Row id="r-idnum" label="Numéro / Number" value={company.repIdDocNumber ?? ""} onChange={cmp("repIdDocNumber")} />
+              <Row id="r-idnum" label="Number / Numéro" value={company.repIdDocNumber ?? ""} onChange={cmp("repIdDocNumber")} />
               <IdUpload
                 token={token}
                 fileName={repIdDoc.fileName}
@@ -554,37 +553,37 @@ export function IntakeForm({
           </Section>
         </>
       ) : (
-        <Section title="Vos coordonnées / Your details">
+        <Section title="Your details / Vos coordonnées">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Row id="i-last" label="Nom / Last name" value={individual.lastName ?? ""} onChange={ind("lastName")} />
-            <Row id="i-first" label="Prénom / First name" value={individual.firstName ?? ""} onChange={ind("firstName")} />
-            <Row id="i-occ" label="Profession / Occupation" value={individual.occupation ?? ""} onChange={ind("occupation")} />
-            <Row id="i-nat" label="Nationalité / Nationality" value={individual.nationality ?? ""} onChange={ind("nationality")} />
+            <Row id="i-last" label="Last name / Nom" value={individual.lastName ?? ""} onChange={ind("lastName")} />
+            <Row id="i-first" label="First name / Prénom" value={individual.firstName ?? ""} onChange={ind("firstName")} />
+            <Row id="i-occ" label="Occupation / Profession" value={individual.occupation ?? ""} onChange={ind("occupation")} />
+            <Row id="i-nat" label="Nationality / Nationalité" value={individual.nationality ?? ""} onChange={ind("nationality")} />
 
             <Choice
               id="i-marital"
-              label="Situation matrimoniale / Marital status"
+              label="Marital status / Situation matrimoniale"
               value={individual.maritalStatus ?? ""}
               onChange={ind("maritalStatus")}
               options={MARITAL}
             />
 
-            <Row id="i-birth" label="Date de naissance / Date of birth" type="date" value={individual.birthDate ?? ""} onChange={ind("birthDate")} />
-            <Row id="i-birthplace" label="Lieu de naissance / Place of birth" value={individual.birthPlace ?? ""} onChange={ind("birthPlace")} />
-            <Row id="i-addr" label="Adresse / Address" value={individual.address ?? ""} onChange={ind("address")} wide />
-            <Row id="i-zip" label="Code postal / Postal code" value={individual.postalCode ?? ""} onChange={ind("postalCode")} />
-            <Row id="i-city" label="Ville / City" value={individual.city ?? ""} onChange={ind("city")} />
-            <Row id="i-country" label="Pays / Country" value={individual.country ?? ""} onChange={ind("country")} />
-            <Row id="i-phone" label="Téléphone / Phone" value={individual.phone ?? ""} onChange={ind("phone")} />
-            <Row id="i-email" label="Adresse e-mail / Email" type="email" value={individual.email ?? ""} onChange={ind("email")} wide />
+            <Row id="i-birth" label="Date of birth / Date de naissance" type="date" value={individual.birthDate ?? ""} onChange={ind("birthDate")} />
+            <Row id="i-birthplace" label="Place of birth / Lieu de naissance" value={individual.birthPlace ?? ""} onChange={ind("birthPlace")} />
+            <Row id="i-addr" label="Address / Adresse" value={individual.address ?? ""} onChange={ind("address")} wide />
+            <Row id="i-zip" label="Postal code / Code postal" value={individual.postalCode ?? ""} onChange={ind("postalCode")} />
+            <Row id="i-city" label="City / Ville" value={individual.city ?? ""} onChange={ind("city")} />
+            <Row id="i-country" label="Country / Pays" value={individual.country ?? ""} onChange={ind("country")} />
+            <Row id="i-phone" label="Phone / Téléphone" value={individual.phone ?? ""} onChange={ind("phone")} />
+            <Row id="i-email" label="Email / Adresse e-mail" type="email" value={individual.email ?? ""} onChange={ind("email")} wide />
             <Choice
               id="i-idtype"
-              label="Pièce d'identité / ID document"
+              label="ID document / Pièce d'identité"
               value={individual.idDocType ?? ""}
               onChange={ind("idDocType")}
               options={ID_DOC_OPTIONS}
             />
-            <Row id="i-idnum" label="Numéro / Number" value={individual.idDocNumber ?? ""} onChange={ind("idDocNumber")} />
+            <Row id="i-idnum" label="Number / Numéro" value={individual.idDocNumber ?? ""} onChange={ind("idDocNumber")} />
             <IdUpload
               token={token}
               fileName={idDoc.fileName}
@@ -598,8 +597,8 @@ export function IntakeForm({
       {prefill.stay && prefill.scope === "FULL" ? (
         <>
           <Section
-            title="Motif du séjour / Purpose of stay"
-            hint="Merci d'indiquer la raison de votre séjour."
+            title="Purpose of stay / Motif du séjour"
+            hint="Please tell us the reason for your stay. / Merci d'indiquer la raison de votre séjour."
           >
             <div className="space-y-1.5">
               {PURPOSES.map(([value, label]) => (
@@ -617,7 +616,7 @@ export function IntakeForm({
                 <Input
                   value={stayPurposeOther}
                   onChange={(e) => setStayPurposeOther(e.target.value)}
-                  placeholder="Précisez / Please specify"
+                  placeholder="Please specify / Précisez"
                   className="mt-1"
                 />
               ) : null}
@@ -646,7 +645,22 @@ export function IntakeForm({
 
 
 
-      <div className="space-y-4 border-t pt-6">
+      <div className="border-border space-y-5 border-t pt-8">
+        {/* Under the fields rather than over them. The lockup, the title and
+            the instruction are all on the banner, so this was the only thing
+            left at the top — and a page that opens on TRACFIN reads as a
+            formality before it reads as a welcome. It belongs here, next to
+            the box that confirms the answers and the button that sends them,
+            which is the moment it actually bears on. */}
+        <p className="text-muted-foreground text-xs">
+          Collected under our legal identification obligations (LCB-FT /
+          TRACFIN) and retained on that basis.
+          <span className="text-muted-foreground block italic">
+            Ces informations sont recueillies au titre de nos obligations
+            légales d&apos;identification et conservées à ce titre.
+          </span>
+        </p>
+
         <label className="flex items-start gap-2 text-sm">
           <input
             type="checkbox"
@@ -655,23 +669,25 @@ export function IntakeForm({
             onChange={(e) => setConfirmed(e.target.checked)}
           />
           <span>
-            Je confirme que les informations fournies à BSTAY sont exactes.
-            <span className="text-muted-foreground block text-xs">
-              I confirm that the information provided to BSTAY is correct.
+            I confirm that the information provided to BSTAY is correct.
+            <span className="text-muted-foreground block text-xs italic">
+              Je confirme que les informations fournies à BSTAY sont exactes.
             </span>
           </span>
         </label>
 
         {missing.length > 0 ? (
-          <div className="space-y-1 text-sm text-amber-600">
+          <div className="text-destructive space-y-1 text-sm">
             <p>
-              {missing.length} information{missing.length > 1 ? "s" : ""} à
-              compléter / {missing.length} field
-              {missing.length > 1 ? "s" : ""} still needed
+              {missing.length} field{missing.length > 1 ? "s" : ""} still
+              needed / {missing.length} information
+              {missing.length > 1 ? "s" : ""} à compléter
             </p>
             <ul className="list-disc pl-5 text-xs">
               {missing.slice(0, 8).map((m) => (
-                <li key={m}>{m}</li>
+                <li key={m}>
+                  <Bi>{m}</Bi>
+                </li>
               ))}
               {missing.length > 8 ? <li>…</li> : null}
             </ul>
@@ -682,7 +698,7 @@ export function IntakeForm({
           type="submit"
           disabled={!confirmed || isPending || missing.length > 0}
         >
-          {isPending ? "Envoi…" : "Envoyer / Submit"}
+          {isPending ? "Sending… / Envoi…" : "Submit / Envoyer"}
         </Button>
       </div>
     </form>

@@ -126,6 +126,108 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ---------------------------------------------------------------------------
+   The client-facing link, in the agency's own livery.
+
+   /intake/<token> is the one page a client ever sees, and it is BSTAY's, not
+   the software's. It therefore follows www.b-stay.com rather than the tool:
+   ink ground, paper lettering, Albertus Nova set wide in capitals. The values
+   below are the site's own tokens, read from its stylesheet rather than
+   matched by eye — ink #111110, paper #f0ede8, surface #1a1917, hairline
+   #2e2c29, muted #888580, and #bf000f for an error.
+
+   Scoped to `[data-brand="bstay"]`, which only `app/intake/layout.tsx` sets.
+   The application keeps the neutral scale it was returned to, and F0EDE8
+   appears nowhere in it — this is the client's page, not a screen of the tool.
+
+   It remaps shadcn's tokens rather than restyling each control, so Input,
+   Select and Button follow by themselves and cannot drift from the livery the
+   day one of them is changed.
+
+   No dark variant: the page is dark already, and it is the agency's colour
+   rather than a preference. `.dark` is a class the app sets, never the OS, so
+   nothing here can be flipped by a visitor's system setting.
+   --------------------------------------------------------------------------- */
+[data-brand="bstay"] {
+  --background: #111110;
+  --foreground: #f0ede8;
+  --card: #1a1917;
+  --card-foreground: #f0ede8;
+  --popover: #1a1917;
+  --popover-foreground: #f0ede8;
+  /* The site's buttons are paper on ink, the one place the two swap over. */
+  --primary: #f0ede8;
+  --primary-foreground: #111110;
+  --secondary: #1a1917;
+  --secondary-foreground: #f0ede8;
+  --muted: #1a1917;
+  --muted-foreground: #888580;
+  --accent: #1a1917;
+  --accent-foreground: #f0ede8;
+  --destructive: #bf000f;
+  --border: #2e2c29;
+  --input: #2e2c29;
+  --ring: #888580;
+}
+
+/* A section marker on the client's page: capitals, set wide, as the site sets
+   them. Albertus Thin — the same hairline cut the documents and the page
+   titles use, which at this size needs the letterspacing to hold together.
+   0.14em is the site's most frequent value for a heading of this rank. */
+[data-brand="bstay"] .brand-section {
+  font-family: var(--font-display);
+  font-weight: 200;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--foreground);
+}
+
+/* The banner of an inner page of the site, to its own measurements.
+
+   Taken from /en/about, /en/conciergerie and /en/contact, which share one
+   arrangement: a band of `min(52vh,560px)` with the photograph in it, the
+   title on ink directly beneath, and a short gradient closing the join. Not
+   the landing page — that one is a full `100svh` split in two columns and
+   belongs to a front door, not to a page someone was sent to.
+
+   Letterspacing is NEGATIVE on the title, which inverts the rule everywhere
+   else here: the site sets its wide tracking on small capitals — the eyebrow,
+   the buttons, the section markers — and pulls the large line tight so the
+   capitals close into a block instead of drifting apart. */
+[data-brand="bstay"] .brand-hero {
+  font-family: var(--font-display);
+  /* 200 is the only cut of Albertus Nova loaded. The site asks for `font-thin`
+     (100) and gets the same drawing; naming the weight we actually ship stops
+     a browser synthesising a lighter one the day a second cut is added. */
+  font-weight: 200;
+  text-transform: uppercase;
+  font-size: clamp(2.25rem, 5vw, 4rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  color: var(--foreground);
+}
+
+/* The small line over the title. Archivo, not Albertus — the inner pages set
+   this one in the body face and open it right out to 0.4em, which is wider
+   than anything else on the site and is what makes it read as a label rather
+   than a sentence. */
+[data-brand="bstay"] .brand-eyebrow {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4em;
+  color: var(--muted-foreground);
+}
+
+/* The sentence under the title: large, light, loosely leaded, and held to
+   three fifths of the measure on a wide screen so it breaks as a paragraph
+   rather than running the width of the page. */
+[data-brand="bstay"] .brand-lead {
+  font-size: 1.15rem;
+  font-weight: 300;
+  line-height: 1.85;
+  color: color-mix(in srgb, var(--foreground) 60%, transparent);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

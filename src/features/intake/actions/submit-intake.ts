@@ -44,6 +44,9 @@ export async function submitIntake(input: unknown): Promise<SubmitIntakeResult> 
       expiresAt: true,
       revokedAt: true,
       contact: { select: { kind: true } },
+      // The headcount the other adults are counted against. Read from the
+      // booking, never from the submission — see the note in required-fields.
+      rental: { select: { guests: true, children: true } },
     },
   });
 
@@ -68,9 +71,18 @@ export async function submitIntake(input: unknown): Promise<SubmitIntakeResult> 
   // fields, but this endpoint is reachable without it. What is required comes
   // from the link's own scope, never from the payload — a client cannot
   // declare their submission to be the lighter kind.
+  // Adults besides the primary tenant, the same arithmetic the rental page
+  // shows the agent. Floored at zero: a headcount of one leaves nobody else to
+  // declare, and a negative expectation would ask for occupants that cannot
+  // exist.
+  const expectedOccupants = Math.max(
+    0,
+    (link.rental?.guests ?? 0) - (link.rental?.children ?? 0) - 1
+  );
+
   const missing = missingIntakeFields(
     { individual: ind, company: co, occupants: data.occupants },
-    { scope: link.scope, isCompany }
+    { scope: link.scope, isCompany, expectedOccupants }
   );
   if (missing.length > 0) {
     return {
