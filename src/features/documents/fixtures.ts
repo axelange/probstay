@@ -122,8 +122,15 @@ export const sampleContrat: ContratData = {
   money: {
     rent: "48 000,00 €",
     services: [
-      { label: "Conciergerie privée", amount: "2 400,00 €" },
-      { label: "Chef à domicile (3 services)", amount: "1 800,00 €" },
+      // Typed by an agent in French only, which the convention allows: a label
+      // without the separator is one language and prints as one.
+      { en: "Conciergerie privée", amount: "2 400,00 €" },
+      // From the funnel's quick-add, so bilingual and set as such.
+      {
+        en: "Entry Cleaning",
+        fr: "Ménage d'entrée",
+        amount: "400,00 €",
+      },
     ],
     touristTax: "330,00 €",
     total: "52 530,00 €",

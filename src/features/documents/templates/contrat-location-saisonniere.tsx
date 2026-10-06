@@ -144,7 +144,8 @@ export type ContratData = {
     balancePercent: string | undefined;
     securityDeposit: string;
     securityDepositDue: string;
-    services: { label: string; amount: string }[];
+    /** Billed extras, bilingual where the label carries both halves. */
+    services: { en: string; fr?: string; amount: string }[];
     vat?: string;
     touristTax: string;
     total: string;
@@ -187,7 +188,20 @@ const s = StyleSheet.create({
     paddingVertical: 9.5,
     marginBottom: 2,
   },
+  // The label column takes what is left so the amount stays against the right
+  // edge, which is what makes the figures above the total read as one column.
+  finDescWrap: { flex: 1, paddingRight: GAP },
   finDesc: { fontSize: 10, color: ink, lineHeight: LH },
+  // Flush left under the label, not indented: the drop in size already says
+  // this qualifies the line above it, and an indent on top of that is a second
+  // signal for a job one does. What keeps it out of the sum is its amount
+  // sitting in the text rather than in the column being added.
+  finSub: {
+    fontSize: 8,
+    color: grey,
+    lineHeight: LH,
+    marginTop: 2,
+  },
   finAmt: { fontSize: 12, color: ink, lineHeight: LH },
   finTotal: {
     flexDirection: "row",
@@ -367,11 +381,27 @@ function MoneyRow({
   fr,
   note,
   amount,
+  sub,
 }: {
   en: string;
   fr?: string;
   note?: string;
   amount: string;
+  /**
+   * A figure that explains this line rather than adding to it.
+   *
+   * The VAT is inside the rent, not beside it. Set as a row of its own it was
+   * indistinguishable from the cleaning and the taxe de séjour above the
+   * total — same card, same type, same amount column — so the page read as a
+   * sum in which it was one of the terms. A reader adding the column got a
+   * figure the agency never asked for.
+   *
+   * It belongs to the line above it, so it is set inside that line: smaller,
+   * grey, indented, and with its amount in the text rather than in the column
+   * that is being added. Being part of the row also means a page break can no
+   * longer land between the rent and its own explanation.
+   */
+  sub?: { en: string; fr?: string; amount: string };
 }) {
   return (
     // Atomic. The block around it is allowed to break so a long list of billed
@@ -380,11 +410,20 @@ function MoneyRow({
     // the top of a page with no label and a label at the foot of the previous
     // one with no amount. Breaking between rows is fine — through one is not.
     <View style={s.finRow} wrap={false}>
-      <Text style={s.finDesc}>
-        {en}
-        {fr ? <Text style={s.itemFr}> / {fr}</Text> : null}
-        {note ? ` ${note}` : null}
-      </Text>
+      <View style={s.finDescWrap}>
+        <Text style={s.finDesc}>
+          {en}
+          {fr ? <Text style={s.itemFr}> / {fr}</Text> : null}
+          {note ? ` ${note}` : null}
+        </Text>
+        {sub ? (
+          <Text style={s.finSub}>
+            {sub.en}
+            {sub.fr ? <Text style={s.itemFr}> / {sub.fr}</Text> : null}
+            {` — ${sub.amount}`}
+          </Text>
+        ) : null}
+      </View>
       <Text style={s.finAmt}>{amount}</Text>
     </View>
   );
@@ -795,17 +834,29 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
             without a header repeated above it. */}
         <TitledBlock breakable en="Stay amount" fr="Montant du séjour">
           <View style={{ marginTop: GAP }}>
-            <MoneyRow en="Rent" fr="Loyer" amount={data.money.rent} />
-            {data.money.vat ? (
-              <MoneyRow
-                en="of which VAT 10 %"
-                fr="dont TVA 10 % (parahôtellerie)"
-                amount={data.money.vat}
-              />
-            ) : null}
+            <MoneyRow
+              en="Rent"
+              fr="Loyer"
+              amount={data.money.rent}
+              sub={
+                data.money.vat
+                  ? {
+                      en: "of which VAT 10 %",
+                      fr: "dont TVA 10 % (parahôtellerie)",
+                      amount: data.money.vat,
+                    }
+                  : undefined
+              }
+            />
             {/* Billed extras carry the asterisk the footnote explains. */}
             {data.money.services.map((sv, i) => (
-              <MoneyRow key={i} en={sv.label} note="*" amount={sv.amount} />
+              <MoneyRow
+                key={i}
+                en={sv.en}
+                fr={sv.fr}
+                note="*"
+                amount={sv.amount}
+              />
             ))}
             {/* The two that may not be parted: a total alone at the top of a
                 page is a figure with nothing behind it, and the tourist tax is

@@ -397,8 +397,13 @@ export async function buildContratData(
       taxRate !== null && taxableGuests > 0
         ? `${taxRate.toString().replace(".", ",")} × ${taxableGuests} pers${children > 0 ? " (hors enfants)" : ""} × ${stayNights} nuits`
         : undefined,
+    // Split like the charge cards: the label is written "English / French" and
+    // the money block sets the French half in italic grey, same as every other
+    // line in it. Passed whole it lands in the English and is printed plain,
+    // which is what put "Entry Cleaning / Ménage d'entrée" in one weight
+    // beside "Tourist tax / Taxe de séjour" in two.
     services: billed.map((sv) => ({
-      label: sv.label,
+      ...bilingual(sv.label),
       amount: money(n(sv.amount)),
     })),
     vat: showVat ? money(vat) : undefined,
