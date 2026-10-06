@@ -781,6 +781,7 @@ export function Footer({
   reference,
   templateVersion,
   initials = true,
+  pagination = true,
 }: {
   a: AgencyIdentity;
   /**
@@ -809,6 +810,15 @@ export function Footer({
   templateVersion?: number;
   /** Clear on the page that carries the signatures — see the note below. */
   initials?: boolean;
+  /**
+   * Clear on a document that is one page by nature.
+   *
+   * "Page 1/1" says nothing, and an invoice is not a page filed back into a
+   * bundle: it carries its number large at the top and travels on its own. The
+   * reference stays in the footer all the same, so a sheet that does get
+   * separated still names itself.
+   */
+  pagination?: boolean;
 }) {
   return (
     <>
@@ -860,10 +870,14 @@ export function Footer({
                       ) : null}
                     </Text>
                   ) : null}
-                  {reference ? <Text style={h.footIdentitySep}>·</Text> : null}
-                  <Text style={h.footPage}>
-                    Page {pageNumber}/{totalPages}
-                  </Text>
+                  {reference && pagination ? (
+                    <Text style={h.footIdentitySep}>·</Text>
+                  ) : null}
+                  {pagination ? (
+                    <Text style={h.footPage}>
+                      Page {pageNumber}/{totalPages}
+                    </Text>
+                  ) : null}
                 </View>
                 {/* Not on the signed page. Initials attest that a page was
                     read; the page carrying the signatures is attested by the

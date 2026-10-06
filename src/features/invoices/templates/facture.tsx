@@ -502,7 +502,7 @@ export function Facture({ data }: { data: InvoiceDocumentData }) {
           </View>
         ) : null}
 
-        <Footer a={a} reference={data.reference} />
+        <Footer a={a} reference={data.reference} initials={false} pagination={false} />
       </Page>
     </Document>
   );
