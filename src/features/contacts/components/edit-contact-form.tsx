@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { AddressField } from "@/components/address-field";
+import { CountryField, NationalitiesField } from "@/components/country-field";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -47,9 +49,11 @@ export type EditableContact = {
     repLastName: string | null;
     repCapacity: string | null;
     repBirthDate: Date | null;
-    repBirthPlace: string | null;
-    repNationality: string | null;
+    repBirthCountry: string | null;
+    repBirthCity: string | null;
+    repNationalities: string[];
     mainActivity: string | null;
+    officeLine2: string | null;
     officePostalCode: string | null;
     officeCity: string | null;
     officeCountry: string | null;
@@ -62,11 +66,13 @@ export type EditableContact = {
   } | null;
   // Civil identity of an individual (contracts).
   birthDate: Date | null;
-  birthPlace: string | null;
-  nationality: string | null;
+  birthCountry: string | null;
+  birthCity: string | null;
+  nationalities: string[];
   idDocType: string | null;
   idDocNumber: string | null;
   address: string | null;
+  addressLine2: string | null;
   occupation: string | null;
   maritalStatus: string | null;
   postalCode: string | null;
@@ -119,10 +125,11 @@ export function EditContactForm({
     repLastName: contact.company?.repLastName ?? "",
     repCapacity: contact.company?.repCapacity ?? "",
     repBirthDate: toDateInput(contact.company?.repBirthDate ?? null),
-    repBirthPlace: contact.company?.repBirthPlace ?? "",
-    repNationality: contact.company?.repNationality ?? "",
+    repBirthCountry: contact.company?.repBirthCountry ?? "",
+    repBirthCity: contact.company?.repBirthCity ?? "",
     // The set the client's own intake form collects, so both writers agree.
     mainActivity: contact.company?.mainActivity ?? "",
+    officeLine2: contact.company?.officeLine2 ?? "",
     officePostalCode: contact.company?.officePostalCode ?? "",
     officeCity: contact.company?.officeCity ?? "",
     officeCountry: contact.company?.officeCountry ?? "",
@@ -134,11 +141,12 @@ export function EditContactForm({
     paraHotelRegime: contact.company?.paraHotelRegime ?? false,
     // Individual civil identity.
     birthDate: toDateInput(contact.birthDate),
-    birthPlace: contact.birthPlace ?? "",
-    nationality: contact.nationality ?? "",
+    birthCountry: contact.birthCountry ?? "",
+    birthCity: contact.birthCity ?? "",
     idDocType: contact.idDocType ?? "",
     idDocNumber: contact.idDocNumber ?? "",
     address: contact.address ?? "",
+    addressLine2: contact.addressLine2 ?? "",
     occupation: contact.occupation ?? "",
     maritalStatus: contact.maritalStatus ?? "",
     postalCode: contact.postalCode ?? "",
@@ -157,6 +165,16 @@ export function EditContactForm({
   const identityIsLocked = contact.apimoId !== null;
   const wantsOther = specialties.includes("OTHER");
   const isCompany = kind === "COMPANY";
+
+  // Beside `form` rather than inside it: that record holds strings, and these
+  // are lists. Joining them to fit would mean splitting them again on save,
+  // which is the shape the database has just been moved away from.
+  const [nationalities, setNationalities] = React.useState<string[]>(
+    contact.nationalities
+  );
+  const [repNationalities, setRepNationalities] = React.useState<string[]>(
+    contact.company?.repNationalities ?? []
+  );
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -185,6 +203,8 @@ export function EditContactForm({
       const payload = {
         ...form,
         id: contact.id,
+        nationalities,
+        repNationalities,
         types,
         kind,
         specialties,
@@ -368,12 +388,21 @@ export function EditContactForm({
 
           <div className="space-y-2">
             <Label htmlFor="registeredOffice">Siège social</Label>
-            <Input
+            <AddressField
               id="registeredOffice"
               value={form.registeredOffice}
-              onChange={(e) => set("registeredOffice", e.target.value)}
+              onChange={(v) => set("registeredOffice", v)}
+              onPick={(a) =>
+                setForm((f) => ({
+                  ...f,
+                  registeredOffice: a.street,
+                  officePostalCode: a.postalCode,
+                  officeCity: a.city,
+                  officeCountry: a.country || f.officeCountry,
+                }))
+              }
               disabled={disabled}
-              autoComplete="off"
+              placeholder="Commencez à saisir…"
             />
           </div>
 
@@ -400,12 +429,11 @@ export function EditContactForm({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="officeCountry">Pays</Label>
-                <Input
+                <CountryField
                   id="officeCountry"
                   value={form.officeCountry}
-                  onChange={(e) => set("officeCountry", e.target.value)}
+                  onChange={(v) => set("officeCountry", v)}
                   disabled={disabled}
-                  autoComplete="off"
                 />
               </div>
           </div>
@@ -476,24 +504,34 @@ export function EditContactForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="repBirthPlace">Lieu de naissance</Label>
+                <Label htmlFor="repBirthCountry">Pays de naissance</Label>
+                <CountryField
+                  id="repBirthCountry"
+                  value={form.repBirthCountry}
+                  onChange={(v) => set("repBirthCountry", v)}
+                  disabled={disabled}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repBirthCity">Ville de naissance</Label>
                 <Input
-                  id="repBirthPlace"
-                  value={form.repBirthPlace}
-                  onChange={(e) => set("repBirthPlace", e.target.value)}
+                  id="repBirthCity"
+                  value={form.repBirthCity}
+                  onChange={(e) => set("repBirthCity", e.target.value)}
                   disabled={disabled}
                   autoComplete="off"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="repNationality">Nationalité(s)</Label>
-                <Input
-                  id="repNationality"
-                  placeholder="Suisse / Russe"
-                  value={form.repNationality}
-                  onChange={(e) => set("repNationality", e.target.value)}
+                {/* This box used to carry the placeholder "Suisse / Russe",
+                    and the one record in the database said exactly that — two
+                    nationalities typed into one line because there was nowhere
+                    else to put them. */}
+                <Label>Nationalité(s)</Label>
+                <NationalitiesField
+                  value={repNationalities}
+                  onChange={setRepNationalities}
                   disabled={disabled}
-                  autoComplete="off"
                 />
               </div>
               <div className="space-y-2">
@@ -583,24 +621,33 @@ export function EditContactForm({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="birthPlace">Lieu de naissance</Label>
+              <Label htmlFor="birthCountry">Pays de naissance</Label>
+              <CountryField
+                id="birthCountry"
+                value={form.birthCountry}
+                onChange={(v) => set("birthCountry", v)}
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              {/* Free text, deliberately. No list covers every village on
+                  earth, and a birthplace that cannot be entered is worse than
+                  one that is untidy. */}
+              <Label htmlFor="birthCity">Ville de naissance</Label>
               <Input
-                id="birthPlace"
-                value={form.birthPlace}
-                onChange={(e) => set("birthPlace", e.target.value)}
+                id="birthCity"
+                value={form.birthCity}
+                onChange={(e) => set("birthCity", e.target.value)}
                 disabled={disabled}
                 autoComplete="off"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="nationality">Nationalité(s)</Label>
-              <Input
-                id="nationality"
-                placeholder="Française"
-                value={form.nationality}
-                onChange={(e) => set("nationality", e.target.value)}
+              <Label>Nationalité(s)</Label>
+              <NationalitiesField
+                value={nationalities}
+                onChange={setNationalities}
                 disabled={disabled}
-                autoComplete="off"
               />
             </div>
             <div className="space-y-2">
@@ -660,10 +707,35 @@ export function EditContactForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Adresse</Label>
-              <Input
+              {/* Taking a suggestion fills the three boxes below in one go.
+                  All of them stay editable: OpenStreetMap is good, not
+                  exhaustive, and an agent correcting an address should not be
+                  arguing with the form. */}
+              <AddressField
                 id="address"
                 value={form.address}
-                onChange={(e) => set("address", e.target.value)}
+                onChange={(v) => set("address", v)}
+                onPick={(a) =>
+                  setForm((f) => ({
+                    ...f,
+                    address: a.street,
+                    postalCode: a.postalCode,
+                    city: a.city,
+                    // Left as it was when the suggestion names a country we do
+                    // not list, rather than cleared — it may already be right.
+                    country: a.country || f.country,
+                  }))
+                }
+                disabled={disabled}
+                placeholder="Commencez à saisir…"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressLine2">Complément d&apos;adresse</Label>
+              <Input
+                id="addressLine2"
+                value={form.addressLine2}
+                onChange={(e) => set("addressLine2", e.target.value)}
                 disabled={disabled}
                 autoComplete="off"
               />
@@ -690,12 +762,11 @@ export function EditContactForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="country">Pays</Label>
-              <Input
+              <CountryField
                 id="country"
                 value={form.country}
-                onChange={(e) => set("country", e.target.value)}
+                onChange={(v) => set("country", v)}
                 disabled={disabled}
-                autoComplete="off"
               />
             </div>
             <div className="space-y-2">

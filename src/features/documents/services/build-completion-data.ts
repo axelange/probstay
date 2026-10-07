@@ -29,8 +29,9 @@ type Party = {
 export type CompletionData = {
   tenant: Party & {
     birthDate: string | null; // yyyy-mm-dd for the date input
-    birthPlace: string | null;
-    nationality: string | null;
+    birthCountry: string | null;
+    birthCity: string | null;
+    nationalities: string[];
     idDocType: string | null;
     idDocNumber: string | null;
   };
@@ -118,8 +119,9 @@ export async function buildCompletionData(
             select: {
               ...partySelect.select,
               birthDate: true,
-              birthPlace: true,
-              nationality: true,
+              birthCountry: true,
+              birthCity: true,
+              nationalities: true,
               idDocType: true,
               idDocNumber: true,
             },
@@ -144,8 +146,9 @@ export async function buildCompletionData(
     tenant: {
       ...party(t),
       birthDate: toDateInput(t.birthDate),
-      birthPlace: t.birthPlace,
-      nationality: t.nationality,
+      birthCountry: t.birthCountry,
+      birthCity: t.birthCity,
+      nationalities: t.nationalities,
       idDocType: t.idDocType,
       idDocNumber: t.idDocNumber,
     },

@@ -87,8 +87,9 @@ export async function updateContact(
     repCapacity: data.repCapacity ?? null,
     // Stored as a DATE column; the schema hands back a yyyy-mm-dd string.
     repBirthDate: data.repBirthDate ? new Date(data.repBirthDate) : null,
-    repBirthPlace: data.repBirthPlace ?? null,
-    repNationality: data.repNationality ?? null,
+    repBirthCountry: data.repBirthCountry ?? null,
+    repBirthCity: data.repBirthCity ?? null,
+    repNationalities: data.repNationalities,
     mainActivity: data.mainActivity ?? null,
     officePostalCode: data.officePostalCode ?? null,
     officeCity: data.officeCity ?? null,
@@ -123,8 +124,9 @@ export async function updateContact(
             : data.birthDate
               ? new Date(data.birthDate)
               : null,
-          birthPlace: isCompany ? null : (data.birthPlace ?? null),
-          nationality: isCompany ? null : (data.nationality ?? null),
+          birthCountry: isCompany ? null : (data.birthCountry ?? null),
+          birthCity: isCompany ? null : (data.birthCity ?? null),
+          nationalities: isCompany ? [] : data.nationalities,
           idDocType: isCompany ? null : (data.idDocType ?? null),
           idDocNumber: isCompany ? null : (data.idDocNumber ?? null),
           address: isCompany ? null : (data.address ?? null),

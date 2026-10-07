@@ -43,7 +43,13 @@ export async function proxy(request: NextRequest) {
   const isPublicRoute =
     pathname === "/login" ||
     pathname.startsWith("/auth/") ||
-    pathname.startsWith("/intake/");
+    pathname.startsWith("/intake/") ||
+    // Address suggestions for that form. Open for the same reason the page is:
+    // the client has no session to present. It reads nothing of ours — it
+    // forwards a search string to Photon and returns what comes back — and it
+    // caps itself per IP, since being reachable without a token is the price
+    // of being reachable from a page that only has one.
+    pathname.startsWith("/api/geo/");
 
   if (!user && !isPublicRoute) {
     const loginUrl = new URL("/login", request.url);

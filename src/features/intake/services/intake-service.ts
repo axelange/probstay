@@ -43,6 +43,17 @@ export type IntakePrefill = {
   } | null;
   individual: Record<string, string>;
   company: Record<string, string>;
+  /**
+   * Nationalities held, as country codes — the individual's and, for a
+   * company, its representative's.
+   *
+   * Carried beside the two records rather than inside them because those are
+   * `Record<string, string>` and these are lists. Flattening them to a joined
+   * string to fit would mean parsing it back in the form, which is the shape
+   * the database just moved away from.
+   */
+  nationalities: string[];
+  repNationalities: string[];
 };
 
 const str = (v: string | null | undefined) => v ?? "";
@@ -81,11 +92,13 @@ export async function resolveIntake(token: string): Promise<
           lastName: true,
           kind: true,
           occupation: true,
-          nationality: true,
+          nationalities: true,
           maritalStatus: true,
           birthDate: true,
-          birthPlace: true,
+          birthCountry: true,
+          birthCity: true,
           address: true,
+          addressLine2: true,
           postalCode: true,
           city: true,
           country: true,
@@ -155,15 +168,18 @@ export async function resolveIntake(token: string): Promise<
             occupants: r.occupants,
           }
         : null,
+      nationalities: c.nationalities,
+      repNationalities: co?.repNationalities ?? [],
       individual: {
         lastName: str(c.lastName),
         firstName: str(c.firstName),
         occupation: str(c.occupation),
-        nationality: str(c.nationality),
+        birthCountry: str(c.birthCountry),
         maritalStatus: str(c.maritalStatus),
         birthDate: day(c.birthDate),
-        birthPlace: str(c.birthPlace),
+        birthCity: str(c.birthCity),
         address: str(c.address),
+        addressLine2: str(c.addressLine2),
         postalCode: str(c.postalCode),
         city: str(c.city),
         country: str(c.country),
@@ -178,6 +194,7 @@ export async function resolveIntake(token: string): Promise<
         registrationNumber: str(co?.registrationNumber),
         mainActivity: str(co?.mainActivity),
         registeredOffice: str(co?.registeredOffice),
+        officeLine2: str(co?.officeLine2),
         officePostalCode: str(co?.officePostalCode),
         officeCity: str(co?.officeCity),
         officeCountry: str(co?.officeCountry),
@@ -187,7 +204,8 @@ export async function resolveIntake(token: string): Promise<
         repFirstName: str(co?.repFirstName),
         repCapacity: str(co?.repCapacity),
         repOccupation: str(co?.repOccupation),
-        repNationality: str(co?.repNationality),
+        repBirthCountry: str(co?.repBirthCountry),
+        repBirthCity: str(co?.repBirthCity),
         repPhone: str(co?.repPhone),
         repEmail: str(co?.repEmail),
         repIdDocType: str(co?.repIdDocType),

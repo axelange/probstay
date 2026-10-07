@@ -1,4 +1,5 @@
 import "server-only";
+import { birthPlaceLabel, nationalitiesLabel } from "@/lib/countries";
 
 import type { CurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
@@ -180,8 +181,9 @@ export async function buildContratData(
               phone: true,
               address: true,
               birthDate: true,
-              birthPlace: true,
-              nationality: true,
+              birthCountry: true,
+              birthCity: true,
+              nationalities: true,
               idDocType: true,
               idDocNumber: true,
               company: {
@@ -517,15 +519,17 @@ export async function buildContratData(
     value: string;
   }[] = [];
   if (tenant?.kind !== "COMPANY") {
+    const birthPlace = birthPlaceLabel(tenant?.birthCity, tenant?.birthCountry);
     const birth = tenant?.birthDate
-      ? [date(tenant.birthDate), tenant.birthPlace].filter(Boolean).join(", ")
+      ? [date(tenant.birthDate), birthPlace].filter(Boolean).join(", ")
       : null;
     if (birth)
       tenantDetails.push({ label: { en: "Born in", fr: "Né(e) le" }, value: birth });
-    if (tenant?.nationality)
+    const nationalities = nationalitiesLabel(tenant?.nationalities);
+    if (nationalities)
       tenantDetails.push({
         label: { en: "Nationality", fr: "Nationalité" },
-        value: tenant.nationality,
+        value: nationalities,
       });
     if (tenant?.idDocType && tenant?.idDocNumber)
       tenantDetails.push({
@@ -575,12 +579,12 @@ export async function buildContratData(
             kind: "INDIVIDUAL",
             name: fullName(tenant),
             birth:
-              tenant?.birthDate && tenant?.birthPlace
-                ? `${date(tenant.birthDate)} à ${tenant.birthPlace}`
+              tenant?.birthDate && birthPlaceLabel(tenant?.birthCity, tenant?.birthCountry)
+                ? `${date(tenant.birthDate)} à ${birthPlaceLabel(tenant.birthCity, tenant.birthCountry)}`
                 : tenant?.birthDate
                   ? date(tenant.birthDate)
                   : undefined,
-            nationality: tenant?.nationality ?? undefined,
+            nationality: nationalitiesLabel(tenant?.nationalities) ?? undefined,
             address: tenant?.address ?? undefined,
             email: tenant?.email ?? undefined,
             phone: tenant?.phone ?? undefined,

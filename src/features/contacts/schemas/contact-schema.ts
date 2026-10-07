@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { country } from "@/lib/countries";
 import { optionalIdDocType } from "@/features/contacts/schemas/id-doc-type";
 import {
   ContactKind,
@@ -14,6 +15,38 @@ const optionalText = (max: number) =>
     .max(max)
     .optional()
     .transform((v) => (v ? v : undefined));
+
+/**
+ * An ISO 3166-1 alpha-2 country code, or empty.
+ *
+ * Checked against the shipped list rather than merely shaped: a two-letter
+ * string is easy to satisfy by accident, and a code nothing can resolve prints
+ * as a blank on a contract instead of failing where it was typed.
+ */
+const optionalCountry = z
+  .union([z.literal(""), z.string().trim().toUpperCase()])
+  .transform((v) => (v === "" ? undefined : v))
+  .optional()
+  .refine((v) => v === undefined || country(v) !== null, {
+    message: "Pays inconnu.",
+  });
+
+/**
+ * Up to three nationalities, as country codes.
+ *
+ * Three rather than two because dual nationality is ordinary here and triple
+ * happens; the column itself is uncapped, so this number can move without a
+ * migration. Duplicates are dropped rather than refused — picking the same
+ * one twice is a slip, not an error worth a message.
+ */
+const nationalityList = z
+  .array(z.string().trim().toUpperCase())
+  .max(3, "Trois nationalités au maximum.")
+  .optional()
+  .transform((v) => (v ? [...new Set(v.filter(Boolean))] : []))
+  .refine((v) => v.every((c) => country(c) !== null), {
+    message: "Nationalité inconnue.",
+  });
 
 /** An optional ISO date (yyyy-mm-dd) or empty. */
 const optionalDate = z
@@ -40,15 +73,17 @@ export const companyDetailFields = {
   repLastName: optionalText(120),
   repCapacity: optionalText(120),
   repBirthDate: optionalDate,
-  repBirthPlace: optionalText(160),
-  repNationality: optionalText(120),
+  repBirthCountry: optionalCountry,
+  repBirthCity: optionalText(120),
+  repNationalities: nationalityList,
   // Collected from the client's own intake form, so the two must agree: a
   // field the client can fill and an agent cannot is a field that silently
   // reverts the next time the fiche is saved.
   mainActivity: optionalText(160),
+  officeLine2: optionalText(160),
   officePostalCode: optionalText(20),
   officeCity: optionalText(120),
-  officeCountry: optionalText(80),
+  officeCountry: optionalCountry,
   repOccupation: optionalText(120),
   repPhone: optionalText(40),
   repEmail: optionalText(160),
@@ -71,8 +106,9 @@ const companyFields = {
  */
 export const individualDetailFields = {
   birthDate: optionalDate,
-  birthPlace: optionalText(160),
-  nationality: optionalText(120),
+  birthCountry: optionalCountry,
+  birthCity: optionalText(120),
+  nationalities: nationalityList,
   idDocType: optionalIdDocType,
   idDocNumber: optionalText(60),
   address: optionalText(300),
@@ -82,9 +118,10 @@ export const individualDetailFields = {
     .union([z.literal(""), z.enum(MaritalStatus)])
     .transform((v) => (v === "" ? undefined : v))
     .optional(),
+  addressLine2: optionalText(160),
   postalCode: optionalText(20),
   city: optionalText(120),
-  country: optionalText(80),
+  country: optionalCountry,
 };
 
 /**

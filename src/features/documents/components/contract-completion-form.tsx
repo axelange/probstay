@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { CountryField, NationalitiesField } from "@/components/country-field";
 import { useRouter } from "next/navigation";
 import { CircleAlert, CircleCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -44,14 +45,19 @@ export function ContractCompletionForm({
   const isCompany = t.kind === "COMPANY";
   const ownerIsCompany = data.owner?.kind === "COMPANY";
 
+  // Apart from `form`, which holds strings — see the note in the contact form.
+  const [nationalities, setNationalities] = React.useState<string[]>(
+    t.nationalities
+  );
+
   const [form, setForm] = React.useState({
     firstName: t.firstName ?? "",
     lastName: t.lastName,
     phone: t.phone ?? "",
     address: t.address ?? "",
     birthDate: t.birthDate ?? "",
-    birthPlace: t.birthPlace ?? "",
-    nationality: t.nationality ?? "",
+    birthCountry: t.birthCountry ?? "",
+    birthCity: t.birthCity ?? "",
     idDocType: t.idDocType ?? "",
     idDocNumber: t.idDocNumber ?? "",
     // Tenant company block.
@@ -96,8 +102,9 @@ export function ContractCompletionForm({
           phone: form.phone,
           address: form.address,
           birthDate: form.birthDate,
-          birthPlace: form.birthPlace,
-          nationality: form.nationality,
+          birthCountry: form.birthCountry,
+          birthCity: form.birthCity,
+          nationalities,
           idDocType: form.idDocType,
           idDocNumber: form.idDocNumber,
           ...(isCompany
@@ -267,10 +274,26 @@ export function ContractCompletionForm({
             {field("tenant.birthDate", "birthDate", "Date de naissance", {
               type: "date",
             })}
-            {field("tenant.birthPlace", "birthPlace", "Lieu de naissance")}
-            {field("tenant.nationality", "nationality", "Nationalité(s)", {
-              placeholder: "Française",
-            })}
+            <div className="space-y-1.5">
+              <Label htmlFor="cc-birthCountry" className="text-xs">
+                Pays de naissance
+              </Label>
+              <CountryField
+                id="cc-birthCountry"
+                value={form.birthCountry}
+                onChange={(v) => set("birthCountry", v)}
+                disabled={isPending}
+              />
+            </div>
+            {field("tenant.birthCity", "birthCity", "Ville de naissance")}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nationalité(s)</Label>
+              <NationalitiesField
+                value={nationalities}
+                onChange={setNationalities}
+                disabled={isPending}
+              />
+            </div>
             <div className="sm:col-span-2">
               {field("tenant.address", "address", "Adresse")}
             </div>

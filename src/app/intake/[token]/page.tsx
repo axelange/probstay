@@ -70,28 +70,39 @@ export default async function IntakePage({
               the title rides up over it, which is the movement the inner pages
               open with. */}
           <div className="sticky top-0 h-[min(52vh,560px)] min-h-[15rem] w-full overflow-hidden">
-            {/* The house they are coming to. Empty alt on purpose: its name is
+            {/* `sticky` is a position, so it already establishes a containing
+                block — but next/image refuses to count it as one and warns that
+                a `fill` image needs absolute, fixed or relative above it. It
+                drew correctly all the same, which is the kind of thing that
+                holds until a version bump decides otherwise. A relative box
+                inside the sticky one gives the image what it asks for and
+                leaves the band's behaviour untouched. */}
+            <div className="relative size-full">
+              {/* The house they are coming to. Empty alt on purpose: its name is
                 set immediately below, and a screen reader reading the picture
                 and then the eyebrow would say it twice. */}
-            <Image
-              src={banner}
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover"
-            />
-            {/* Closes the join between photograph and ground. Short — 3rem,
+              <Image
+                src={banner}
+                alt=""
+                fill
+                priority
+                sizes="100vw"
+                className="object-cover"
+              />
+              {/* Closes the join between photograph and ground. Short — 3rem,
                 5rem from `md` — so it darkens the foot of the picture without
                 veiling it. */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-[#111110] md:h-20"
-            />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-[#111110] md:h-20"
+              />
+            </div>
           </div>
 
           <div className="bg-background relative z-10 px-6 pt-12 pb-16 md:px-12 md:pt-16">
-            {stay ? <p className="brand-eyebrow mb-5">{stay.property}</p> : null}
+            {stay ? (
+              <p className="brand-eyebrow mb-5">{stay.property}</p>
+            ) : null}
             <h1 className="brand-hero">Your details / Vos informations</h1>
             <p className="brand-lead mt-6 lg:w-3/5">
               {stay

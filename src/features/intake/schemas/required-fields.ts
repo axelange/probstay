@@ -23,10 +23,11 @@ export const INDIVIDUAL_REQUIRED = [
   ["lastName", "Last name / Nom"],
   ["firstName", "First name / Prénom"],
   ["occupation", "Occupation / Profession"],
-  ["nationality", "Nationality / Nationalité"],
+  ["nationalities", "Nationality / Nationalité"],
   ["maritalStatus", "Marital status / Situation matrimoniale"],
   ["birthDate", "Date of birth / Date de naissance"],
-  ["birthPlace", "Place of birth / Lieu de naissance"],
+  ["birthCountry", "Country of birth / Pays de naissance"],
+  ["birthCity", "City of birth / Ville de naissance"],
   ["address", "Address / Adresse"],
   ["postalCode", "Postal code / Code postal"],
   ["city", "City / Ville"],
@@ -52,7 +53,7 @@ export const COMPANY_REQUIRED = [
   ["repFirstName", "Representative — First name / Prénom"],
   ["repCapacity", "Representative — Position / Fonction"],
   ["repOccupation", "Representative — Occupation / Profession"],
-  ["repNationality", "Representative — Nationality / Nationalité"],
+  ["repNationalities", "Representative — Nationality / Nationalité"],
   ["repPhone", "Representative — Phone / Téléphone"],
   ["repEmail", "Representative — Email / Adresse e-mail"],
   ["repIdDocType", "Representative — ID document / Pièce d'identité"],
@@ -66,6 +67,10 @@ export const OCCUPANT_REQUIRED = [
   ["idDocNumber", "Number / Numéro"],
 ] as const satisfies readonly (readonly [keyof IntakeOccupant, string])[];
 
+// Also correct for the list columns, though it reads as an accident: an empty
+// array stringifies to "" and counts as missing, while ["FR","CH"] gives
+// "FR,CH" and does not. Stated here so nobody replaces this with a check that
+// only understands strings.
 const blank = (v: unknown) =>
   v === undefined || v === null || String(v).trim() === "";
 

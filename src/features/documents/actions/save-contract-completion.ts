@@ -1,12 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { country } from "@/lib/countries";
 import { z } from "zod";
 import { optionalIdDocType } from "@/features/contacts/schemas/id-doc-type";
 import type { Prisma } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canManageRental } from "@/features/rentals/services/rental-service";
+
+/** An ISO 3166-1 alpha-2 code the shipped list recognises, or nothing. */
+const optionalCountryCode = z
+  .union([z.literal(""), z.string().trim().toUpperCase()])
+  .transform((v) => (v === "" ? undefined : v))
+  .optional()
+  .refine((v) => v === undefined || country(v) !== null, {
+    message: "Pays inconnu.",
+  });
 
 const optionalText = (max: number) =>
   z
@@ -49,8 +59,16 @@ const schema = z.object({
     phone: optionalText(40),
     address: optionalText(300),
     birthDate: optionalDate,
-    birthPlace: optionalText(160),
-    nationality: optionalText(120),
+    birthCountry: optionalCountryCode,
+    birthCity: optionalText(120),
+    nationalities: z
+      .array(z.string().trim().toUpperCase())
+      .max(3)
+      .optional()
+      .transform((v) => (v ? [...new Set(v.filter(Boolean))] : []))
+      .refine((v) => v.every((c) => country(c) !== null), {
+        message: "Nationalité inconnue.",
+      }),
     idDocType: optionalIdDocType,
     idDocNumber: optionalText(60),
     company: companyBlock.optional(),
@@ -143,8 +161,9 @@ export async function saveContractCompletion(
         ...(tenantLocked ? {} : { lastName: t.lastName }),
         address: t.address ?? null,
         birthDate: t.birthDate ? new Date(t.birthDate) : null,
-        birthPlace: t.birthPlace ?? null,
-        nationality: t.nationality ?? null,
+        birthCountry: t.birthCountry ?? null,
+        birthCity: t.birthCity ?? null,
+        nationalities: t.nationalities,
         idDocType: t.idDocType ?? null,
         idDocNumber: t.idDocNumber ?? null,
       };

@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AddressField } from "@/components/address-field";
+import { CountryField, NationalitiesField } from "@/components/country-field";
 import {
   Select,
   SelectContent,
@@ -437,6 +439,15 @@ export function IntakeForm({
       };
     });
   });
+  // Beside the two records, which hold strings — the prefill carries these as
+  // lists for the same reason.
+  const [nationalities, setNationalities] = React.useState<string[]>(
+    prefill.nationalities
+  );
+  const [repNationalities, setRepNationalities] = React.useState<string[]>(
+    prefill.repNationalities
+  );
+
   const [idDoc, setIdDoc] = React.useState({ path: "", fileName: "" });
   const [repIdDoc, setRepIdDoc] = React.useState({ path: "", fileName: "" });
   const [confirmed, setConfirmed] = React.useState(false);
@@ -452,8 +463,8 @@ export function IntakeForm({
   // submission the server will refuse.
   const missing = missingIntakeFields(
     {
-      individual: { ...individual, idDocPath: idDoc.path },
-      company: { ...company, repIdDocPath: repIdDoc.path },
+      individual: { ...individual, nationalities, idDocPath: idDoc.path },
+      company: { ...company, repNationalities, repIdDocPath: repIdDoc.path },
       occupants,
     },
     {
@@ -467,8 +478,8 @@ export function IntakeForm({
     startTransition(async () => {
       const result = await submitIntake({
         token,
-        individual: { ...individual, idDocPath: idDoc.path },
-        company: { ...company, repIdDocPath: repIdDoc.path },
+        individual: { ...individual, nationalities, idDocPath: idDoc.path },
+        company: { ...company, repNationalities, repIdDocPath: repIdDoc.path },
         occupants,
         stayPurpose,
         stayPurposeOther,
@@ -532,7 +543,15 @@ export function IntakeForm({
               <Row id="r-first" label="First name / Prénom" value={company.repFirstName ?? ""} onChange={cmp("repFirstName")} />
               <Row id="r-cap" label="Position / Fonction" value={company.repCapacity ?? ""} onChange={cmp("repCapacity")} />
               <Row id="r-occ" label="Occupation / Profession" value={company.repOccupation ?? ""} onChange={cmp("repOccupation")} />
-              <Row id="r-nat" label="Nationality / Nationalité" value={company.repNationality ?? ""} onChange={cmp("repNationality")} />
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label className="text-xs">
+                  <Bi>{"Nationality / Nationalité"}</Bi>
+                </Label>
+                <NationalitiesField
+                  value={repNationalities}
+                  onChange={setRepNationalities}
+                />
+              </div>
               <Row id="r-phone" label="Phone / Téléphone" value={company.repPhone ?? ""} onChange={cmp("repPhone")} />
               <Row id="r-email" label="Email / Adresse e-mail" type="email" value={company.repEmail ?? ""} onChange={cmp("repEmail")} wide />
               <Choice
@@ -553,45 +572,123 @@ export function IntakeForm({
           </Section>
         </>
       ) : (
-        <Section title="Your details / Vos coordonnées">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Row id="i-last" label="Last name / Nom" value={individual.lastName ?? ""} onChange={ind("lastName")} />
-            <Row id="i-first" label="First name / Prénom" value={individual.firstName ?? ""} onChange={ind("firstName")} />
-            <Row id="i-occ" label="Occupation / Profession" value={individual.occupation ?? ""} onChange={ind("occupation")} />
-            <Row id="i-nat" label="Nationality / Nationalité" value={individual.nationality ?? ""} onChange={ind("nationality")} />
+        <>
+          {/* Four sections where there was one list. Identity, where the client
+              is, how to reach them, and what proves who they are, are four
+              different questions, and a client who has one of them to hand
+              should not have to scroll past the other three. */}
+          <Section title="Identity / Identité">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Row id="i-last" label="Last name / Nom" value={individual.lastName ?? ""} onChange={ind("lastName")} />
+              <Row id="i-first" label="First name / Prénom" value={individual.firstName ?? ""} onChange={ind("firstName")} />
+              <Row id="i-occ" label="Occupation / Profession" value={individual.occupation ?? ""} onChange={ind("occupation")} />
+              <Choice
+                id="i-marital"
+                label="Marital status / Situation matrimoniale"
+                value={individual.maritalStatus ?? ""}
+                onChange={ind("maritalStatus")}
+                options={MARITAL}
+              />
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label className="text-xs">
+                  <Bi>{"Nationality / Nationalité"}</Bi>
+                </Label>
+                <NationalitiesField
+                  value={nationalities}
+                  onChange={setNationalities}
+                />
+              </div>
+              <Row id="i-birth" label="Date of birth / Date de naissance" type="date" value={individual.birthDate ?? ""} onChange={ind("birthDate")} />
+              <div className="space-y-1.5">
+                <Label htmlFor="i-birthcountry" className="text-xs">
+                  <Bi>{"Country of birth / Pays de naissance"}</Bi>
+                </Label>
+                <CountryField
+                  id="i-birthcountry"
+                  value={individual.birthCountry ?? ""}
+                  onChange={ind("birthCountry")}
+                  placeholder="Search / Rechercher…"
+                />
+              </div>
+              {/* Free text on purpose: no list holds every village on earth,
+                  and a client who cannot say where they were born is stuck on
+                  a page with nobody to ask. */}
+              <Row id="i-birthcity" label="City of birth / Ville de naissance" value={individual.birthCity ?? ""} onChange={ind("birthCity")} wide />
+            </div>
+          </Section>
 
-            <Choice
-              id="i-marital"
-              label="Marital status / Situation matrimoniale"
-              value={individual.maritalStatus ?? ""}
-              onChange={ind("maritalStatus")}
-              options={MARITAL}
-            />
+          <Section title="Address / Adresse">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label htmlFor="i-addr" className="text-xs">
+                  <Bi>{"Street address / Adresse"}</Bi>
+                </Label>
+                {/* Picking a suggestion fills the four boxes below at once.
+                    Each stays editable afterwards: OpenStreetMap is good, not
+                    exhaustive, and a client correcting their own address
+                    should not be fighting the form. */}
+                <AddressField
+                  id="i-addr"
+                  value={individual.address ?? ""}
+                  onChange={ind("address")}
+                  onPick={(a) =>
+                    setIndividual((f) => ({
+                      ...f,
+                      address: a.street,
+                      postalCode: a.postalCode,
+                      city: a.city,
+                      // Left alone when Photon returns a country we do not
+                      // list, rather than cleared — the client may have
+                      // answered it already.
+                      country: a.country || f.country || "",
+                    }))
+                  }
+                  placeholder="Start typing / Commencez à saisir…"
+                />
+              </div>
+              <Row id="i-addr2" label="Address line 2 / Complément d'adresse" value={individual.addressLine2 ?? ""} onChange={ind("addressLine2")} wide />
+              <Row id="i-zip" label="Postal code / Code postal" value={individual.postalCode ?? ""} onChange={ind("postalCode")} />
+              <Row id="i-city" label="City / Ville" value={individual.city ?? ""} onChange={ind("city")} />
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label htmlFor="i-country" className="text-xs">
+                  <Bi>{"Country / Pays"}</Bi>
+                </Label>
+                <CountryField
+                  id="i-country"
+                  value={individual.country ?? ""}
+                  onChange={ind("country")}
+                  placeholder="Search / Rechercher…"
+                />
+              </div>
+            </div>
+          </Section>
 
-            <Row id="i-birth" label="Date of birth / Date de naissance" type="date" value={individual.birthDate ?? ""} onChange={ind("birthDate")} />
-            <Row id="i-birthplace" label="Place of birth / Lieu de naissance" value={individual.birthPlace ?? ""} onChange={ind("birthPlace")} />
-            <Row id="i-addr" label="Address / Adresse" value={individual.address ?? ""} onChange={ind("address")} wide />
-            <Row id="i-zip" label="Postal code / Code postal" value={individual.postalCode ?? ""} onChange={ind("postalCode")} />
-            <Row id="i-city" label="City / Ville" value={individual.city ?? ""} onChange={ind("city")} />
-            <Row id="i-country" label="Country / Pays" value={individual.country ?? ""} onChange={ind("country")} />
-            <Row id="i-phone" label="Phone / Téléphone" value={individual.phone ?? ""} onChange={ind("phone")} />
-            <Row id="i-email" label="Email / Adresse e-mail" type="email" value={individual.email ?? ""} onChange={ind("email")} wide />
-            <Choice
-              id="i-idtype"
-              label="ID document / Pièce d'identité"
-              value={individual.idDocType ?? ""}
-              onChange={ind("idDocType")}
-              options={ID_DOC_OPTIONS}
-            />
-            <Row id="i-idnum" label="Number / Numéro" value={individual.idDocNumber ?? ""} onChange={ind("idDocNumber")} />
-            <IdUpload
-              token={token}
-              fileName={idDoc.fileName}
-              onUploaded={(path, fileName) => setIdDoc({ path, fileName })}
-              onCleared={() => setIdDoc({ path: "", fileName: "" })}
-            />
-          </div>
-        </Section>
+          <Section title="Contact details / Coordonnées">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Row id="i-phone" label="Phone / Téléphone" value={individual.phone ?? ""} onChange={ind("phone")} />
+              <Row id="i-email" label="Email / Adresse e-mail" type="email" value={individual.email ?? ""} onChange={ind("email")} />
+            </div>
+          </Section>
+
+          <Section title="Identity document / Pièce d'identité">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Choice
+                id="i-idtype"
+                label="ID document / Pièce d'identité"
+                value={individual.idDocType ?? ""}
+                onChange={ind("idDocType")}
+                options={ID_DOC_OPTIONS}
+              />
+              <Row id="i-idnum" label="Number / Numéro" value={individual.idDocNumber ?? ""} onChange={ind("idDocNumber")} />
+              <IdUpload
+                token={token}
+                fileName={idDoc.fileName}
+                onUploaded={(path, fileName) => setIdDoc({ path, fileName })}
+                onCleared={() => setIdDoc({ path: "", fileName: "" })}
+              />
+            </div>
+          </Section>
+        </>
       )}
 
       {prefill.stay && prefill.scope === "FULL" ? (

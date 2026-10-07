@@ -19,6 +19,8 @@ import { Label } from "@/components/ui/label";
 import type { ContactKind } from "@/generated/prisma/enums";
 import { createRental } from "@/features/rentals/actions/create-rental";
 import { Combobox } from "@/components/ui/combobox";
+import { AddressField } from "@/components/address-field";
+import { CountryField, NationalitiesField } from "@/components/country-field";
 
 export type BookableProperty = {
   id: string;
@@ -54,8 +56,8 @@ const EMPTY_NEW = {
   repLastName: "",
   repCapacity: "",
   repBirthDate: "",
-  repBirthPlace: "",
-  repNationality: "",
+  repBirthCountry: "",
+  repBirthCity: "",
 };
 
 export function CreateRentalDialog({
@@ -75,6 +77,8 @@ export function CreateRentalDialog({
   );
   const [tenantId, setTenantId] = React.useState("");
   const [newTenant, setNewTenant] = React.useState(EMPTY_NEW);
+  // Apart from `newTenant`, which `setNt` types as a record of strings.
+  const [repNationalities, setRepNationalities] = React.useState<string[]>([]);
   const [newTenantKind, setNewTenantKind] =
     React.useState<ContactKind>("INDIVIDUAL");
   const [checkIn, setCheckIn] = React.useState("");
@@ -109,7 +113,12 @@ export function CreateRentalDialog({
     const tenant =
       tenantMode === "existing"
         ? { mode: "existing" as const, contactId: tenantId }
-        : { mode: "new" as const, kind: newTenantKind, ...newTenant };
+        : {
+            mode: "new" as const,
+            kind: newTenantKind,
+            ...newTenant,
+            repNationalities,
+          };
 
     startTransition(async () => {
       const result = await createRental({
@@ -285,14 +294,18 @@ export function CreateRentalDialog({
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="nt-office">Siège social</Label>
-                        <Input
+                        {/* One box here, where the contact page has four, so a
+                            suggestion writes the whole composed address rather
+                            than filling fields that do not exist. This dialog
+                            opens a booking; the details are completed on the
+                            contact afterwards, where they are split again. */}
+                        <AddressField
                           id="nt-office"
                           value={newTenant.registeredOffice}
-                          onChange={(e) =>
-                            setNt("registeredOffice", e.target.value)
-                          }
+                          onChange={(v) => setNt("registeredOffice", v)}
+                          onPick={(a) => setNt("registeredOffice", a.label)}
                           disabled={isPending}
-                          autoComplete="off"
+                          placeholder="Commencez à saisir…"
                         />
                       </div>
                       <p className="text-muted-foreground text-xs">
@@ -349,28 +362,34 @@ export function CreateRentalDialog({
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="nt-repplace">Lieu de naissance</Label>
+                          <Label htmlFor="nt-repcountry">
+                            Pays de naissance
+                          </Label>
+                          <CountryField
+                            id="nt-repcountry"
+                            value={newTenant.repBirthCountry}
+                            onChange={(v) => setNt("repBirthCountry", v)}
+                            disabled={isPending}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="nt-repcity">Ville de naissance</Label>
                           <Input
-                            id="nt-repplace"
-                            value={newTenant.repBirthPlace}
+                            id="nt-repcity"
+                            value={newTenant.repBirthCity}
                             onChange={(e) =>
-                              setNt("repBirthPlace", e.target.value)
+                              setNt("repBirthCity", e.target.value)
                             }
                             disabled={isPending}
                             autoComplete="off"
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="nt-repnat">Nationalité(s)</Label>
-                          <Input
-                            id="nt-repnat"
-                            placeholder="Suisse / Russe"
-                            value={newTenant.repNationality}
-                            onChange={(e) =>
-                              setNt("repNationality", e.target.value)
-                            }
+                          <Label>Nationalité(s)</Label>
+                          <NationalitiesField
+                            value={repNationalities}
+                            onChange={setRepNationalities}
                             disabled={isPending}
-                            autoComplete="off"
                           />
                         </div>
                       </div>

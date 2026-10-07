@@ -1,4 +1,5 @@
 import "server-only";
+import { birthPlaceLabel, nationalitiesLabel } from "@/lib/countries";
 
 import type { CurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
@@ -150,8 +151,9 @@ export async function buildConfirmationData(
               phone: true,
               address: true,
               birthDate: true,
-              birthPlace: true,
-              nationality: true,
+              birthCountry: true,
+              birthCity: true,
+              nationalities: true,
               idDocType: true,
               idDocNumber: true,
               company: {
@@ -366,15 +368,17 @@ export async function buildConfirmationData(
     if (rep)
       tenantDetails.push({ label: { en: "Represented by", fr: "Représenté par" }, value: co?.repCapacity ? `${rep}, ${co.repCapacity}` : rep });
   } else if (tenant) {
+    const birthPlace = birthPlaceLabel(tenant.birthCity, tenant.birthCountry);
     if (tenant.birthDate)
       tenantDetails.push({
         label: { en: "Born in", fr: "Né(e) le" },
-        value: tenant.birthPlace
-          ? `${shortDate(tenant.birthDate)}, ${tenant.birthPlace}`
+        value: birthPlace
+          ? `${shortDate(tenant.birthDate)}, ${birthPlace}`
           : shortDate(tenant.birthDate),
       });
-    if (tenant.nationality)
-      tenantDetails.push({ label: { en: "Nationality", fr: "Nationalité" }, value: tenant.nationality });
+    const nationalities = nationalitiesLabel(tenant.nationalities);
+    if (nationalities)
+      tenantDetails.push({ label: { en: "Nationality", fr: "Nationalité" }, value: nationalities });
     if (tenant.idDocType && tenant.idDocNumber)
       tenantDetails.push({ label: idDocLabel(tenant.idDocType), value: `n° ${tenant.idDocNumber}` });
   }

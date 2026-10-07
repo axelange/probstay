@@ -159,8 +159,9 @@ export async function createRental(
                       repBirthDate: t.repBirthDate
                         ? new Date(t.repBirthDate)
                         : null,
-                      repBirthPlace: t.repBirthPlace ?? null,
-                      repNationality: t.repNationality ?? null,
+                      repBirthCountry: t.repBirthCountry ?? null,
+                      repBirthCity: t.repBirthCity ?? null,
+                      repNationalities: t.repNationalities,
                     },
                   },
                 }

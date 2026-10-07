@@ -89,8 +89,9 @@ export async function documentReadiness(
               kind: true,
               address: true,
               birthDate: true,
-              birthPlace: true,
-              nationality: true,
+              birthCountry: true,
+              birthCity: true,
+              nationalities: true,
               idDocType: true,
               idDocNumber: true,
               company: {
@@ -141,8 +142,13 @@ export async function documentReadiness(
     add("tenant.firstName", "Locataire — prénom", "tenant", tenant?.firstName);
     add("tenant.address", "Locataire — adresse", "tenant", tenant?.address);
     add("tenant.birthDate", "Locataire — date de naissance", "tenant", tenant?.birthDate);
-    add("tenant.birthPlace", "Locataire — lieu de naissance", "tenant", tenant?.birthPlace);
-    add("tenant.nationality", "Locataire — nationalité", "tenant", tenant?.nationality);
+    // Both halves of the birthplace are required: a contract naming the town
+    // but not the country identifies nobody, and the pair is what the old
+    // single line was always meant to hold.
+    add("tenant.birthCountry", "Locataire — pays de naissance", "tenant", tenant?.birthCountry);
+    add("tenant.birthCity", "Locataire — ville de naissance", "tenant", tenant?.birthCity);
+    // An empty array, not null, is the missing case for a list column.
+    add("tenant.nationalities", "Locataire — nationalité", "tenant", tenant?.nationalities?.length ? "ok" : null);
     add("tenant.idDocType", "Locataire — pièce d'identité", "tenant", tenant?.idDocType);
     add("tenant.idDocNumber", "Locataire — n° de pièce d'identité", "tenant", tenant?.idDocNumber);
   }
