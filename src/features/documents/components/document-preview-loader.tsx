@@ -1,7 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { RentalOption } from "@/features/documents/components/contrat-preview";
+import type {
+  PickerOption,
+  RentalOption,
+} from "@/features/documents/components/contrat-preview";
 
 // react-pdf's viewer is browser-only and heavy, so it is loaded client-side
 // only (ssr: false) and code-split away from every other route.
@@ -19,8 +22,18 @@ const ContratPreview = dynamic(
 
 export function DocumentPreviewLoader({
   rentals,
+  contacts,
+  properties,
 }: {
   rentals: RentalOption[];
+  contacts: PickerOption[];
+  properties: PickerOption[];
 }) {
-  return <ContratPreview rentals={rentals} />;
+  return (
+    <ContratPreview
+      rentals={rentals}
+      contacts={contacts}
+      properties={properties}
+    />
+  );
 }

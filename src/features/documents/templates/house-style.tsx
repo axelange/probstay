@@ -265,7 +265,13 @@ export const h = StyleSheet.create({
     // opened or closed — reads as a logotype rather than as a heading.
     textTransform: "uppercase",
   },
-  headSub: { fontFamily: TITLE, fontWeight: 200, fontSize: 15, color: ink, lineHeight: LH },
+  headSub: {
+    fontFamily: TITLE,
+    fontWeight: 200,
+    fontSize: 15,
+    color: ink,
+    lineHeight: LH,
+  },
   headMeta: { flexShrink: 0, alignItems: "flex-end" },
   // The site's signature device, and the counterweight to the tight title: a
   // very small uppercase label opened right up. .25em of 7 pt is 1.75 pt.
@@ -283,7 +289,13 @@ export const h = StyleSheet.create({
   // medium holds it, and Albertus Thin, which this carried, let it go faint
   // beside a title set in the same face. Only the ground differs between the
   // two, so they can sit on the same line of a document and be the same thing.
-  headMetaVal: { fontFamily: BODY, fontWeight: 500, fontSize: 15, color: ink, lineHeight: LH },
+  headMetaVal: {
+    fontFamily: BODY,
+    fontWeight: 500,
+    fontSize: 15,
+    color: ink,
+    lineHeight: LH,
+  },
   headRule: { height: 0.5, backgroundColor: rule, marginTop: GAP },
 
   // Section marker: ink label + grey-italic French + a full-width hairline.
@@ -368,7 +380,11 @@ export const h = StyleSheet.create({
   proseGroup: { gap: PAIR_GAP },
 
   // A label running inline with its value, as the masters set identity rows.
-  infoRow: { flexDirection: "row", alignItems: "baseline", marginTop: LABEL_GAP },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginTop: LABEL_GAP,
+  },
   // Raised so the label and its value read as one line rather than two things
   // set beside each other.
   //
@@ -411,7 +427,11 @@ export const h = StyleSheet.create({
   tickLabelFr: { fontStyle: "italic" },
 
   // Cards — flat, square, no border.
-  card: { backgroundColor: cardBg, paddingHorizontal: 12, paddingVertical: 9.5 },
+  card: {
+    backgroundColor: cardBg,
+    paddingHorizontal: 12,
+    paddingVertical: 9.5,
+  },
   row: { flexDirection: "row", gap: GAP },
 
   // Grey caps label ("EN / fr")
@@ -511,7 +531,12 @@ export const h = StyleSheet.create({
   footIdentity: { flexDirection: "row", alignItems: "baseline" },
   // Its own element rather than a character glued to the reference: inside the
   // string the trailing space collapsed and the two ran together.
-  footIdentitySep: { fontSize: 8, color: grey, marginHorizontal: 4, lineHeight: LH },
+  footIdentitySep: {
+    fontSize: 8,
+    color: grey,
+    marginHorizontal: 4,
+    lineHeight: LH,
+  },
   // The reference carries the ink while the rest of the footer stays grey: it
   // is the one thing down here that identifies the document rather than the
   // agency, and it has to be findable at a glance on a loose page.
@@ -538,7 +563,12 @@ export const h = StyleSheet.create({
     lineHeight: LH,
     marginRight: LABEL_GAP,
   },
-  footInitialsBox: { width: 59.5, height: 18, borderWidth: 0.5, borderColor: grey },
+  footInitialsBox: {
+    width: 59.5,
+    height: 18,
+    borderWidth: 0.5,
+    borderColor: grey,
+  },
 });
 
 /** The agency identity printed in every footer. */
@@ -741,11 +771,7 @@ export function SubHeading({
     <View wrap={false} {...(guard ? { minPresenceAhead: ORPHAN_GUARD } : {})}>
       <Text
         style={
-          first
-            ? h.subHeadingFirst
-            : tight
-              ? h.subHeadingTight
-              : h.subHeading
+          first ? h.subHeadingFirst : tight ? h.subHeadingTight : h.subHeading
         }
       >
         {en}
@@ -808,8 +834,15 @@ export function Footer({
    * generate-document, which already holds the value.
    */
   templateVersion?: number;
-  /** Clear on the page that carries the signatures — see the note below. */
-  initials?: boolean;
+  /**
+   * Clear on the page that carries the signatures — see the note below.
+   *
+   * `"except-last"` is for a document set as one continuous flow, where which
+   * page carries the signatures is not known when the footer is written: the
+   * decision moves inside the render callback, which is the only place the
+   * page count exists.
+   */
+  initials?: boolean | "except-last";
   /**
    * Clear on a document that is one page by nature.
    *
@@ -883,7 +916,18 @@ export function Footer({
                     read; the page carrying the signatures is attested by the
                     signatures themselves, and a box asking to initial what you
                     have just signed reads as a form nobody checked. */}
-                {initials ? (
+                {/* Asked the other way round on purpose. react-pdf lays a
+                    `fixed` element out before it knows how many pages there
+                    are, so `totalPages` is undefined on that pass — and
+                    `pageNumber < (totalPages ?? 1)` was then false on every
+                    page, which removed the box from the whole document.
+                    Phrased as "unless this is demonstrably the last page", an
+                    unknown count shows the box, which is the common case. */}
+                {(
+                  initials === "except-last"
+                    ? !(totalPages !== undefined && pageNumber >= totalPages)
+                    : initials
+                ) ? (
                   <View style={h.footInitialsRow}>
                     <Text style={h.footInitialsLabel}>Initials / Paraphes</Text>
                     <View style={h.footInitialsBox} />
