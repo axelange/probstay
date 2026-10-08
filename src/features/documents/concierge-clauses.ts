@@ -227,22 +227,21 @@ export const ARTICLES: Article[] = [
         ),
       },
       {
+        // Serenity and Private Lifestyle only — the whole of 5.4, heading
+        // included. The Essential package carries no reporting undertaking:
+        // its quarterly statement would account for a provision article 7.3
+        // never allows it, and the monthly report is not a commitment the
+        // package is priced for. Article 5 then ends at 5.3, which nothing
+        // cross-references.
+        //
+        // Both sentences in one block again. They were split only so that the
+        // statement could go while the report stayed; with the article gone
+        // whole, the split had nothing left to do.
+        onlyFor: ["SERENITY", "PRIVATE_LIFESTYLE"],
         sub: b("5.4 Reporting", "Compte rendu"),
         text: b(
-          "BSTAY keeps the Owner informed of the work carried out and the expenditure committed by a monthly report sent by email.",
-          "BSTAY tient le Propriétaire informé des interventions réalisées et des dépenses engagées par un rapport mensuel transmis par courriel.",
-        ),
-      },
-      {
-        // The quarterly statement exists only where there are held funds to
-        // account for, so it follows the provision of article 7.3 package for
-        // package. Left unconditional, an Essential contract would promise a
-        // statement of a provision its own article 7.3 never allows — the
-        // cross-reference would point at nothing.
-        onlyFor: ["SERENITY", "PRIVATE_LIFESTYLE"],
-        text: b(
-          "Where BSTAY holds funds on the Owner's behalf under the provision for expenses in article 7.3, it additionally sends, each quarter, a statement of the expenditure settled from that provision, of the balance remaining and of the supporting documents held.",
-          "Lorsque BSTAY détient des fonds pour le compte du Propriétaire au titre de la provision pour frais prévue à l'article 7.3, elle lui adresse en outre, trimestriellement, un état des dépenses réglées sur cette provision, du solde disponible et des justificatifs conservés.",
+          "BSTAY keeps the Owner informed of the work carried out and the expenditure committed by a monthly report sent by email. Where BSTAY holds funds on the Owner's behalf under the provision for expenses in article 7.3, it additionally sends, each quarter, a statement of the expenditure settled from that provision, of the balance remaining and of the supporting documents held.",
+          "BSTAY tient le Propriétaire informé des interventions réalisées et des dépenses engagées par un rapport mensuel transmis par courriel. Lorsque BSTAY détient des fonds pour le compte du Propriétaire au titre de la provision pour frais prévue à l'article 7.3, elle lui adresse en outre, trimestriellement, un état des dépenses réglées sur cette provision, du solde disponible et des justificatifs conservés.",
         ),
       },
     ],
