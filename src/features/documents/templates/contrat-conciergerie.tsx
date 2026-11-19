@@ -315,6 +315,13 @@ const s = StyleSheet.create({
     color: ink,
     fontWeight: 700,
     lineHeight: LH,
+    // A jurisdiction clause between businesses binds only if it is "très
+    // apparente", and both sources write theirs out in capitals. The box and
+    // the bold were here; the capitals the note asked for were not, so the
+    // clause was a third of the way to being as visible as it has to be.
+    // Applied here rather than typed into the clause so the text stays
+    // readable in the source and reads the same in both contracts.
+    textTransform: "uppercase",
   },
 
   // ---- Signatures --------------------------------------------------------
@@ -813,7 +820,7 @@ export function ContratConciergerie({ data }: { data: ConciergeData }) {
             than as a header with a gallery beneath. */}
         <View style={[h.coverBand, s.coverFill]}>
           <View style={[h.coverLogo, s.coverInset]}>
-            <BstayLogo width={160} height={47.7} color={paper} />
+            <BstayLogo width={160} height={45.8} color={paper} />
           </View>
 
           {/* One photograph, taking whatever height the title leaves it. A
@@ -938,9 +945,14 @@ export function ContratConciergerie({ data }: { data: ConciergeData }) {
                         {/* Numbered against the article, not from one:
                             article 10.5 refers to "l'article 6.4", which is
                             the fourth of these. No full stop after it — the
-                            number is a label, not a sentence. */}
+                            number is a label, not a sentence.
+                            A list inside a sub-clause numbers itself instead,
+                            or it would restate the numbers of the sub-clauses
+                            it sits under. */}
                         <Text style={s.lineMark}>
-                          {article.n}.{ii + 1}
+                          {blk.numberedFromOne
+                            ? ii + 1
+                            : `${article.n}.${ii + 1}`}
                         </Text>
                         <View style={s.lineBody}>
                           <Text style={s.lineEn}>{bi ? it.en : it.fr}</Text>

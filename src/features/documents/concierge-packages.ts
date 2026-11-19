@@ -20,6 +20,10 @@ export const CONCIERGE_TIERS = [
   "ESSENTIAL",
   "SERENITY",
   "PRIVATE_LIFESTYLE",
+  // A Serenity package written for a property that is let: different articles,
+  // its own clause set in concierge-clauses-heymann, and its own table of
+  // services. It draws nothing from the catalogue below.
+  "HEYMANN",
 ] as const;
 
 export type ConciergeTier = (typeof CONCIERGE_TIERS)[number];
@@ -50,15 +54,21 @@ const N = "NONE" as const;
 const D = "ON_DEMAND" as const;
 const E = "ESSENTIAL_LEVEL" as const;
 
-/** Shorthand for the three columns, in tier order. */
+/**
+ * Shorthand for the comparison sheet's three columns, in tier order.
+ *
+ * Heymann is absent from every line on purpose: its article 4.1 is a table of
+ * its own, so nothing here applies to it and `servicesFor` never reads it.
+ */
 const by = (
   essential: Inclusion,
   serenity: Inclusion,
-  privateLifestyle: Inclusion
+  privateLifestyle: Inclusion,
 ): Record<ConciergeTier, Inclusion> => ({
   ESSENTIAL: essential,
   SERENITY: serenity,
   PRIVATE_LIFESTYLE: privateLifestyle,
+  HEYMANN: "NONE",
 });
 
 export const SERVICE_CATALOGUE: ServiceGroup[] = [
@@ -87,7 +97,10 @@ export const SERVICE_CATALOGUE: ServiceGroup[] = [
         by: by(F, F, F),
       },
       {
-        label: { en: "Report following each visit", fr: "Rapport après chaque visite" },
+        label: {
+          en: "Report following each visit",
+          fr: "Rapport après chaque visite",
+        },
         by: by(F, F, F),
       },
       {
@@ -107,11 +120,17 @@ export const SERVICE_CATALOGUE: ServiceGroup[] = [
         by: by(E, F, F),
       },
       {
-        label: { en: "Follow-ups", fr: "Suivi des demandes jusqu'à résolution" },
+        label: {
+          en: "Follow-ups",
+          fr: "Suivi des demandes jusqu'à résolution",
+        },
         by: by(E, F, F),
       },
       {
-        label: { en: "Appointment scheduling", fr: "Prise et suivi des rendez-vous" },
+        label: {
+          en: "Appointment scheduling",
+          fr: "Prise et suivi des rendez-vous",
+        },
         by: by(E, F, F),
       },
       {
@@ -122,7 +141,10 @@ export const SERVICE_CATALOGUE: ServiceGroup[] = [
         by: by(F, F, F),
       },
       {
-        label: { en: "Key and access management", fr: "Gestion des clés et des accès" },
+        label: {
+          en: "Key and access management",
+          fr: "Gestion des clés et des accès",
+        },
         by: by(F, F, F),
       },
       {
@@ -159,11 +181,17 @@ export const SERVICE_CATALOGUE: ServiceGroup[] = [
         by: by(N, F, F),
       },
       {
-        label: { en: "Tracking of expenses incurred", fr: "Suivi des dépenses engagées" },
+        label: {
+          en: "Tracking of expenses incurred",
+          fr: "Suivi des dépenses engagées",
+        },
         by: by(N, F, F),
       },
       {
-        label: { en: "Monitoring of available funds", fr: "Suivi du solde disponible" },
+        label: {
+          en: "Monitoring of available funds",
+          fr: "Suivi du solde disponible",
+        },
         by: by(N, F, F),
       },
       {
@@ -217,18 +245,30 @@ export const SERVICE_CATALOGUE: ServiceGroup[] = [
     ],
   },
   {
-    title: { en: "Reservations and experiences", fr: "Réservations et expériences" },
+    title: {
+      en: "Reservations and experiences",
+      fr: "Réservations et expériences",
+    },
     lines: [
       {
-        label: { en: "Restaurants and beach clubs", fr: "Restaurants et plages privées" },
+        label: {
+          en: "Restaurants and beach clubs",
+          fr: "Restaurants et plages privées",
+        },
         by: by(N, F, F),
       },
       {
-        label: { en: "Private drivers and transfers", fr: "Chauffeurs privés et transferts" },
+        label: {
+          en: "Private drivers and transfers",
+          fr: "Chauffeurs privés et transferts",
+        },
         by: by(N, F, F),
       },
       {
-        label: { en: "Yachts and water activities", fr: "Yachts et activités nautiques" },
+        label: {
+          en: "Yachts and water activities",
+          fr: "Yachts et activités nautiques",
+        },
         by: by(N, N, F),
       },
       {
@@ -262,7 +302,10 @@ export const SERVICE_CATALOGUE: ServiceGroup[] = [
         by: by(N, F, F),
       },
       {
-        label: { en: "Direct WhatsApp communication", fr: "Ligne WhatsApp directe" },
+        label: {
+          en: "Direct WhatsApp communication",
+          fr: "Ligne WhatsApp directe",
+        },
         by: by(N, F, F),
       },
       {
@@ -289,15 +332,24 @@ export const SERVICE_CATALOGUE: ServiceGroup[] = [
         by: by(N, N, F),
       },
       {
-        label: { en: "Groceries and provisions", fr: "Courses et approvisionnement" },
+        label: {
+          en: "Groceries and provisions",
+          fr: "Courses et approvisionnement",
+        },
         by: by(N, N, F),
       },
       {
-        label: { en: "Flowers and special requests", fr: "Fleurs et demandes particulières" },
+        label: {
+          en: "Flowers and special requests",
+          fr: "Fleurs et demandes particulières",
+        },
         by: by(N, N, F),
       },
       {
-        label: { en: "Household staff coordination", fr: "Coordination du personnel de maison" },
+        label: {
+          en: "Household staff coordination",
+          fr: "Coordination du personnel de maison",
+        },
         by: by(N, N, F),
       },
       {
@@ -320,7 +372,19 @@ export const SERVICE_CATALOGUE: ServiceGroup[] = [
 
 export const TIERS: Record<
   ConciergeTier,
-  { name: Bilingual; price: Bilingual; promise: Bilingual }
+  {
+    /** The name the contract prints — in "forfait {{tier}}" and on the cover. */
+    name: Bilingual;
+    /**
+     * The name the agent picks from, where it differs.
+     *
+     * Heymann is the only one: the agent chooses it by the client's name, but
+     * the contract calls the package Sérénité, which is what the client bought.
+     */
+    label?: string;
+    price: Bilingual;
+    promise: Bilingual;
+  }
 > = {
   ESSENTIAL: {
     name: { en: "Essential", fr: "Essentiel" },
@@ -332,12 +396,30 @@ export const TIERS: Record<
   },
   SERENITY: {
     name: { en: "Serenity", fr: "Sérénité" },
-    price: { en: "from €750 excl. VAT / month", fr: "à partir de 750 € HT / mois" },
-    promise: { en: "Peace of mind. Simply.", fr: "La tranquillité, simplement." },
+    price: {
+      en: "from €750 excl. VAT / month",
+      fr: "à partir de 750 € HT / mois",
+    },
+    promise: {
+      en: "Peace of mind. Simply.",
+      fr: "La tranquillité, simplement.",
+    },
+  },
+  HEYMANN: {
+    name: { en: "Serenity", fr: "Sérénité" },
+    label: "Heymann — Sérénité locative",
+    price: { en: "on a visit", fr: "après visite" },
+    promise: {
+      en: "Peace of mind. Simply.",
+      fr: "La tranquillité, simplement.",
+    },
   },
   PRIVATE_LIFESTYLE: {
     name: { en: "Private Lifestyle", fr: "Private Lifestyle" },
-    price: { en: "from €1,790 excl. VAT / month", fr: "à partir de 1 790 € HT / mois" },
+    price: {
+      en: "from €1,790 excl. VAT / month",
+      fr: "à partir de 1 790 € HT / mois",
+    },
     promise: {
       en: "We assist you in your everyday life.",
       fr: "Nous vous accompagnons au quotidien.",
@@ -354,7 +436,7 @@ export const TIERS: Record<
  * included is carried through, since "on request" is a limit on the promise.
  */
 export function servicesFor(
-  tier: ConciergeTier
+  tier: ConciergeTier,
 ): { title: Bilingual; lines: { label: Bilingual; inclusion: Inclusion }[] }[] {
   return SERVICE_CATALOGUE.map((group) => ({
     title: group.title,

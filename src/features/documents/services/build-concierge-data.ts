@@ -7,6 +7,10 @@ import {
   isSlot,
   type Article,
 } from "@/features/documents/concierge-clauses";
+import {
+  ARTICLES_HEYMANN,
+  HEYMANN_SERVICES,
+} from "@/features/documents/concierge-clauses-heymann";
 import { apimoImageWidth } from "@/features/properties/utils/apimo-image";
 import {
   servicesFor,
@@ -37,6 +41,7 @@ import { prisma } from "@/lib/prisma";
  * a contract, which is what it is.
  */
 function fillArticles(
+  articles: Article[],
   values: Record<string, string | Bilingual>,
   tier: ConciergeTier,
 ): Article[] {
@@ -55,7 +60,7 @@ function fillArticles(
     fr: fill(x.fr, "fr"),
   });
 
-  return ARTICLES.map((a) => ({
+  return articles.map((a) => ({
     ...a,
     title: bi(a.title),
     // Clauses that do not belong to this package are dropped here rather than
@@ -110,6 +115,16 @@ export type ConciergeInput = {
     kind: string;
     surface: string;
     rooms: string;
+    /**
+     * The cover photograph, as a data URL.
+     *
+     * A residence described by hand has no pictures in APIMO, and the cover is
+     * a full-width photograph — without one it falls back to the agency's own
+     * image, which on a contract for somebody else's villa is wrong. Downscaled
+     * and encoded in the browser, so nothing is uploaded and nothing is stored:
+     * the preview is not a document that is filed.
+     */
+    photo?: string;
   } | null;
   place: string;
 };
@@ -295,6 +310,10 @@ export async function buildConciergeData(
     property = {
       label: m.label.trim(),
       address: clean(m.address) ?? undefined,
+      // Data URLs only. The value reaches the page as a string and the cover
+      // puts it straight into an image source, so a URL of any other scheme
+      // would be a request this server makes on a caller's behalf.
+      photos: m.photo?.startsWith("data:image/") ? [m.photo] : [],
       details: [
         ...(clean(m.kind)
           ? [{ label: { en: "Type", fr: "Nature" }, value: m.kind.trim() }]
@@ -321,10 +340,17 @@ export async function buildConciergeData(
   const start = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
   const monthly = parseAmount(input.fee);
 
+  // Heymann has its own articles and its own table of services, and is drawn in
+  // French alone: article 17.1 says the French governs, and its English half
+  // was never written as a faithful translation. Decided here rather than in
+  // the form, so no choice made on screen can produce a half-translated
+  // contract.
+  const heymann = input.tier === "HEYMANN";
+
   return {
     place: input.place,
     date: frenchDate(new Date()),
-    bilingual: input.bilingual,
+    bilingual: heymann ? false : input.bilingual,
     agency: {
       ...agency,
       name: agency.legalName,
@@ -345,6 +371,7 @@ export async function buildConciergeData(
     tier: input.tier,
     tierName: TIERS[input.tier].name,
     articles: fillArticles(
+      heymann ? ARTICLES_HEYMANN : ARTICLES,
       {
         tier: TIERS[input.tier].name,
         startDate: frenchDate(start),
@@ -352,6 +379,9 @@ export async function buildConciergeData(
         threshold: pdfSafe(input.threshold),
         emergency: pdfSafe(input.emergency),
         provision: input.fund ? pdfSafe(input.fund.amount) : "",
+        // Heymann's article 7.3 names the balance at which the fund is to be
+        // topped up, which no other package does.
+        fundThreshold: input.fund ? pdfSafe(input.fund.threshold) : "",
         // The agency's own address for data-protection requests. Taken from the
         // agency record so it cannot drift from the footer.
         gdprEmail: agency.web
@@ -380,6 +410,6 @@ export async function buildConciergeData(
           threshold: pdfSafe(input.fund.threshold),
         }
       : null,
-    services: servicesFor(input.tier),
+    services: heymann ? HEYMANN_SERVICES : servicesFor(input.tier),
   };
 }

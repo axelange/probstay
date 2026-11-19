@@ -62,6 +62,15 @@ export type ClauseList = {
   sub?: Bilingual;
   intro?: Bilingual;
   items: Bilingual[];
+  /**
+   * Numbered from one rather than against the article.
+   *
+   * Article 6's items *are* the article: 10.5 refers to "l'article 6.4", which
+   * is the fourth of them, so they carry the article's number. A list sitting
+   * inside a sub-clause is not — the four definitions of the Heymann 3.3 would
+   * print 3.1 to 3.4 and collide with the sub-clauses 3.1 and 3.2 above them.
+   */
+  numberedFromOne?: boolean;
 };
 
 /** Somewhere the template draws its own block — a table, a schedule. */
