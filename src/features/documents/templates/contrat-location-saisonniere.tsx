@@ -518,7 +518,7 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
         <View style={h.coverBand}>
           <View style={h.coverLogo}>
             {/* Paper, not ink: the mark is on the dark ground here. */}
-            <BstayLogo width={160} height={47.7} color={paper} />
+            <BstayLogo width={160} height={45.8} color={paper} />
           </View>
 
           <View style={h.coverHead}>

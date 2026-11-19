@@ -124,6 +124,22 @@ export const LH = 1.2;
 export const ORPHAN_GUARD = 90;
 
 /**
+ * The footer's monogram, in points.
+ *
+ * The two B's are wider than they are tall — 77.31 × 57.11 — where the
+ * octagon they replace was square, so the mark can no longer be both as tall
+ * as the four legal lines and as narrow as it was. Width is what it is given:
+ * at the lines' full 38 pt it would run to 51 wide and, being solid where the
+ * octagon was an outline, become the heaviest thing in the footer.
+ *
+ * The ratio is restated rather than imported from logo.tsx, which itself
+ * imports the palette from here: a value read while the two modules are still
+ * loading each other is not there yet.
+ */
+const MONO_WIDTH = 44;
+const MONO_HEIGHT = MONO_WIDTH * (57.11 / 77.31);
+
+/**
  * Bundled images. On the server read from disk (absolute path); in the browser
  * served from /public. No node import, so this also bundles for the preview.
  */
@@ -328,6 +344,8 @@ export const h = StyleSheet.create({
     lineHeight: LH,
     marginLeft: GAP,
   },
+  // The caption under the label rather than beside it — see `stacked`.
+  sectionFrStacked: { marginLeft: 0, marginTop: 2 },
   sectionRule: {
     height: 0.5,
     backgroundColor: rule,
@@ -493,19 +511,19 @@ export const h = StyleSheet.create({
   // points adrift. Anchoring two boxes to the same edge does not align their
   // opposite edges — putting the mark in the row does.
   //
-  // The margin is the clearance the drawing does not provide: the monogram is
-  // an octagon that runs to all four edges of its viewBox, so its ink ends
-  // where its box ends and text set flush against it touches the outline.
+  // The margin is the clearance the drawing does not provide: the monogram
+  // runs to all four edges of its viewBox, so its ink ends where its box ends
+  // and text set flush against it touches the outline.
   // The box is stated, not left to the row. Put in the flow without one, the
   // mark was handed whatever width the flex distribution left and came out
   // squashed into diagonal strokes — an Svg stretches to its container, and a
   // container with no width in a row has none of its own.
   // Reserves the mark's box in the row, the mark itself being drawn on the
   // layer below. Wider than the mark by one GAP, which is the clearance the
-  // drawing does not provide: the monogram is an octagon running to all four
-  // edges of its viewBox, so its ink ends where its box ends and text set
-  // flush against it touches the outline.
-  footMono: { width: 38 + GAP, height: 38 },
+  // drawing does not provide: the monogram runs to all four edges of its
+  // viewBox, so its ink ends where its box ends and text set flush against it
+  // touches the outline.
+  footMono: { width: MONO_WIDTH + GAP, height: 38 },
   // The layer. Both it and the footer are anchored to `bottom: 48`, which
   // aligns their bottoms and says nothing about their tops — and the top is
   // where the mark has to meet the first legal line. The footer used to take
@@ -518,7 +536,11 @@ export const h = StyleSheet.create({
     position: "absolute",
     bottom: 48,
     left: 50,
-    paddingTop: GAP + 0.5,
+    // The mark is shorter than the four lines beside it, so it is centred on
+    // them: the same inset above and below keeps the layer at the 48.5 the
+    // footer stands at.
+    paddingTop: GAP + 0.5 + (38 - MONO_HEIGHT) / 2,
+    paddingBottom: (38 - MONO_HEIGHT) / 2,
   },
   footLine: { fontSize: 8, color: grey, lineHeight: LH },
   footRight: { width: 170.5, alignItems: "flex-end" },
@@ -615,6 +637,7 @@ export function Section({
   fr,
   first,
   tight,
+  stacked,
   children,
 }: {
   en: string;
@@ -622,6 +645,16 @@ export function Section({
   first?: boolean;
   /** Use the tightened scale. Only the parties page does — see TIGHT_GAP. */
   tight?: boolean;
+  /**
+   * Set the caption on a line of its own, under the label.
+   *
+   * The row does not wrap: two titles too long to share the measure are drawn
+   * over each other. The commercial agent agreement's are — "Loyauté,
+   * concurrence et orientation des demandes" beside its translation runs past
+   * the margin — so it stacks all of them rather than only the ones that
+   * overflow, which would give one document two kinds of heading.
+   */
+  stacked?: boolean;
   /**
    * The section's opening block, when it has a bounded height. Passing it here
    * makes the marker and that block indivisible, which the guard alone cannot
@@ -641,9 +674,13 @@ export function Section({
       // well would push a section that fits onto the next page.
       {...(children ? {} : { minPresenceAhead: ORPHAN_GUARD })}
     >
-      <View style={h.sectionRow}>
+      <View style={stacked ? undefined : h.sectionRow}>
         <Text style={h.sectionEn}>{en}</Text>
-        {fr ? <Text style={h.sectionFr}>{fr}</Text> : null}
+        {fr ? (
+          <Text style={stacked ? [h.sectionFr, h.sectionFrStacked] : h.sectionFr}>
+            {fr}
+          </Text>
+        ) : null}
       </View>
       <View style={tight ? h.sectionRuleTight : h.sectionRule} />
       {children}
@@ -863,7 +900,7 @@ export function Footer({
         {/* The same grey as the lines beside it. At full ink the mark was the
             heaviest thing on the page, outweighing the agreement above it — a
             footer signs the page, it does not announce it. */}
-        <BstayMonogram width={38} height={38} color={grey} />
+        <BstayMonogram width={MONO_WIDTH} height={MONO_HEIGHT} color={grey} />
       </View>
       <View
         style={h.footer}
@@ -958,7 +995,7 @@ export function Masthead({
   return (
     <>
       <View style={h.logoWrap}>
-        <BstayLogo width={170} height={50.7} />
+        <BstayLogo width={170} height={48.7} />
       </View>
       <View style={h.head}>
         <View style={h.headTitleWrap}>

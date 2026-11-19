@@ -332,7 +332,7 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
       <Page size="A4" style={h.page}>
         {/* Masthead (page 1, in flow) */}
         <View style={h.logoWrap}>
-          <BstayLogo width={170} height={50.7} />
+          <BstayLogo width={170} height={48.7} />
         </View>
         <View style={h.head}>
           {/* headTitleWrap, not a bare View: without it the title sizes to its

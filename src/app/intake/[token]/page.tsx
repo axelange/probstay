@@ -49,15 +49,12 @@ export default async function IntakePage({
           nothing here reserves its height. */}
       <header className="border-border bg-background/95 fixed inset-x-0 top-0 z-50 border-b backdrop-blur-[12px]">
         <nav className="flex h-16 items-center px-6 md:px-12">
-          {/* The "Small Sizes" cut, which is the one the site's bar carries —
-              its lettering is drawn wider and lighter for a lockup only 20 px
-              tall. The "Big Sizes" cut is a different ratio, 3.36 against
-              4.42, and reads as a squatter mark at this height. */}
+          {/* The wordmark's "Blanc" cut, for the ink ground of the bar. */}
           <Image
-            src="/img/bstay-lockup-white.svg"
+            src="/img/logoTypoBlanc.svg"
             alt="BSTAY"
-            width={445}
-            height={101}
+            width={323}
+            height={92}
             priority
             className="h-5 w-auto md:h-6"
           />

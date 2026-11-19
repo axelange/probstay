@@ -101,12 +101,12 @@ const META_TRACKING = 0.8;
 /**
  * The horizontal lockup, small: the mark anchors the corner, it does not
  * announce the document — the title does that, centred below. Its height is
- * derived from its own 170.17 × 47.02 frame rather than typed, so the two can
+ * derived from its own 322.76 × 92.45 frame rather than typed, so the two can
  * never fall out of proportion, and the art meets the left margin flush
  * instead of being centred inside a box that does not fit it.
  */
 const LOGO_WIDTH = 110;
-const LOGO_RATIO = 338.41 / 100.86;
+const LOGO_RATIO = 322.76 / 92.45;
 
 // Column widths across the 495 pt content column. The designation takes what
 // the three numeric columns leave, and those are sized for the widest figure

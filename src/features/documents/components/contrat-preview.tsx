@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
+import { AgentContractForm } from "@/features/documents/components/agent-contract-form";
 import { getConciergeData } from "@/features/documents/actions/get-concierge-data";
 import { getContratData } from "@/features/documents/actions/get-contrat-data";
 import { getConfirmationData } from "@/features/documents/actions/get-confirmation-data";
@@ -36,6 +37,10 @@ import {
   ContratConciergerie,
   type ConciergeData,
 } from "@/features/documents/templates/contrat-conciergerie";
+import {
+  ContratAgentCommercial,
+  type AgentContractData,
+} from "@/features/documents/templates/contrat-agent-commercial";
 import { documentFileName } from "@/features/documents/reference";
 import type { DocumentType } from "@/features/documents/services/document-readiness";
 
@@ -50,6 +55,7 @@ const DOC_TYPES = [
   { value: "CONTRAT", label: "Contrat de location saisonnière" },
   { value: "CONFIRMATION", label: "Confirmation de location (propriétaire)" },
   { value: "CONCIERGERIE", label: "Contrat de Property Management" },
+  { value: "AGENT", label: "Contrat d'agent commercial" },
 ];
 
 /** The agreement is set in both languages, or in French alone. */
@@ -64,7 +70,38 @@ const EMPTY_MANUAL = {
   kind: "",
   surface: "",
   rooms: "",
+  /** A data URL, set by the file field below. Empty until one is chosen. */
+  photo: "",
 };
+
+/** The cover prints the photograph at about this width; more is weight. */
+const COVER_PHOTO_WIDTH = 1440;
+
+/**
+ * Reads a chosen file and returns it as a downscaled JPEG data URL.
+ *
+ * Downscaled in the browser rather than sent as it was taken: a photograph off
+ * a phone is four or five megabytes, and it travels to the server action as
+ * base64 — half again as large — on every keystroke in the fee. At 1440 px wide
+ * it is a couple of hundred kilobytes and still larger than the cover draws it.
+ *
+ * Returns null when the file is not an image the browser can decode, so the
+ * field can say so rather than leave a broken contract on screen.
+ */
+async function photoDataUrl(file: File): Promise<string | null> {
+  if (!file.type.startsWith("image/")) return null;
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) return null;
+  const scale = Math.min(1, COVER_PHOTO_WIDTH / bitmap.width);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", 0.82);
+}
 
 /**
  * Document preview, driven by selection rather than typing: pick a document
@@ -72,8 +109,8 @@ const EMPTY_MANUAL = {
  * (property, contacts, dates, amounts). The same template renders here and
  * on the server, so the preview is the final document.
  */
-/** The three documents the preview can draw, including the one with no rental. */
-type PreviewType = DocumentType | "CONCIERGERIE";
+/** The documents the preview can draw, including the two with no rental. */
+type PreviewType = DocumentType | "CONCIERGERIE" | "AGENT";
 
 export default function ContratPreview({
   rentals,
@@ -116,12 +153,17 @@ export default function ContratPreview({
   /** Describing a residence by hand rather than picking one of the agency's. */
   const [useManual, setUseManual] = React.useState(false);
   const [manual, setManual] = React.useState(EMPTY_MANUAL);
+  const [photoError, setPhotoError] = React.useState(false);
   const [concierge, setConcierge] = React.useState<ConciergeData | null>(null);
+  // The commercial agent agreement keeps its inputs in its own form and hands
+  // back only the assembled contract — see AgentContractForm.
+  const [agentContract, setAgentContract] =
+    React.useState<AgentContractData | null>(null);
 
   // Both documents are driven by the selected rental; fetch the one on screen.
   // The render guards on `!rentalId`, so no synchronous reset is needed here.
   React.useEffect(() => {
-    if (docType === "CONCIERGERIE") return;
+    if (docType === "CONCIERGERIE" || docType === "AGENT") return;
     if (!rentalId) return;
     startTransition(async () => {
       if (docType === "CONFIRMATION") {
@@ -181,15 +223,19 @@ export default function ContratPreview({
   ]);
 
   const data =
-    docType === "CONCIERGERIE"
-      ? concierge
-      : docType === "CONFIRMATION"
-        ? confirmation
-        : contrat;
+    docType === "AGENT"
+      ? agentContract
+      : docType === "CONCIERGERIE"
+        ? concierge
+        : docType === "CONFIRMATION"
+          ? confirmation
+          : contrat;
 
   // The same element the viewer shows, so the saved file is the preview.
   const doc =
-    docType === "CONCIERGERIE" ? (
+    docType === "AGENT" ? (
+      <ContratAgentCommercial data={agentContract!} />
+    ) : docType === "CONCIERGERIE" ? (
       <ContratConciergerie data={concierge!} />
     ) : docType === "CONFIRMATION" ? (
       <RentalConfirmation data={confirmation!} />
@@ -198,13 +244,17 @@ export default function ContratPreview({
     );
 
   const fileName =
-    docType === "CONCIERGERIE"
-      ? concierge
-        ? `Contrat Property Management — ${concierge.client.name}.pdf`
+    docType === "AGENT"
+      ? agentContract
+        ? `Contrat agent commercial — ${agentContract.agentName}.pdf`
         : ""
-      : data && "tenant" in data
-        ? documentFileName(docType, data.reference, data.tenant.name)
-        : "";
+      : docType === "CONCIERGERIE"
+        ? concierge
+          ? `Contrat Property Management — ${concierge.client.name}.pdf`
+          : ""
+        : data && "tenant" in data
+          ? documentFileName(docType, data.reference, data.tenant.name)
+          : "";
 
   const [isSaving, setIsSaving] = React.useState(false);
 
@@ -243,7 +293,13 @@ export default function ContratPreview({
           <Label htmlFor="doc-type">Type de document</Label>
           <Select
             value={docType}
-            onValueChange={(v) => v !== null && setDocType(v)}
+            onValueChange={(v) => {
+              if (v === null) return;
+              setDocType(v);
+              // The agent form starts empty each time it is opened, so the
+              // contract drawn from its last visit must not outlive it.
+              setAgentContract(null);
+            }}
             items={DOC_TYPES}
           >
             <SelectTrigger id="doc-type" className="w-full">
@@ -259,7 +315,13 @@ export default function ContratPreview({
           </Select>
         </div>
 
-        {docType === "CONCIERGERIE" ? (
+        {docType === "AGENT" ? (
+          <AgentContractForm
+            contacts={contacts}
+            startTransition={startTransition}
+            onData={setAgentContract}
+          />
+        ) : docType === "CONCIERGERIE" ? (
           <>
             <div className="space-y-2">
               <Label htmlFor="cg-property">Bien</Label>
@@ -353,6 +415,48 @@ export default function ContratPreview({
                     autoComplete="off"
                   />
                 </div>
+                {/* The cover is a full-width photograph. A residence of ours
+                    brings its own from APIMO; one described by hand has none,
+                    and the agency's house image on a contract for somebody
+                    else's villa reads as a mistake. */}
+                <div className="space-y-2">
+                  <Label htmlFor="cg-photo" className="text-xs font-normal">
+                    Photo de couverture
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="cg-photo"
+                      type="file"
+                      accept="image/*"
+                      className="text-xs"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const url = await photoDataUrl(file);
+                        setPhotoError(url === null);
+                        if (url) setManual((m) => ({ ...m, photo: url }));
+                      }}
+                    />
+                    {manual.photo ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setManual((m) => ({ ...m, photo: "" }));
+                          setPhotoError(false);
+                        }}
+                      >
+                        Retirer
+                      </Button>
+                    ) : null}
+                  </div>
+                  {photoError ? (
+                    <p className="text-destructive text-xs">
+                      Ce fichier n&apos;a pas pu être lu comme une image.
+                    </p>
+                  ) : null}
+                </div>
               </div>
             ) : null}
             <div className="space-y-2">
@@ -382,24 +486,34 @@ export default function ContratPreview({
               )}
             </div>
 
+            {/* Heymann is French only. Article 17.1 says the French governs
+                and the English half of its clauses was never written as a
+                faithful translation, so the choice is withdrawn rather than
+                offered and then overruled by the server. */}
             <div className="space-y-2">
               <Label htmlFor="cg-lang">Langue</Label>
-              <Select
-                value={bilingual ? "BI" : "FR"}
-                onValueChange={(v) => v !== null && setBilingual(v === "BI")}
-                items={LANGUAGES}
-              >
-                <SelectTrigger id="cg-lang" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LANGUAGES.map((l) => (
-                    <SelectItem key={l.value} value={l.value}>
-                      {l.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {tier === "HEYMANN" ? (
+                <p className="text-muted-foreground border-border rounded-md border px-3 py-2 text-sm">
+                  Français seul — article 17.1.
+                </p>
+              ) : (
+                <Select
+                  value={bilingual ? "BI" : "FR"}
+                  onValueChange={(v) => v !== null && setBilingual(v === "BI")}
+                  items={LANGUAGES}
+                >
+                  <SelectTrigger id="cg-lang" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((l) => (
+                      <SelectItem key={l.value} value={l.value}>
+                        {l.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -409,7 +523,7 @@ export default function ContratPreview({
                 onValueChange={(v) => v !== null && setTier(v as ConciergeTier)}
                 items={CONCIERGE_TIERS.map((t) => ({
                   value: t,
-                  label: TIERS[t].name.fr,
+                  label: TIERS[t].label ?? TIERS[t].name.fr,
                 }))}
               >
                 <SelectTrigger id="cg-tier" className="w-full">
@@ -418,7 +532,7 @@ export default function ContratPreview({
                 <SelectContent>
                   {CONCIERGE_TIERS.map((t) => (
                     <SelectItem key={t} value={t}>
-                      {TIERS[t].name.fr}
+                      {TIERS[t].label ?? TIERS[t].name.fr}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -427,6 +541,14 @@ export default function ContratPreview({
                 Indicatif&nbsp;: {TIERS[tier].price.fr}. Le montant porté au
                 contrat est celui que vous saisissez ci-dessous.
               </p>
+              {tier === "HEYMANN" ? (
+                <p className="text-muted-foreground text-xs">
+                  Contrat de conciergerie locative&nbsp;: séjours, agences
+                  tierces et fonds d&apos;exploitation. Le fonds saisi
+                  ci-dessous devient le fonds d&apos;exploitation de
+                  l&apos;article 7.3, et son seuil celui de sa reconstitution.
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -556,11 +678,16 @@ export default function ContratPreview({
       </div>
 
       <div className="bg-muted/30 h-[82vh] overflow-hidden rounded-lg border">
-        {docType === "CONCIERGERIE" && !contactId && !propertyId ? (
+        {docType === "AGENT" && !agentContract && !isPending ? (
+          <div className="text-muted-foreground p-8 text-sm">
+            Choisissez un contact, ou saisissez l&apos;agent à la main, pour
+            prévisualiser le contrat.
+          </div>
+        ) : docType === "CONCIERGERIE" && !contactId && !propertyId ? (
           <div className="text-muted-foreground p-8 text-sm">
             Choisissez un client pour prévisualiser le contrat.
           </div>
-        ) : docType !== "CONCIERGERIE" && !rentalId ? (
+        ) : docType !== "CONCIERGERIE" && docType !== "AGENT" && !rentalId ? (
           <div className="text-muted-foreground p-8 text-sm">
             Choisissez une location pour prévisualiser le document.
           </div>
