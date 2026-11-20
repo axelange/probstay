@@ -194,12 +194,33 @@ export function euros(n: number): string {
 }
 
 /**
+ * An amount as an agent typed it, in the form the contract prints money in.
+ *
+ * "2000" prints as "2 000,00 €": a ceiling typed without its sign or its
+ * thousands space reached the contract as a bare number, which a clause about
+ * money cannot afford. Anything that does not read as an amount prints as
+ * typed, so words such as "sur devis" are left alone.
+ */
+export function typedEuros(input: string): string {
+  const n = parseAmount(input);
+  return n === null ? pdfSafe(input).trim() : euros(n);
+}
+
+/**
+ * A formatted amount as a sentence takes it: "2 000 €", not "2 000,00 €".
+ *
+ * Cents that are not there are noise in running text. Tables and lists keep
+ * them, so their figures line up; "1 450,50 €" keeps its cents everywhere.
+ */
+export function inProse(amount: string): string {
+  return amount.replace(/,00(?= €)/, "");
+}
+
+/**
  * Strips the spaces the document faces cannot draw from a typed value.
  *
- * The fee is parsed into a number and reformatted, so it cannot carry them.
- * The fund amount and threshold are not — they print as typed, and a figure
- * pasted from a spreadsheet or a web page brings U+202F with it. The same
- * slash would then appear on a line nobody had formatted.
+ * A figure pasted from a spreadsheet or a web page brings U+202F with it, and
+ * the slash described above would then appear on a line nobody had formatted.
  */
 export function pdfSafe(input: string): string {
   return input.replace(/[\u202f\u00a0]/g, " ");

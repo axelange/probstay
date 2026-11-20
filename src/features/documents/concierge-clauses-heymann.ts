@@ -158,9 +158,14 @@ export const HEYMANN_SERVICES: ConciergeServiceGroup[] = [
 /**
  * The seventeen articles, in French.
  *
- * Faithful to docs/contrat-property-management-heymann.md. Where the source
+ * Drawn from docs/contrat-property-management-heymann.md. Where the source
  * left a value in brackets and the preview has a field for it, it became a
  * token; the rest are written out as terms of this agreement.
+ *
+ * It departs from the source where the client's negotiation changed it: the
+ * agency-information duty of article 6 and the priority clause 9.6 are gone,
+ * 8.3 lets notice be given with invoices outstanding, 14 and 16.1 bind both
+ * parties, and 16.2 keeps the tenants' welcome with BSTAY itself.
  */
 export const ARTICLES_HEYMANN: Article[] = [
   {
@@ -330,9 +335,6 @@ export const ARTICLES_HEYMANN: Article[] = [
             "fournir à BSTAY, à la signature, et maintenir pendant toute la durée du contrat un accès à chacun de ses comptes Plateforme permettant la gestion des réservations (statut de co-hôte ou équivalent, ou identifiants dédiés), l'informer de toute modification des paramètres de l'annonce ou des conditions de location, et l'informer au moins cinq (5) jours à l'avance de toute occupation du Bien qu'il organise lui-même, afin que BSTAY puisse bloquer le calendrier et préparer le Bien ;",
           ),
           f(
-            "s'assurer, pour les Locations via Agence, que l'Agence communique à BSTAY, au plus tard cinq (5) jours avant chaque arrivée, les informations relatives au Séjour (identité et coordonnées du Locataire, nombre d'occupants, dates et heures d'arrivée et de départ, conditions particulières) ;",
-          ),
-          f(
             "informer BSTAY de l'identité et des coordonnées de toute Agence mandatée pour la location du Bien, et de toute modification ;",
           ),
           f(
@@ -413,7 +415,7 @@ export const ARTICLES_HEYMANN: Article[] = [
       {
         sub: f("8.3 Conditions de la résiliation par le Propriétaire"),
         text: f(
-          "La résiliation à l'initiative du Propriétaire peut être notifiée à tout moment dès lors qu'à la date de la notification, aucun prestataire tiers mandaté par BSTAY pour le compte du Propriétaire n'est engagé sur une mission en cours (travaux, rénovation, sinistre, aménagement, etc.) et que les factures émises ont été réglées. Ne sont pas considérées comme des missions en cours au sens du présent article les prestations récurrentes d'entretien courant (ménage, blanchisserie, jardinage, entretien de piscine, petite maintenance, etc.) ni la gestion opérationnelle des Séjours, lesquelles prennent fin au terme du préavis. BSTAY communique au Propriétaire, sur simple demande, l'état des missions en cours.",
+          "La résiliation à l'initiative du Propriétaire peut être notifiée à tout moment, y compris lorsque des factures émises n'ont pas encore été réglées, dès lors qu'à la date de la notification aucun prestataire tiers mandaté par BSTAY pour le compte du Propriétaire n'est engagé sur une mission en cours (travaux, rénovation, sinistre, aménagement, etc.). Les factures émises à la date de la notification, ainsi que celles émises pendant le préavis, doivent être intégralement réglées au plus tard au terme du préavis. Ne sont pas considérées comme des missions en cours au sens du présent article les prestations récurrentes d'entretien courant (ménage, blanchisserie, jardinage, entretien de piscine, petite maintenance, etc.) ni la gestion opérationnelle des Séjours, lesquelles prennent fin au terme du préavis. BSTAY communique au Propriétaire, sur simple demande, l'état des missions en cours.",
         ),
       },
       {
@@ -468,12 +470,6 @@ export const ARTICLES_HEYMANN: Article[] = [
         sub: f("9.5 Dommages causés par les Locataires"),
         text: f(
           "BSTAY signale au Propriétaire et, le cas échéant, à l'Agence, tout dommage constaté au départ d'un Locataire, avec photographies, dans les vingt-quatre (24) heures suivant le contrôle du Bien. Pour les Locations Propriétaire, BSTAY effectue, depuis le compte Plateforme du Propriétaire et dans les délais imposés par la Plateforme, la déclaration du dommage et la demande d'indemnisation auprès de la Plateforme ou du Locataire (garantie hôte, retenue sur dépôt de garantie), sur la base de son constat et des justificatifs de valeur que le Propriétaire s'engage à lui fournir sans délai ; les sommes obtenues sont versées au Propriétaire, et BSTAY ne garantit pas l'issue de la réclamation, qui dépend de la Plateforme. Pour les Locations BSTAY, la réclamation relève du mandat de location saisonnière ; pour les Locations via Agence, elle relève de l'Agence et du Propriétaire, BSTAY y apportant son concours sur demande. BSTAY ne répond pas des dommages, vols, dégradations ou nuisances causés par les Locataires ou leurs accompagnants.",
-        ),
-      },
-      {
-        sub: f("9.6 Priorité en cas de vente ou de nouvelle mise en location"),
-        text: f(
-          "Pendant toute la durée du contrat, le Propriétaire s'engage, s'il envisage de vendre le Bien ou de confier sa location à une Agence qui ne le commercialise pas à la date de signature, à en informer BSTAY par écrit et à lui proposer en priorité cette mission avant de la confier à tout tiers ; la commercialisation du Bien par le Propriétaire lui-même sur les Plateformes n'est pas concernée par le présent article. BSTAY dispose de trente (30) jours à compter de cette information pour remettre une proposition de mandat. Toute mission de vente ou de location fait l'objet d'un mandat écrit distinct conforme à la loi Hoguet. Si le Propriétaire confie une telle mission à un tiers sans avoir respecté le présent article, il sera redevable envers BSTAY d'une indemnité forfaitaire égale à trois (3) mois de forfait, sans préjudice de la faculté pour BSTAY de résilier le contrat dans les conditions de l'article 8.5.",
         ),
       },
     ],
@@ -585,7 +581,7 @@ export const ARTICLES_HEYMANN: Article[] = [
     blocks: [
       {
         text: f(
-          "Pendant toute la durée du contrat et pendant les douze (12) mois suivant son terme, le Propriétaire s'interdit, directement ou par personne interposée, d'embaucher ou de faire travailler pour son compte, hors de l'intermédiation de BSTAY, tout salarié de BSTAY ou tout prestataire que BSTAY lui a présenté dans le cadre du présent contrat, sauf accord écrit préalable de BSTAY. Cette interdiction ne s'applique pas aux prestataires que le Propriétaire employait déjà avant la signature du contrat et qu'il a déclarés à BSTAY. Tout manquement donne lieu au versement d'une indemnité forfaitaire égale à trois (3) mois de forfait par personne concernée, sans préjudice de la réparation du préjudice réel.",
+          "Pendant toute la durée du contrat et pendant les douze (12) mois suivant son terme, chaque Partie s'interdit, directement ou par personne interposée, d'embaucher ou de faire travailler pour son compte, hors de l'intermédiation de l'autre Partie, tout salarié de l'autre Partie ou tout prestataire que celle-ci lui a présenté dans le cadre du présent contrat, sauf accord écrit préalable de cette dernière. Le Propriétaire s'interdit ainsi de solliciter les salariés de BSTAY et les prestataires qu'elle lui a présentés ; BSTAY s'interdit de même de solliciter le personnel de maison et les salariés du Propriétaire, ainsi que les prestataires que celui-ci lui a présentés. Cette interdiction ne s'applique pas aux personnes avec lesquelles la Partie concernée travaillait déjà avant la signature du contrat. Tout manquement donne lieu au versement, par la Partie qui en est l'auteur, d'une indemnité forfaitaire égale à trois (3) mois de forfait par personne concernée, sans préjudice de la réparation du préjudice réel.",
         ),
       },
     ],
@@ -608,13 +604,13 @@ export const ARTICLES_HEYMANN: Article[] = [
       {
         sub: f("16.1 Caractère personnel"),
         text: f(
-          "Le présent contrat est conclu en considération de la personne du Propriétaire et du Bien. Il ne peut être cédé par le Propriétaire sans l'accord écrit préalable de BSTAY. En cas de vente du Bien, le contrat prend fin à la date du transfert de propriété, sous réserve du préavis de l'article 8.2 ; à défaut de respect de ce préavis, les honoraires correspondant à la période de préavis restante demeurent dus. BSTAY peut céder le contrat à toute société qui lui succéderait dans son activité, en informant le Propriétaire par écrit.",
+          "Le présent contrat est conclu en considération de la personne de chacune des Parties et du Bien. Il ne peut être cédé par l'une des Parties sans l'accord écrit préalable de l'autre. En cas de vente du Bien, le contrat prend fin à la date du transfert de propriété, sous réserve du préavis de l'article 8.2 ; à défaut de respect de ce préavis, les honoraires correspondant à la période de préavis restante demeurent dus. De la même manière, en cas de vente de BSTAY (cession de son fonds de commerce ou changement de contrôle de la société), le contrat prend fin à la date de l'opération, sous réserve du préavis de l'article 8.2 que BSTAY notifie au Propriétaire ; les honoraires réglés d'avance pour une période postérieure à cette date sont restitués au Propriétaire au prorata, et l'article 8.6 s'applique.",
         ),
       },
       {
         sub: f("16.2 Sous-traitance"),
         text: f(
-          "BSTAY peut confier à des prestataires tiers l'exécution matérielle des interventions et des prestations liées aux Séjours, dans les conditions des articles 4.3 et 10.2. Elle reste l'interlocuteur unique du Propriétaire pour la coordination.",
+          "BSTAY peut confier à des prestataires tiers l'exécution matérielle des interventions et des prestations liées aux Séjours, dans les conditions des articles 4.3 et 10.2. L'accueil des Locataires (arrivée, remise des clés et présentation du Bien) ne peut toutefois être sous-traité : il est assuré par BSTAY elle-même. Elle reste l'interlocuteur unique du Propriétaire pour la coordination.",
         ),
       },
       {

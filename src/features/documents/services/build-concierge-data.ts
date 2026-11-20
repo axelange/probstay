@@ -20,8 +20,9 @@ import {
 } from "@/features/documents/concierge-packages";
 import {
   euros,
+  inProse,
+  typedEuros,
   parseAmount,
-  pdfSafe,
   quarterlyInstalments,
 } from "@/features/documents/concierge-schedule";
 import type { ConciergeData } from "@/features/documents/templates/contrat-conciergerie";
@@ -375,13 +376,15 @@ export async function buildConciergeData(
       {
         tier: TIERS[input.tier].name,
         startDate: frenchDate(start),
-        fee: monthly === null ? "" : euros(monthly),
-        threshold: pdfSafe(input.threshold),
-        emergency: pdfSafe(input.emergency),
-        provision: input.fund ? pdfSafe(input.fund.amount) : "",
+        fee: monthly === null ? "" : inProse(euros(monthly)),
+        threshold: inProse(typedEuros(input.threshold)),
+        emergency: inProse(typedEuros(input.emergency)),
+        provision: input.fund ? inProse(typedEuros(input.fund.amount)) : "",
         // Heymann's article 7.3 names the balance at which the fund is to be
         // topped up, which no other package does.
-        fundThreshold: input.fund ? pdfSafe(input.fund.threshold) : "",
+        fundThreshold: input.fund
+          ? inProse(typedEuros(input.fund.threshold))
+          : "",
         // The agency's own address for data-protection requests. Taken from the
         // agency record so it cannot drift from the footer.
         gdprEmail: agency.web
@@ -406,8 +409,8 @@ export async function buildConciergeData(
           })),
     fund: input.fund
       ? {
-          amount: pdfSafe(input.fund.amount),
-          threshold: pdfSafe(input.fund.threshold),
+          amount: typedEuros(input.fund.amount),
+          threshold: typedEuros(input.fund.threshold),
         }
       : null,
     services: heymann ? HEYMANN_SERVICES : servicesFor(input.tier),
