@@ -72,6 +72,8 @@ export const companyDetailFields = {
   repFirstName: optionalText(120),
   repLastName: optionalText(120),
   repCapacity: optionalText(120),
+  // The English of a free-text line, beside its French. See BilingualField.
+  repCapacityEn: optionalText(120),
   repBirthDate: optionalDate,
   repBirthCountry: optionalCountry,
   repBirthCity: optionalText(120),
@@ -80,11 +82,13 @@ export const companyDetailFields = {
   // field the client can fill and an agent cannot is a field that silently
   // reverts the next time the fiche is saved.
   mainActivity: optionalText(160),
+  mainActivityEn: optionalText(160),
   officeLine2: optionalText(160),
   officePostalCode: optionalText(20),
   officeCity: optionalText(120),
   officeCountry: optionalCountry,
   repOccupation: optionalText(120),
+  repOccupationEn: optionalText(120),
   repPhone: optionalText(40),
   repEmail: optionalText(160),
   repIdDocType: optionalIdDocType,
@@ -114,6 +118,7 @@ export const individualDetailFields = {
   address: optionalText(300),
   // Same set the client's intake form collects — see companyDetailFields.
   occupation: optionalText(120),
+  occupationEn: optionalText(120),
   maritalStatus: z
     .union([z.literal(""), z.enum(MaritalStatus)])
     .transform((v) => (v === "" ? undefined : v))

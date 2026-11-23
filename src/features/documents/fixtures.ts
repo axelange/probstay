@@ -73,9 +73,15 @@ export const sampleContrat: ContratData = {
       "c/o Gordon S. Blair, 7 rue du Gabian, Le Gildo Pastor Center, 98000 Monaco",
     representative: "M. Aslan Khabliev",
     capacity: "Gérant",
+    capacityEn: "Manager",
     details: [
-      { label: { en: "Permanent address", fr: "Adresse permanente" }, value: "9 Rue des Jonquières, 06400 Cannes" },
-      { label: { en: "Email", fr: "Courriel" }, value: "contact@alanianstar.mc" },
+      { label: { en: "Legal form", fr: "Forme sociale" }, value: "SARL" },
+      { label: { en: "Registration number", fr: "Numéro d'immatriculation" }, value: "12S34567" },
+      { label: { en: "Registered office", fr: "Siège social" }, value: "9 Rue des Jonquières, 06400 Cannes" },
+      { label: { en: "Represented by", fr: "Représentée par" }, value: "M. Aslan Khabliev" },
+      { label: { en: "Capacity", fr: "Qualité" }, value: "Gérant", valueEn: "Manager" },
+      { label: { en: "Email" }, value: "contact@alanianstar.mc" },
+      { label: { en: "Phone", fr: "Téléphone" }, value: "—" },
     ],
   },
   property: {

@@ -11,6 +11,7 @@ import { BstayLogo } from "@/features/documents/templates/logo";
 import {
   Cap,
   Footer,
+  FrenchOnly,
   Section,
   SubHeading,
   Tick,
@@ -69,14 +70,24 @@ export type ContratData = {
     registeredOffice?: string;
     representative?: string;
     capacity?: string;
+    /** The representative's office in English, where the contact has one. */
+    capacityEn?: string;
     // Individual identity
     birth?: string;
     nationality?: string;
     address?: string;
     email?: string;
     phone?: string;
-    /** Labelled identity rows, as printed in the tenant card on page 2. */
-    details: { label: { en: string; fr?: string }; value: string }[];
+    /**
+     * Labelled identity rows, as printed in the tenant card on page 2.
+     * `valueEn` is set on the few free-text lines a contact keeps in English
+     * too — the representative's capacity — and absent everywhere else.
+     */
+    details: {
+      label: { en: string; fr?: string };
+      value: string;
+      valueEn?: string;
+    }[];
   };
   property: {
     name: string;
@@ -152,6 +163,12 @@ export type ContratData = {
   };
 };
 
+
+/**
+ * The only rate a rent carries here: the para-hotel regime's, which is the one
+ * case in which the builder reports any VAT at all.
+ */
+const VAT_RATE = "10 %";
 
 const s = StyleSheet.create({
   // The cover's own styles have moved to the house sheet, where the three
@@ -277,7 +294,23 @@ function Article({
 const KEEP_LINES = 3;
 
 function Prose({ clause }: { clause?: { en: string[]; fr: string[] } }) {
+  const frenchOnly = React.useContext(FrenchOnly);
   if (!clause) return null;
+  if (frenchOnly) {
+    // The French as the document's one voice: in ink, not as the grey italic
+    // of a translation. A clause with no French falls back to what it has
+    // rather than leaving a heading over nothing.
+    const paragraphs = clause.fr.length > 0 ? clause.fr : clause.en;
+    return (
+      <View style={h.proseGroup}>
+        {paragraphs.map((para, i) => (
+          <Text key={i} style={h.paraEn} orphans={KEEP_LINES} widows={KEEP_LINES}>
+            {para}
+          </Text>
+        ))}
+      </View>
+    );
+  }
   return (
     <View style={{ gap: PAIR_GAP }}>
       <View style={h.proseGroup}>
@@ -304,8 +337,9 @@ function Prose({ clause }: { clause?: { en: string[]; fr: string[] } }) {
  * primary voice instead of greyed out as a translation of nothing.
  */
 function Description({ description }: { description: { en: string[]; fr: string[] } }) {
+  const frenchOnly = React.useContext(FrenchOnly);
   const hasEn = description.en.length > 0;
-  if (!hasEn) {
+  if (!hasEn || (frenchOnly && description.fr.length > 0)) {
     return (
       <View style={h.proseGroup}>
         {description.fr.map((para, i) => (
@@ -323,10 +357,14 @@ function Description({ description }: { description: { en: string[]; fr: string[
 function InfoRow({
   label,
   value,
+  valueEn,
 }: {
   label: { en: string; fr?: string };
   value: string;
+  /** The value in English, when it has one — see `ContratData.tenant.details`. */
+  valueEn?: string;
 }) {
+  const frenchOnly = React.useContext(FrenchOnly);
   return (
     // The label is a direct child of the row, not wrapped in a View.
     //
@@ -342,7 +380,13 @@ function InfoRow({
       <View style={h.infoLabel}>
         <Cap en={label.en} fr={label.fr} />
       </View>
-      <Text style={h.infoValue}>{value}</Text>
+      <Text style={h.infoValue}>
+        {valueEn ? (
+          <Pair en={valueEn} fr={value} frenchOnly={frenchOnly} />
+        ) : (
+          value
+        )}
+      </Text>
     </View>
   );
 }
@@ -367,6 +411,7 @@ function Instalment({
   dueFr: string;
   dueDate: string;
 }) {
+  const frenchOnly = React.useContext(FrenchOnly);
   return (
     <View style={[h.card, { marginTop: GAP }]} wrap={false}>
       <View
@@ -389,12 +434,41 @@ function Instalment({
         }}
       >
         <View style={{ flex: 1 }}>
-          <Text style={h.paraEn}>{dueEn}</Text>
-          <Text style={h.paraFr}>{dueFr}</Text>
+          {frenchOnly ? (
+            <Text style={h.paraEn}>{dueFr}</Text>
+          ) : (
+            <>
+              <Text style={h.paraEn}>{dueEn}</Text>
+              <Text style={h.paraFr}>{dueFr}</Text>
+            </>
+          )}
         </View>
         <Text style={[h.infoValue, { textAlign: "right" }]}>{dueDate}</Text>
       </View>
     </View>
+  );
+}
+
+/**
+ * A label in the document's voice: "English / français" with the French in
+ * italic grey, or the French alone. A label that has no French half — a
+ * service an agent typed in English only — prints as it is either way.
+ */
+function Pair({
+  en,
+  fr,
+  frenchOnly,
+}: {
+  en: string;
+  fr?: string;
+  frenchOnly: boolean;
+}) {
+  if (frenchOnly) return <>{fr || en}</>;
+  return (
+    <>
+      {en}
+      {fr ? <Text style={s.itemFr}> / {fr}</Text> : null}
+    </>
   );
 }
 
@@ -426,6 +500,7 @@ function MoneyRow({
    */
   sub?: { en: string; fr?: string; amount: string };
 }) {
+  const frenchOnly = React.useContext(FrenchOnly);
   return (
     // Atomic. The block around it is allowed to break so a long list of billed
     // services can run onto a second page; a row is the smallest thing that
@@ -435,14 +510,12 @@ function MoneyRow({
     <View style={s.finRow} wrap={false}>
       <View style={s.finDescWrap}>
         <Text style={s.finDesc}>
-          {en}
-          {fr ? <Text style={s.itemFr}> / {fr}</Text> : null}
+          <Pair en={en} fr={fr} frenchOnly={frenchOnly} />
           {note ? ` ${note}` : null}
         </Text>
         {sub ? (
           <Text style={s.finSub}>
-            {sub.en}
-            {sub.fr ? <Text style={s.itemFr}> / {sub.fr}</Text> : null}
+            <Pair en={sub.en} fr={sub.fr} frenchOnly={frenchOnly} />
             {` — ${sub.amount}`}
           </Text>
         ) : null}
@@ -462,11 +535,11 @@ function MoneyTotal({
   fr?: string;
   amount: string;
 }) {
+  const frenchOnly = React.useContext(FrenchOnly);
   return (
     <View style={s.finTotal} wrap={false}>
       <Text style={s.finTotalLabel}>
-        {en}
-        {fr ? <Text style={s.itemFr}> / {fr}</Text> : null}
+        <Pair en={en} fr={fr} frenchOnly={frenchOnly} />
       </Text>
       <Text style={s.finTotalAmt}>{amount}</Text>
     </View>
@@ -503,14 +576,29 @@ function CoverPhotos({ photos }: { photos: string[] }) {
   );
 }
 
-export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
+export function ContratLocationSaisonniere({
+  data,
+  bilingual = true,
+}: {
+  data: ContratData;
+  /**
+   * Clear to set the agreement in French alone. The data is the same either
+   * way — every clause carries both languages — so this is a choice about the
+   * page, made where the page is drawn.
+   */
+  bilingual?: boolean;
+}) {
   const a = data.agency;
   const t = data.tenant;
+  const frenchOnly = !bilingual;
   return (
     <Document
       title={`Contrat de location saisonnière — ${data.reference}`}
       author={a.legalName}
     >
+      {/* Not indented under the provider: it wraps the whole document, and
+          moving every page in a level would bury the change that added it. */}
+      <FrenchOnly.Provider value={frenchOnly}>
       {/* Page 1 — the cover.
           Three full-bleed bands and no footer: the page carries no padding of
           its own and the agreement proper starts overleaf. See `coverPage`. */}
@@ -523,8 +611,16 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
 
           <View style={h.coverHead}>
             <View style={h.coverTitleWrap}>
-              <Text style={h.coverTitle}>Seasonal Rental Agreement</Text>
-              <Text style={h.coverSubtitle}>Contrat de location saisonnière</Text>
+              {frenchOnly ? (
+                <Text style={h.coverTitle}>Contrat de location saisonnière</Text>
+              ) : (
+                <>
+                  <Text style={h.coverTitle}>Seasonal Rental Agreement</Text>
+                  <Text style={h.coverSubtitle}>
+                    Contrat de location saisonnière
+                  </Text>
+                </>
+              )}
             </View>
             <View style={h.coverMeta}>
               <Text style={h.coverMetaLabel}>Référence</Text>
@@ -569,13 +665,25 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
 
         <SubHeading en="1.2 The Tenant" fr="Le Locataire" tight />
         <View style={[h.cardTight, { marginTop: TIGHT_GAP }]} wrap={false}>
-          <Cap en="Full name" fr="Nom complet" />
+          {t.kind === "COMPANY" ? (
+            <Cap en="Company name" fr="Dénomination sociale" />
+          ) : (
+            <Cap en="Full name" fr="Nom et prénom" />
+          )}
           <Text style={h.name}>{t.name}</Text>
           <View style={{ marginTop: TIGHT_GAP }}>
             {t.details.map((d, i) => (
-              <InfoRow key={i} label={d.label} value={d.value} />
+              <InfoRow
+                key={i}
+                label={d.label}
+                value={d.value}
+                valueEn={d.valueEn}
+              />
             ))}
           </View>
+        </View>
+        <View style={{ marginTop: TIGHT_GAP }}>
+          <Prose clause={data.clauses.tenant} />
         </View>
 
         <Section en="2 - The Property" fr="Le bien" tight>
@@ -651,11 +759,11 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
             <Tick
               checked={data.presentation === "IN_PERSON"}
               en="Visited in person by the Tenant"
-              fr="Visité en personne par le Locataire"
+              fr="Visité physiquement par le Locataire"
             />
             <Tick
               checked={data.presentation === "THIRD_PARTY"}
-              en="Visited by a third party on behalf of the Tenant"
+              en="Visited by a third party acting on behalf of the Tenant"
               fr="Visité par un tiers agissant pour le compte du Locataire"
             />
             <Tick
@@ -697,6 +805,9 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
             </View>
           </TitledBlock>
         </Section>
+        <View style={{ marginTop: GAP }}>
+          <Prose clause={data.clauses.duration} />
+        </View>
 
         <TitledBlock en="4.2 Rent" fr="Loyer">
           <View style={[h.card, { marginTop: GAP }]} wrap={false}>
@@ -712,6 +823,31 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
             </View>
             <View style={{ marginTop: GAP }}>
               <Prose clause={data.clauses.rent} />
+            </View>
+            {/* Both boxes are printed and one is ticked, as the presentation
+                boxes are: the tenant is owed the statement that no VAT applies
+                as much as the figure when it does. The rate and amount are
+                only named on the line that applies — an unticked box quoting
+                a percentage would read as a term of this rental. */}
+            <View style={{ marginTop: GAP, gap: LABEL_GAP }}>
+              <Tick
+                checked={!data.money.vat}
+                en="Rent not subject to VAT"
+                fr="Loyer non soumis à la TVA"
+              />
+              <Tick
+                checked={!!data.money.vat}
+                en={
+                  data.money.vat
+                    ? `Rent subject to VAT at the rate of ${VAT_RATE}, i.e. ${data.money.vat} of VAT included in the total rental price`
+                    : "Rent subject to VAT, included in the total rental price"
+                }
+                fr={
+                  data.money.vat
+                    ? `Loyer soumis à la TVA au taux de ${VAT_RATE}, soit ${data.money.vat} de TVA inclus dans le prix total du séjour`
+                    : "Loyer soumis à la TVA, incluse dans le prix total du séjour"
+                }
+              />
             </View>
           </View>
         </TitledBlock>
@@ -730,8 +866,8 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           capEn="Balance"
           capFr={`Solde${data.money.balancePercent ? ` — (${data.money.balancePercent})` : ""}`}
           amount={data.money.balance}
-          dueEn="Payable no later than 60 days before the arrival date, i.e. no later than"
-          dueFr="Payable au plus tard 60 jours avant la date d'arrivée, soit au plus tard le"
+          dueEn="Payable one (1) month before the arrival date, i.e. on"
+          dueFr="Payable un (1) mois avant la date d'arrivée, soit le"
           dueDate={data.money.balanceDue}
         />
 
@@ -759,15 +895,12 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
               <View style={{ marginTop: LABEL_GAP, gap: PAIR_GAP }}>
                 {data.property.includedCharges.map((c, i) => (
                   <Text key={i} style={h.paraEn}>
-                    {c.en}
+                    <Pair en={c.en} fr={c.fr} frenchOnly={frenchOnly} />
                     {/* Same treatment as the excluded column opposite: the
                         English carries the line, the French follows it in
                         italic grey. The two cards sit side by side and are
                         read against each other, so they cannot be set
                         differently. */}
-                    {c.fr ? (
-                      <Text style={s.itemFr}> / {c.fr}</Text>
-                    ) : null}
                   </Text>
                 ))}
               </View>
@@ -778,13 +911,11 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
             <View style={{ marginTop: LABEL_GAP, gap: PAIR_GAP }}>
               {(data.clauses.chargesExcluded?.en ?? []).map((item, i) => (
                 <Text key={i} style={h.paraEn}>
-                  {item}
-                  {data.clauses.chargesExcluded?.fr[i] ? (
-                    <Text style={s.itemFr}>
-                      {" "}
-                      / {data.clauses.chargesExcluded.fr[i]}
-                    </Text>
-                  ) : null}
+                  <Pair
+                    en={item}
+                    fr={data.clauses.chargesExcluded?.fr[i]}
+                    frenchOnly={frenchOnly}
+                  />
                 </Text>
               ))}
             </View>
@@ -864,8 +995,8 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
               sub={
                 data.money.vat
                   ? {
-                      en: "of which VAT 10 %",
-                      fr: "dont TVA 10 % (parahôtellerie)",
+                      en: `of which VAT ${VAT_RATE}`,
+                      fr: `dont TVA ${VAT_RATE} (parahôtellerie)`,
                       amount: data.money.vat,
                     }
                   : undefined
@@ -903,8 +1034,12 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
         </TitledBlock>
         {data.money.services.length > 0 ? (
           <Text style={[s.para, { marginTop: GAP }]}>
-            * Additional cost{" "}
-            <Text style={s.itemFr}>/ Frais complémentaire</Text>
+            *{" "}
+            <Pair
+              en="Additional cost"
+              fr="Frais complémentaire"
+              frenchOnly={frenchOnly}
+            />
           </Text>
         ) : null}
 
@@ -981,7 +1116,8 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
         </View>
 
         <Section en="6 - Cancellation conditions" fr="Conditions d'annulation" />
-        <SubHeading first en="6.1 Cancellation by the Tenant" fr="Annulation par le locataire" />
+        <Prose clause={data.clauses.cancellationIntro} />
+        <SubHeading en="6.1 Cancellation by the Tenant" fr="Annulation par le locataire" />
         <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.cancellationTenant} />
         </View>
@@ -991,40 +1127,44 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           <Prose clause={data.clauses.cancellationOwner} />
         </View>
 
-        <SubHeading en="6.3 Force majeure" />
-        <View style={{ marginTop: GAP }}>
-          <Prose clause={data.clauses.forceMajeure} />
-        </View>
+        <Section en="7 - Force majeure" />
+        <Prose clause={data.clauses.forceMajeure} />
 
-        <Section en="7 - Legal provisions" fr="Dispositions juridiques" />
-        <SubHeading first en="7.1 Data protection" fr="Données personnelles" />
+        <Section en="8 - Legal provisions" fr="Dispositions juridiques" />
+        <SubHeading first en="8.1 Data protection" fr="Données personnelles" />
         <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.dataProtection} />
         </View>
 
-        <SubHeading en="7.2 Non-discrimination" />
+        <SubHeading en="8.2 Non-discrimination" />
         <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.nonDiscrimination} />
         </View>
 
-        <SubHeading en="7.3 Validity" fr="Validité partielle" />
+        <SubHeading en="8.3 Validity" fr="Validité partielle" />
         <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.validity} />
         </View>
 
-        <Footer a={a} reference={data.reference} />
-      </Page>
-
-      {/* Governing law and the signatures that close the agreement. */}
-      <Page size="A4" style={h.page}>
         <Section
-          first
-          en="8 - Governing law & jurisdiction"
+          en="9 - Governing law & jurisdiction"
           fr="Droit applicable et juridiction"
         />
         <Prose clause={data.clauses.governingLaw} />
 
-        <Section en="9 - Signatures of the parties" fr="Signatures des parties" />
+        <Footer a={a} reference={data.reference} frenchOnly={frenchOnly} />
+      </Page>
+
+      {/* The signatures that close the agreement.
+          A page of their own so the boxes are never parted from the clause
+          they execute; governing law runs on with the body, which keeps its
+          page initialled like the rest. */}
+      <Page size="A4" style={h.page}>
+        <Section
+          first
+          en="10 - Signatures of the parties"
+          fr="Signatures des parties"
+        />
         <Prose clause={data.clauses.signatures} />
 
         <Text style={[s.para, { marginTop: GAP }]}>
@@ -1053,7 +1193,15 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
                     <Cap en="Represented by" fr="Représenté par" />
                   </View>
                   <Text style={[h.infoValue, { marginTop: GAP }]}>
-                    {[t.representative, t.capacity].filter(Boolean).join(", ")}
+                    {t.representative}
+                    {t.representative && t.capacity ? ", " : null}
+                    {t.capacity ? (
+                      <Pair
+                        en={t.capacityEn ?? t.capacity}
+                        fr={t.capacityEn ? t.capacity : undefined}
+                        frenchOnly={frenchOnly}
+                      />
+                    ) : null}
                   </Text>
                 </>
               ) : null}
@@ -1074,8 +1222,14 @@ export function ContratLocationSaisonniere({ data }: { data: ContratData }) {
           </View>
         </View>
 
-        <Footer a={a} reference={data.reference} initials={false} />
+        <Footer
+          a={a}
+          reference={data.reference}
+          initials={false}
+          frenchOnly={frenchOnly}
+        />
       </Page>
+      </FrenchOnly.Provider>
     </Document>
   );
 }

@@ -51,7 +51,9 @@ export const CLAUSE_FIELDS = {
   SEASONAL_RENTAL_CONTRACT: [
     { key: "preamble", label: "Préambule — droit applicable" },
     { key: "agent", label: "1.1 Le Mandataire" },
+    { key: "tenant", label: "1.2 Le Locataire — désignation" },
     { key: "presentation", label: "3 — Présentation du bien" },
+    { key: "duration", label: "4.1 Durée (note sous la période)" },
     { key: "rent", label: "4.2 Loyer (note sous le montant)" },
     { key: "chargesExcluded", label: "4.3 Charges non incluses (une ligne par charge)" },
     { key: "chargesNote", label: "4.3 Charges — note" },
@@ -68,14 +70,15 @@ export const CLAUSE_FIELDS = {
     { key: "liability", label: "5.5 Responsabilité" },
     { key: "additionalServices", label: "5.6 Prestations complémentaires" },
     { key: "nonCircumvention", label: "5.7 Non-contournement et acquisition" },
+    { key: "cancellationIntro", label: "6 Conditions d'annulation — introduction" },
     { key: "cancellationTenant", label: "6.1 Annulation par le locataire" },
     { key: "cancellationOwner", label: "6.2 Annulation par le propriétaire" },
-    { key: "forceMajeure", label: "6.3 Force majeure" },
-    { key: "dataProtection", label: "7.1 Données personnelles" },
-    { key: "nonDiscrimination", label: "7.2 Non-discrimination" },
-    { key: "validity", label: "7.3 Validité partielle" },
-    { key: "governingLaw", label: "8 Droit applicable et juridiction" },
-    { key: "signatures", label: "9 Signatures" },
+    { key: "forceMajeure", label: "7 Force majeure" },
+    { key: "dataProtection", label: "8.1 Données personnelles" },
+    { key: "nonDiscrimination", label: "8.2 Non-discrimination" },
+    { key: "validity", label: "8.3 Validité partielle" },
+    { key: "governingLaw", label: "9 Droit applicable et juridiction" },
+    { key: "signatures", label: "10 Signatures" },
     { key: "use", label: "2.3 Destination des lieux" },
     { key: "equipment", label: "2.4 Standing de l'équipement" },
     { key: "photographs", label: "2.5 Photographies" },
@@ -186,12 +189,20 @@ export const DEFAULT_CLAUSES: Record<
     },
     agent: {
       en: [
-        "BSTAY, a French simplified joint-stock company (SAS), registered with the Trade and Companies Register (RCS) of Cannes under number 920 635 356, with its registered office at 9 Rond-Point Duboys d'Angers, France, operating as a real estate agency and a private concierge and estate management company specialized in high-end property services, holding a financial guarantee with CEGC and professional liability insurance with Generali, holder of professional real estate licence no. CPI83042026000000007 issued by the Var Chamber of Commerce and Industry,",
-        "hereinafter referred to as the \u201cAgent\u201d, acting in its capacity as duly authorized agent of the Landlord,",
+        "BSTAY, a French simplified joint-stock company (SAS), registered with the Trade and Companies Register (RCS) of Cannes under number 920 635 356, with its registered office at 9 Rond-Point Duboys d'Angers, 06400 Cannes, France, operating as a real estate agency and a private concierge and property management company specialized in high-end property services, holding a financial guarantee with CEGC under number 31961GES261 and professional liability insurance with Generali under policy number AL591311/31961, holder of professional real estate licence no. CPI 8304 2026 000 000 007 issued by the Nice Côte d'Azur Chamber of Commerce and Industry, acting in its capacity as agent of the Owner,",
+        "hereinafter referred to as the “Agent”,",
       ],
       fr: [
-        "BSTAY, société par actions simplifiée de droit français, immatriculée au Registre du Commerce et des Sociétés de Fréjus sous le numéro 920 635 356, dont le siège social est situé 18 Avenue Général Leclerc, 83990 Saint-Tropez, France, exerçant une activité d'agence immobilière et de conciergerie privée haut de gamme, bénéficiant d'une garantie financière auprès de la CEGC et d'une assurance responsabilité civile professionnelle souscrite auprès de Generali, titulaire de la carte professionnelle n° CPI83042026000000007 délivrée par la CCI du Var,",
-        "ci-après dénommée le « Mandataire », agissant en qualité de mandataire dûment habilité du Propriétaire,",
+        "BSTAY, société par actions simplifiée de droit français (SAS), immatriculée au Registre du Commerce et des Sociétés de Cannes sous le numéro 920 635 356, dont le siège social est situé au 9 Rond-Point Duboys d'Angers, 06400 Cannes, France, exerçant une activité d'agence immobilière et de conciergerie privée et de gestion immobilière haut de gamme, bénéficiant d'une garantie financière auprès de la CEGC sous le numéro 31961GES261 et d'une assurance responsabilité civile professionnelle souscrite auprès de Generali sous le numéro AL591311/31961, titulaire de la carte professionnelle n° CPI 8304 2026 000 000 007 délivrée par la Chambre de Commerce et d'Industrie Nice Côte d'Azur, agissant en qualité de mandataire du Propriétaire,",
+        "ci-après dénommée « le Mandataire »,",
+      ],
+    },
+    tenant: {
+      en: [
+        "hereinafter referred to as the “Tenant”,",
+      ],
+      fr: [
+        "ci-après dénommé « le Locataire »,",
       ],
     },
     presentation: {
@@ -199,15 +210,23 @@ export const DEFAULT_CLAUSES: Record<
         "The Tenant acknowledges that the property has been presented to them by the Agent prior to entering into this agreement.",
         "The Tenant confirms that they have received sufficient information regarding the property, its characteristics and its condition.",
         "The Tenant acknowledges that the chosen mode of presentation is sufficient and accepts the property in its condition as described in this agreement.",
-        "The Tenant agrees that the absence of a physical visit shall not constitute grounds for any claim or dispute regarding the conformity of the property.",
+        "Where the property has not been visited in person, the Tenant acknowledges that the remote presentation (description, photographs and other marketing materials) forms the basis of their consent and that the absence of a physical visit shall not, in itself, constitute grounds for a claim. This clause shall not exclude any remedy available to the Tenant in the event of a substantial non-conformity between the property delivered and its description.",
         "The Tenant confirms having had the opportunity to request any additional information prior to signing.",
       ],
       fr: [
         "Le Locataire reconnaît que le bien lui a été présenté par le Mandataire préalablement à la conclusion du présent contrat.",
         "Le Locataire reconnaît avoir reçu les informations nécessaires relatives au bien, à ses caractéristiques et à son état.",
         "Le Locataire reconnaît que le mode de présentation choisi est suffisant et accepte le bien dans son état tel que décrit au présent contrat.",
-        "Le Locataire accepte que l'absence de visite physique ne puisse constituer un motif de contestation relatif à la conformité du bien.",
+        "Lorsque le bien n'a pas été visité physiquement, le Locataire reconnaît que la présentation à distance (descriptif, photographies et autres supports de commercialisation) constitue le fondement de son consentement et que l'absence de visite physique ne saurait, à elle seule, constituer un motif de contestation. La présente clause n'exclut aucun recours du Locataire en cas de non-conformité substantielle entre le bien délivré et sa description.",
         "Le Locataire reconnaît avoir eu la possibilité de solliciter toute information complémentaire préalablement à la signature.",
+      ],
+    },
+    duration: {
+      en: [
+        "This agreement is a seasonal rental within the meaning of Article 1-1 of Law No. 70-9 of 2 January 1970: it is entered into for a maximum, non-renewable period of ninety (90) consecutive days.",
+      ],
+      fr: [
+        "Le présent contrat est une location saisonnière au sens de l'article 1-1 de la loi n° 70-9 du 2 janvier 1970 : il est conclu pour une durée maximale et non renouvelable de quatre-vingt-dix (90) jours consécutifs.",
       ],
     },
     rent: {
@@ -218,18 +237,19 @@ export const DEFAULT_CLAUSES: Record<
         "Ce prix correspond à la location du bien pour la période convenue, telle que définie au présent contrat.",
       ],
     },
+    // What every rent excludes. The bailiff's check-out inspection is not
+    // listed: it is excluded only from a rental that has one, and the builder
+    // adds it there, with its price, from the booking's billed services.
     chargesExcluded: {
       en: [
         "Consumption exceeding normal use",
         "Additional services",
         "Tourist tax",
-        "Bailiff check-out inspection",
       ],
       fr: [
         "Consommation excédant une utilisation normale",
         "Prestations complémentaires",
         "Taxe de séjour",
-        "Huissier — état des lieux de sortie",
       ],
     },
     chargesNote: {
@@ -270,9 +290,6 @@ export const DEFAULT_CLAUSES: Record<
         "Bank transfer may be subject to banking fees, which shall be borne by the Tenant.",
         "Payments must be made in the name of the Tenant, from a bank account clearly identifying the payer.",
         "Any refund shall be made to the bank account used for the initial payment, unless otherwise justified.",
-        "A commission-free payment method (bank transfer) is always available.",
-        "Certain payment methods, including international cards or specific payment solutions, may incur an additional service fee of 5 % of the total amount due, corresponding in this case to {{money.surcharge}}.",
-        "This fee applies only where permitted by applicable regulations, exclusively to the selected payment method, and is clearly indicated prior to payment validation.",
       ],
       fr: [
         "Les paiements seront effectués par virement bancaire ou tout autre moyen de paiement accepté par le Mandataire.",
@@ -281,22 +298,19 @@ export const DEFAULT_CLAUSES: Record<
         "Les virements bancaires peuvent donner lieu à des frais bancaires, qui restent à la charge du Locataire.",
         "Les paiements devront être effectués au nom du Locataire et provenir d'un compte bancaire permettant d'identifier clairement le payeur.",
         "Tout remboursement sera effectué sur le compte bancaire ayant servi au paiement initial, sauf justification dûment apportée.",
-        "Un mode de règlement sans frais (virement bancaire) est toujours disponible.",
-        "Certains modes de paiement, notamment les cartes internationales ou moyens de paiement spécifiques, peuvent entraîner l'application d'un supplément de 5 % du montant total dû, soit en l'espèce {{money.surcharge}}.",
-        "Ce supplément s'applique uniquement dans les cas autorisés par la réglementation en vigueur, exclusivement au mode de paiement sélectionné, et est clairement indiqué avant validation du règlement.",
       ],
     },
     bankDetails: {
       en: [
-        "In the event of payment by bank transfer, the payment shall be made to the following bank details.",
+        "In the event of payment by bank transfer, the payment shall be made to the following bank details:",
       ],
       fr: [
-        "En cas de règlement par virement bancaire, celui-ci devra être effectué aux coordonnées suivantes.",
+        "En cas de règlement par virement bancaire, celui-ci devra être effectué aux coordonnées suivantes :",
       ],
     },
     securityNotice: {
       en: [
-        "BSTAY does not communicate any changes to payment instructions by email. Any request to amend bank account details must be verified directly with our office prior to making any payment.",
+        "BSTAY does not communicate modifications of payment instructions via email. In the event of any request suggesting a change, please contact our office directly before proceeding with payment.",
       ],
       fr: [
         "BSTAY ne communique aucune modification d'instructions de paiement par e-mail. Toute demande relative à un changement de coordonnées bancaires doit être vérifiée directement auprès de notre bureau avant d'effectuer un paiement.",
@@ -305,12 +319,12 @@ export const DEFAULT_CLAUSES: Record<
     bankFees: {
       en: [
         "The Tenant is expressly informed that certain fund transfers, in particular international transfers or transfers outside the SEPA area, may be subject to bank charges applied by the financial institutions involved (issuing bank, intermediary banks or beneficiary's bank), which are beyond the Agent's control.",
-        "Such fees, the amount of which cannot be determined in advance and may vary depending on the country, currency and the terms applied by each banking institution, may remain payable by the Tenant.",
+        "Such fees, the amount of which cannot be determined in advance and may vary depending on the country, currency and the terms applied by each banking institution, shall remain payable by the Tenant.",
         "The security deposit shall be refunded in euros by SEPA transfer whenever possible. Failing this, an alternative transfer method may be used.",
       ],
       fr: [
         "Le Locataire est expressément informé que certains transferts de fonds, notamment internationaux ou hors zone SEPA, peuvent donner lieu à l'application de frais bancaires par les établissements financiers intervenants (banque émettrice, intermédiaires ou banque du bénéficiaire), indépendamment de la volonté du Mandataire.",
-        "Ces frais, dont le montant ne peut être déterminé à l'avance et dépend notamment du pays, de la devise et des conditions propres à chaque établissement bancaire, pourront rester à la charge du Locataire.",
+        "Ces frais, dont le montant ne peut être déterminé à l'avance et dépend notamment du pays, de la devise et des conditions propres à chaque établissement bancaire, resteront à la charge du Locataire.",
         "Le remboursement du dépôt de garantie est effectué en euros par virement SEPA lorsque cela est possible. À défaut, un autre mode de transfert pourra être utilisé.",
       ],
     },
@@ -365,11 +379,11 @@ export const DEFAULT_CLAUSES: Record<
         "The Tenant undertakes to take care of the property and to immediately inform the Agent of any damage or incident.",
       ],
       fr: [
-        "Un état des lieux et un inventaire sont établis à l'arrivée du Locataire.",
-        "Cet état des lieux et cet inventaire pourront, si cela est jugé opportun, être établis par un huissier.",
-        "Lorsqu'un huissier est mandaté, les frais sont à la charge du Propriétaire pour l'état des lieux d'entrée et à la charge du Locataire pour celui de sortie.",
-        "À défaut, le Locataire est réputé avoir reçu le bien en bon état et doit le restituer dans le même état, sous réserve de l'usure normale.",
-        "Le Locataire s'engage à prendre soin du bien et à informer immédiatement le Mandataire de tout dommage ou incident.",
+        "Un inventaire et un état des lieux sont réalisés à l'arrivée du Locataire.",
+        "Cet état des lieux pourra, lorsque cela est jugé nécessaire, être établi par un commissaire de justice.",
+        "Dans ce cas, les frais sont à la charge du Propriétaire pour l'état des lieux d'entrée et à la charge du Locataire pour l'état des lieux de sortie.",
+        "À défaut, le Locataire est réputé avoir reçu les lieux en bon état et devra les restituer dans le même état, sous réserve de l'usure normale.",
+        "Le Locataire s'engage à prendre soin du bien et à informer sans délai le Mandataire de tout dommage ou incident.",
       ],
     },
     keysAccess: {
@@ -389,7 +403,7 @@ export const DEFAULT_CLAUSES: Record<
         "The Tenant shall be responsible for any damage caused to the property, its equipment or its contents during the rental period.",
         "The Tenant undertakes to maintain the property in good condition throughout the stay.",
         "The Tenant is responsible for any damage caused by occupants or guests.",
-        "The Tenant is strongly advised to maintain appropriate insurance covering the risks associated with the rental, including liability for damage to the property.",
+        "The Tenant must be insured, for the entire duration of the stay, against rental risks, in particular fire, water damage and civil liability for damage caused to the rented property and to neighbours. The Tenant shall provide proof of such insurance to the Owner or the Agent, upon request, by supplying an insurance certificate. Failing such proof before check-in, the Owner or the Agent may refuse to hand over the keys. If the Tenant does not have such insurance, the Agent may put the Tenant in touch with one of its partners; this introduction is provided free of charge and the Agent receives no remuneration for it.",
         "The Tenant shall remain responsible for the safekeeping of the property during the stay.",
         "The Agent shall not be held liable for any loss, theft or damage to the Tenant's personal belongings.",
       ],
@@ -397,7 +411,7 @@ export const DEFAULT_CLAUSES: Record<
         "Le Locataire est responsable de tout dommage causé au bien, à ses équipements ou à son mobilier pendant la durée de la location.",
         "Le Locataire s'engage à maintenir le bien en bon état durant le séjour.",
         "Le Locataire est responsable des dommages causés par les occupants ou les personnes qu'il introduit dans les lieux.",
-        "Le Locataire est vivement invité à souscrire une assurance couvrant les risques liés à la location, notamment sa responsabilité en cas de dommages causés au bien.",
+        "Le Locataire est tenu d'être assuré, pendant toute la durée du séjour, contre les risques locatifs, notamment l'incendie, le dégât des eaux et sa responsabilité civile pour les dommages causés au bien loué et aux voisins. Le Locataire justifie de cette assurance auprès du Propriétaire ou du Mandataire, sur demande, par la remise d'une attestation d'assurance. À défaut de justification avant l'entrée dans les lieux, le Propriétaire ou le Mandataire pourra refuser la remise des clés. Si le Locataire ne dispose pas d'une telle assurance, le Mandataire pourra le mettre en relation avec l'un de ses partenaires ; cette mise en relation est effectuée à titre gratuit, sans but lucratif ni rémunération pour le Mandataire.",
         "Le Locataire demeure gardien du bien pendant la durée du séjour.",
         "Le Mandataire ne pourra être tenu responsable en cas de perte, de vol ou de détérioration des effets personnels du Locataire.",
       ],
@@ -422,34 +436,47 @@ export const DEFAULT_CLAUSES: Record<
         "In the event that the Tenant or any person introduced by the Tenant concludes, directly or indirectly, a transaction relating to the property, including its purchase, without the Agent's involvement, the Agent shall be entitled to claim compensation corresponding to the commission that would have been due in connection with such transaction.",
       ],
       fr: [
-        "Le Locataire s'engage à ne conclure aucun accord direct avec le Propriétaire concernant la location, son renouvellement, sa prolongation ou l'acquisition du bien sans l'intervention préalable du Mandataire.",
         "Dans le cas où le Locataire, ou toute personne qu'il aurait introduite, viendrait à conclure directement ou indirectement toute opération relative au bien, notamment sa location, son renouvellement, sa prolongation ou son acquisition, sans l'intervention du Mandataire, celui-ci pourra prétendre à une indemnité correspondant au montant des honoraires qui auraient été dus conformément au barème d'honoraires du Mandataire en vigueur au jour de l'opération.",
+      ],
+    },
+    cancellationIntro: {
+      en: [
+        "The sums paid in advance by the Tenant constitute a deposit on the price (acompte) and not earnest money (arrhes): by express derogation from Article L. 214-1 of the French Consumer Code and Article 1590 of the French Civil Code, neither Party has a right of withdrawal, and the consequences of a cancellation are governed exclusively by this Article 6.",
+      ],
+      fr: [
+        "Les sommes versées d'avance par le Locataire constituent un acompte et non des arrhes : par dérogation expresse à l'article L. 214-1 du Code de la consommation et à l'article 1590 du Code civil, aucune des Parties ne dispose d'une faculté de dédit, et les conséquences d'une annulation sont exclusivement régies par le présent article 6.",
       ],
     },
     cancellationTenant: {
       en: [
         "In the event of cancellation by the Tenant, the following conditions shall apply:",
-        "More than one hundred and twenty (120) days before the arrival date: full refund of any deposit paid.",
-        "Less than one hundred and twenty (120) days before the arrival date: any deposit paid shall be retained and the total rental amount shall remain due.",
+        "More than one hundred and twenty (120) days before the arrival date: full refund of the deposit paid.",
+        "Less than one hundred and twenty (120) days but more than sixty (60) days before the arrival date: the Tenant shall owe compensation equal to 50% of the amount of the deposit, which shall be set off against the deposit paid; the remainder shall be refunded to the Tenant.",
+        "Less than sixty (60) days but more than thirty (30) days before the arrival date: the deposit paid shall be retained; any sum paid in excess shall be refunded to the Tenant.",
+        "Less than thirty (30) days before the arrival date: all sums paid (deposit and balance) shall be retained, excluding the security deposit, which shall be returned to the Tenant.",
         "Any cancellation must be notified in writing.",
         "The date of receipt of the cancellation shall be the effective date for the application of the above conditions.",
       ],
       fr: [
         "En cas d'annulation par le Locataire, les conditions suivantes s'appliquent :",
-        "Plus de cent vingt (120) jours avant la date d'arrivée : remboursement intégral de l'acompte versé, le cas échéant.",
-        "Moins de cent vingt (120) jours avant la date d'arrivée : l'acompte éventuellement versé reste acquis et la totalité du prix de la location reste due.",
+        "Plus de cent vingt (120) jours avant la date d'arrivée : remboursement intégral de l'acompte versé.",
+        "Moins de cent vingt (120) jours mais plus de soixante (60) jours avant la date d'arrivée : le Locataire est redevable d'une indemnité égale à 50 % du montant de l'acompte, imputée sur l'acompte versé ; le surplus lui est remboursé.",
+        "Moins de soixante (60) jours mais plus de trente (30) jours avant la date d'arrivée : l'acompte versé reste acquis ; toute somme versée au-delà est remboursée au Locataire.",
+        "Moins de trente (30) jours avant la date d'arrivée : la totalité des sommes versées (acompte et solde) reste acquise, à l'exclusion du dépôt de garantie, qui est restitué au Locataire.",
         "Toute annulation devra être notifiée par écrit.",
         "La date de réception de la notification fera foi pour l'application des présentes conditions.",
       ],
     },
     cancellationOwner: {
       en: [
-        "In the event of cancellation by the Owner after written confirmation of the booking has been signed and, where applicable, the first deposit has been received, the Tenant shall be refunded all amounts paid.",
-        "The Agent will use reasonable efforts to offer alternative solutions to the Tenant, where possible.",
+        "If the Landlord cancels the reservation more than 120 days before the date of occupation, the Landlord undertakes to reimburse the Tenant for the total amount of the down payment and is not liable for any compensation.",
+        "If the Landlord cancels the reservation fewer than 120 but more than 60 days before the date of occupation, the Landlord undertakes to reimburse the Tenant for the total amount of the down payment increased by a compensation equal to 50% of the amount of the deposit.",
+        "If the Landlord cancels the reservation less than 60 days before the date of occupation, the Landlord undertakes to reimburse the Tenant for the total amount of the down payment increased by a compensation equal to 100% of the amount of the deposit.",
       ],
       fr: [
-        "En cas d'annulation par le Propriétaire après signature de la confirmation écrite de la réservation et, le cas échéant, encaissement du premier acompte, le Locataire sera remboursé de l'intégralité des sommes versées.",
-        "Le Mandataire s'efforcera de proposer au Locataire des solutions alternatives lorsque cela est possible.",
+        "Si le Propriétaire annule sa réservation plus de 120 jours avant la date d'entrée dans les lieux, le Propriétaire s'engage à rembourser au Locataire la totalité de l'acompte et n'est redevable d'aucune indemnité.",
+        "Si le Propriétaire annule sa réservation moins de 120 jours avant la date d'entrée dans les lieux, mais plus de 60 jours avant la date d'entrée dans les lieux, le Propriétaire s'engage à rembourser la totalité de l'acompte majorée d'une indemnité égale à 50 % du montant de l'acompte au Locataire.",
+        "Si le Propriétaire annule sa réservation moins de 60 jours avant la date d'entrée dans les lieux, le Propriétaire s'engage à rembourser la totalité de l'acompte majorée d'une indemnité égale à 100 % du montant de l'acompte au Locataire.",
       ],
     },
     forceMajeure: {
@@ -497,13 +524,13 @@ export const DEFAULT_CLAUSES: Record<
         "This agreement shall be governed by and construed in accordance with French law.",
         "In the event of a dispute, the Parties shall seek an amicable solution prior to any legal action.",
         "Failing such amicable resolution, any dispute shall be submitted to the competent courts in accordance with applicable law.",
-        "The Tenant may have recourse to a consumer mediator in accordance with applicable regulations.",
+        "The Tenant may have recourse to a consumer mediator in accordance with applicable regulations. The consumer mediator is: MEDIMMOCONSO – Adresse postale : 1 Allée du Parc de Mesemena – Bât A – CS 25222 – 44505 LA BAULE CEDEX – Adresse e-mail : contact@medimmoconso.fr – Site internet : medimmoconso.fr (rubrique « Adresser une réclamation »).",
       ],
       fr: [
         "Le présent contrat est régi par le droit français.",
         "En cas de litige, les Parties s'engagent à rechercher une solution amiable avant toute action judiciaire.",
         "À défaut d'accord amiable, le litige sera porté devant les juridictions compétentes conformément aux règles de droit commun.",
-        "Le Locataire peut recourir à un médiateur de la consommation conformément à la réglementation en vigueur.",
+        "Le Locataire peut recourir à un médiateur de la consommation conformément à la réglementation en vigueur. Le médiateur de la consommation est : MEDIMMOCONSO – Adresse postale : 1 Allée du Parc de Mesemena – Bât A – CS 25222 – 44505 LA BAULE CEDEX – Adresse e-mail : contact@medimmoconso.fr – Site internet : medimmoconso.fr (rubrique « Adresser une réclamation »).",
       ],
     },
     signatures: {

@@ -1,4 +1,5 @@
 import "server-only";
+import { englishOf } from "@/features/documents/bilingual-text";
 import { birthPlaceLabel, nationalitiesLabel } from "@/lib/countries";
 
 import type { CurrentUser } from "@/lib/auth";
@@ -41,6 +42,22 @@ const SHORT_DATE = new Intl.DateTimeFormat("fr-FR", {
 const shortDate = (d: Date) => SHORT_DATE.format(d);
 const addDays = (d: Date, days: number) =>
   new Date(d.getTime() + days * 86_400_000);
+
+/**
+ * One calendar month before `d` — the balance falls due "un (1) mois avant la
+ * date d'arrivée", which is a month and not thirty days.
+ *
+ * Clamped to the month's last day: a month before 31 March is 28 or 29
+ * February, where `setUTCMonth` alone would roll over into March.
+ */
+const monthBefore = (d: Date) => {
+  const first = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1));
+  const lastDay = new Date(
+    Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  first.setUTCDate(Math.min(d.getUTCDate(), lastDay));
+  return first;
+};
 
 /**
  * A due date that collapses to "à la signature" once it falls on or before the
@@ -194,6 +211,7 @@ export async function buildContratData(
                   repFirstName: true,
                   repLastName: true,
                   repCapacity: true,
+                  repCapacityEn: true,
                 },
               },
             },
@@ -396,7 +414,7 @@ export async function buildContratData(
     depositPercent: hasDeposit ? pct(depositAmount) : undefined,
     balancePercent: hasDeposit ? pct(balanceAmount) : undefined,
     depositDue: hasDeposit ? dueLine(addDays(signature, 7), signature) : undefined,
-    balanceDue: dueLine(addDays(rental.checkIn, -60), signature),
+    balanceDue: dueLine(monthBefore(rental.checkIn), signature),
     securityDepositDue: dueLine(addDays(rental.checkIn, -30), signature),
     surcharge: money(surcharge),
     // How the tourist tax was arrived at, as the master prints it beside the
@@ -445,7 +463,9 @@ export async function buildContratData(
   const clauseKeys = ([
     "preamble",
     "agent",
+    "tenant",
     "presentation",
+    "duration",
     "rent",
     "chargesExcluded",
     "chargesNote",
@@ -460,6 +480,7 @@ export async function buildContratData(
     "liability",
     "additionalServices",
     "nonCircumvention",
+    "cancellationIntro",
     "cancellationTenant",
     "cancellationOwner",
     "forceMajeure",
@@ -501,12 +522,11 @@ export async function buildContratData(
   if (billed.length > 0) {
     const excluded = resolvedClauses.chargesExcluded;
     if (excluded) {
-      // Skipped when the clause already names it. The clause lists what the
-      // agency excludes from every rent and happens to name the bailiff's
-      // check-out inspection; a booking that also carries it as a billed
-      // service would otherwise print the line twice, once generically and
-      // once with its price. Matched on the English half, which is the part
-      // both spellings share — the French is the clause's own wording.
+      // Skipped when the clause already names it: an agency that adds a line
+      // to the clause from the editor, and then bills the same thing on a
+      // booking, would otherwise print it twice — once generically and once
+      // with its price. Matched on the English half, which is the part both
+      // spellings share.
       const named = new Set(excluded.en.map((item) => item.trim()));
       const added = billed
         .map((sv) => ({ ...bilingual(sv.label), amount: money(n(sv.amount)) }))
@@ -518,41 +538,84 @@ export async function buildContratData(
     }
   }
 
-  // The tenant's identity, as the master's card lists it. Rows with nothing
-  // behind them are dropped rather than printed empty — a contract showing a
-  // blank nationality reads as an oversight.
-  const tenantDetails: {
-    label: { en: string; fr?: string };
-    value: string;
-  }[] = [];
-  if (tenant?.kind !== "COMPANY") {
-    const birthPlace = birthPlaceLabel(tenant?.birthCity, tenant?.birthCountry);
-    const birth = tenant?.birthDate
-      ? [date(tenant.birthDate), birthPlace].filter(Boolean).join(", ")
-      : null;
-    if (birth)
-      tenantDetails.push({ label: { en: "Born in", fr: "Né(e) le" }, value: birth });
-    const nationalities = nationalitiesLabel(tenant?.nationalities);
-    if (nationalities)
-      tenantDetails.push({
-        label: { en: "Nationality", fr: "Nationalité" },
-        value: nationalities,
-      });
-    if (tenant?.idDocType && tenant?.idDocNumber)
-      tenantDetails.push({
-        label: idDocLabel(tenant.idDocType),
-        value: `n° ${tenant.idDocNumber}`,
-      });
-  }
-  if (tenant?.address)
-    tenantDetails.push({
-      label: { en: "Permanent address", fr: "Adresse permanente" },
-      value: tenant.address,
-    });
-  if (tenant?.email)
-    tenantDetails.push({ label: { en: "Email", fr: "Courriel" }, value: tenant.email });
-  if (tenant?.phone)
-    tenantDetails.push({ label: { en: "Phone", fr: "Téléphone" }, value: tenant.phone });
+  // The tenant's identity, row for row as article 1.2 lists it: one set for a
+  // person, another for a company.
+  //
+  // Every row is printed, and one with nothing behind it shows a dash. They
+  // used to be dropped, which made a contract look complete while it named a
+  // tenant with no nationality or identity document — and a company with
+  // nothing but an address. The dash is the oversight made visible, on the
+  // preview, where it can still be put right on the contact.
+  const row = (
+    en: string,
+    fr: string | undefined,
+    value: string | null | undefined,
+    // The value's own English, for the free-text lines a contact keeps in
+    // both languages. Most values are names, numbers and addresses and have
+    // only the one form.
+    valueEn?: string | null,
+  ) => ({
+    // One word where both languages share it: "Email / Email" says nothing.
+    label: fr ? { en, fr } : { en },
+    value: value?.trim() || "—",
+    valueEn: englishOf(value, valueEn),
+  });
+  const tenantDetails: ContratData["tenant"]["details"] =
+    tenant?.kind === "COMPANY"
+      ? [
+          row("Legal form", "Forme sociale", co?.legalForm),
+          row(
+            "Registration number",
+            "Numéro d'immatriculation",
+            co?.registrationNumber,
+          ),
+          row(
+            "Registered office",
+            "Siège social",
+            co?.registeredOffice ?? tenant.address,
+          ),
+          row(
+            "Represented by",
+            "Représentée par",
+            [co?.repFirstName, co?.repLastName].filter(Boolean).join(" "),
+          ),
+          row("Capacity", "Qualité", co?.repCapacity, co?.repCapacityEn),
+          row("Email", undefined, tenant.email),
+          row("Phone", "Téléphone", tenant.phone),
+        ]
+      : [
+          row(
+            "Date of birth",
+            "Date de naissance",
+            tenant?.birthDate ? date(tenant.birthDate) : null,
+          ),
+          row(
+            "Place of birth",
+            "Lieu de naissance",
+            birthPlaceLabel(tenant?.birthCity, tenant?.birthCountry),
+          ),
+          row(
+            "Nationality",
+            "Nationalité",
+            nationalitiesLabel(tenant?.nationalities),
+          ),
+          // Captioned with the document actually held when it is known —
+          // "Passport", "ID card" — and with the article's own wording when
+          // it is not.
+          {
+            valueEn: undefined,
+            label: tenant?.idDocType
+              ? idDocLabel(tenant.idDocType)
+              : {
+                  en: "Passport or ID number",
+                  fr: "Numéro de passeport ou pièce d'identité",
+                },
+            value: tenant?.idDocNumber ? `n° ${tenant.idDocNumber}` : "—",
+          },
+          row("Permanent address", "Adresse", tenant?.address),
+          row("Email", undefined, tenant?.email),
+          row("Phone", "Téléphone", tenant?.phone),
+        ];
 
   return {
     reference: documentReference("CONTRAT", rental.reference),
@@ -580,6 +643,7 @@ export async function buildContratData(
                 ? [co.repFirstName, co.repLastName].filter(Boolean).join(" ")
                 : undefined,
             capacity: co?.repCapacity ?? undefined,
+            capacityEn: englishOf(co?.repCapacity, co?.repCapacityEn),
             details: tenantDetails,
           }
         : {

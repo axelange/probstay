@@ -464,6 +464,9 @@ model Contact {
   // documents — nothing prints these. Held because the agency is required to
   // know who it rents to, and kept for the next booking.
   occupation    String?
+  // The same line in English, when the agency has written one. See
+  // `ContactCompany.repCapacityEn` for why the free-text lines come in pairs.
+  occupationEn  String?
   maritalStatus MaritalStatus?
   // Postal address, printed on rental documents ("demeurant …"). BSTAY's
   // own — never synced. A company's address is its registered office in
@@ -551,6 +554,19 @@ model ContactCompany {
   officeCity         String?
   officeCountry      String? // ISO 3166-1 alpha-2
   mainActivity       String?
+
+  // English versions of `mainActivity` and of the representative's free-text
+  // lines. Not of `legalForm`: "SARL" or "Société civile particulière" is the
+  // entity's legal category in its own law and is not translated.
+  //
+  // The documents are bilingual and these are words, not codes: "Gérant" has
+  // to read "Manager" in the English half, and nothing can derive one from
+  // the other. The French column stays the reference — it is what the sync,
+  // the intake form and a French-only document read — and an empty English
+  // one simply means the French is printed alone.
+  mainActivityEn     String?
+  repCapacityEn      String?
+  repOccupationEn    String?
 
   // The legal representative — the natural person who signs. From APIMO
   // firstname/lastname and personal fields; capacity and multi-nationality

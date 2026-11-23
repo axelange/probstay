@@ -136,6 +136,10 @@ export default function ContratPreview({
   const [contactId, setContactId] = React.useState(contacts[0]?.id ?? "");
   const [tier, setTier] = React.useState<ConciergeTier>("ESSENTIAL");
   const [bilingual, setBilingual] = React.useState(true);
+  // The rental contract's own language setting. Kept apart from the one above:
+  // that one is sent to the server with the concierge form, and this one only
+  // changes how a contract already fetched is drawn.
+  const [contratBilingual, setContratBilingual] = React.useState(true);
   const [fee, setFee] = React.useState("");
   // Today, so the schedule has something to compute from before the agent has
   // chosen a date — an empty summary teaches nothing about what it will show.
@@ -240,7 +244,10 @@ export default function ContratPreview({
     ) : docType === "CONFIRMATION" ? (
       <RentalConfirmation data={confirmation!} />
     ) : (
-      <ContratLocationSaisonniere data={contrat!} />
+      <ContratLocationSaisonniere
+        data={contrat!}
+        bilingual={contratBilingual}
+      />
     );
 
   const fileName =
@@ -630,35 +637,60 @@ export default function ContratPreview({
             </div>
           </>
         ) : (
-          <div className="space-y-2">
-            <Label htmlFor="doc-rental">Location</Label>
-            {rentals.length > 0 ? (
-              <Select
-                value={rentalId}
-                onValueChange={(v) => v !== null && setRentalId(v)}
-                items={rentals.map((r) => ({ value: r.id, label: r.label }))}
-              >
-                <SelectTrigger id="doc-rental" className="w-full">
-                  <SelectValue placeholder="Choisir une location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {rentals.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                Aucune location disponible.
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="doc-rental">Location</Label>
+              {rentals.length > 0 ? (
+                <Select
+                  value={rentalId}
+                  onValueChange={(v) => v !== null && setRentalId(v)}
+                  items={rentals.map((r) => ({ value: r.id, label: r.label }))}
+                >
+                  <SelectTrigger id="doc-rental" className="w-full">
+                    <SelectValue placeholder="Choisir une location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rentals.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  Aucune location disponible.
+                </p>
+              )}
+              <p className="text-muted-foreground text-xs">
+                Les champs sont pré-remplis depuis la location choisie — bien,
+                contacts, dates et montants.
               </p>
-            )}
-            <p className="text-muted-foreground text-xs">
-              Les champs sont pré-remplis depuis la location choisie — bien,
-              contacts, dates et montants.
-            </p>
-          </div>
+            </div>
+            {docType === "CONTRAT" ? (
+              <div className="space-y-2">
+                <Label htmlFor="doc-lang">Langue</Label>
+                <Select
+                  value={contratBilingual ? "BI" : "FR"}
+                  onValueChange={(v) =>
+                    v !== null && setContratBilingual(v === "BI")
+                  }
+                  items={LANGUAGES}
+                >
+                  <SelectTrigger id="doc-lang" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((l) => (
+                      <SelectItem key={l.value} value={l.value}>
+                        {l.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+          </>
         )}
 
         <div className="space-y-2">

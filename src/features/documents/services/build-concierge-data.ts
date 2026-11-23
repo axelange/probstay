@@ -1,5 +1,6 @@
 import "server-only";
 
+import { englishOf } from "@/features/documents/bilingual-text";
 import { getAgency } from "@/features/documents/agency";
 import {
   ARTICLES,
@@ -234,6 +235,7 @@ export async function buildConciergeData(
             repFirstName: true,
             repLastName: true,
             repCapacity: true,
+            repCapacityEn: true,
           },
         },
       },
@@ -367,6 +369,7 @@ export async function buildConciergeData(
       registrationNumber: clean(co?.registrationNumber) ?? undefined,
       representedBy: representedBy ?? undefined,
       capacity: clean(co?.repCapacity) ?? undefined,
+      capacityEn: englishOf(co?.repCapacity, clean(co?.repCapacityEn)),
     },
     property,
     tier: input.tier,

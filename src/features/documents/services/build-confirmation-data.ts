@@ -1,3 +1,4 @@
+import { enFr } from "@/features/documents/bilingual-text";
 import "server-only";
 import { birthPlaceLabel, nationalitiesLabel } from "@/lib/countries";
 
@@ -101,6 +102,7 @@ export async function buildConfirmationData(
               repFirstName: true,
               repLastName: true,
               repCapacity: true,
+              repCapacityEn: true,
               paraHotelRegime: true,
             },
           },
@@ -127,6 +129,7 @@ export async function buildConfirmationData(
                   repFirstName: true,
                   repLastName: true,
                   repCapacity: true,
+                  repCapacityEn: true,
                   paraHotelRegime: true,
                 },
               },
@@ -164,6 +167,7 @@ export async function buildConfirmationData(
                   repFirstName: true,
                   repLastName: true,
                   repCapacity: true,
+                  repCapacityEn: true,
                 },
               },
             },
@@ -335,6 +339,7 @@ export async function buildConfirmationData(
         repFirstName: string | null;
         repLastName: string | null;
         repCapacity: string | null;
+        repCapacityEn: string | null;
       } | null;
     } | null
   ): string | undefined => {
@@ -343,7 +348,8 @@ export async function buildConfirmationData(
       .filter(Boolean)
       .join(" ");
     if (!name) return undefined;
-    return c.company.repCapacity ? `${name}, ${c.company.repCapacity}` : name;
+    const capacity = enFr(c.company.repCapacity, c.company.repCapacityEn);
+    return capacity ? `${name}, ${capacity}` : name;
   };
   const contactLine = (c: { email: string | null; phone: string | null } | null) =>
     c ? [c.email, c.phone].filter(Boolean).join(" — ") || undefined : undefined;
@@ -366,7 +372,7 @@ export async function buildConfirmationData(
       tenantDetails.push({ label: { en: "Registered office", fr: "Siège social" }, value: co.registeredOffice });
     const rep = co ? [co.repFirstName, co.repLastName].filter(Boolean).join(" ") : "";
     if (rep)
-      tenantDetails.push({ label: { en: "Represented by", fr: "Représenté par" }, value: co?.repCapacity ? `${rep}, ${co.repCapacity}` : rep });
+      tenantDetails.push({ label: { en: "Represented by", fr: "Représenté par" }, value: co?.repCapacity ? `${rep}, ${enFr(co.repCapacity, co.repCapacityEn)}` : rep });
   } else if (tenant) {
     const birthPlace = birthPlaceLabel(tenant.birthCity, tenant.birthCountry);
     if (tenant.birthDate)

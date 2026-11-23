@@ -110,6 +110,8 @@ export type ConciergeData = {
      * is one the company can later disown.
      */
     capacity?: string;
+    /** The office in English, where the contact has one. */
+    capacityEn?: string;
   };
   /**
    * The residence under management.
@@ -737,7 +739,7 @@ export function ContratConciergerie({ data }: { data: ConciergeData }) {
           : null,
         c.address ? `with its registered office at ${c.address}` : null,
         c.representedBy
-          ? `represented by ${c.representedBy}${c.capacity ? `, ${c.capacity}` : ""}`
+          ? `represented by ${c.representedBy}${c.capacity ? `, ${c.capacityEn ?? c.capacity}` : ""}`
           : null,
         'hereinafter the "Owner"',
       ]

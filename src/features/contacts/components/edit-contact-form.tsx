@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { BilingualField } from "@/features/contacts/components/bilingual-field";
 import { updateContact } from "@/features/contacts/actions/update-contact";
 import {
   CONTACT_TYPES,
@@ -48,16 +49,19 @@ export type EditableContact = {
     repFirstName: string | null;
     repLastName: string | null;
     repCapacity: string | null;
+    repCapacityEn: string | null;
     repBirthDate: Date | null;
     repBirthCountry: string | null;
     repBirthCity: string | null;
     repNationalities: string[];
     mainActivity: string | null;
+    mainActivityEn: string | null;
     officeLine2: string | null;
     officePostalCode: string | null;
     officeCity: string | null;
     officeCountry: string | null;
     repOccupation: string | null;
+    repOccupationEn: string | null;
     repPhone: string | null;
     repEmail: string | null;
     repIdDocType: string | null;
@@ -74,6 +78,7 @@ export type EditableContact = {
   address: string | null;
   addressLine2: string | null;
   occupation: string | null;
+  occupationEn: string | null;
   maritalStatus: string | null;
   postalCode: string | null;
   city: string | null;
@@ -124,16 +129,19 @@ export function EditContactForm({
     repFirstName: contact.company?.repFirstName ?? "",
     repLastName: contact.company?.repLastName ?? "",
     repCapacity: contact.company?.repCapacity ?? "",
+    repCapacityEn: contact.company?.repCapacityEn ?? "",
     repBirthDate: toDateInput(contact.company?.repBirthDate ?? null),
     repBirthCountry: contact.company?.repBirthCountry ?? "",
     repBirthCity: contact.company?.repBirthCity ?? "",
     // The set the client's own intake form collects, so both writers agree.
     mainActivity: contact.company?.mainActivity ?? "",
+    mainActivityEn: contact.company?.mainActivityEn ?? "",
     officeLine2: contact.company?.officeLine2 ?? "",
     officePostalCode: contact.company?.officePostalCode ?? "",
     officeCity: contact.company?.officeCity ?? "",
     officeCountry: contact.company?.officeCountry ?? "",
     repOccupation: contact.company?.repOccupation ?? "",
+    repOccupationEn: contact.company?.repOccupationEn ?? "",
     repPhone: contact.company?.repPhone ?? "",
     repEmail: contact.company?.repEmail ?? "",
     repIdDocType: contact.company?.repIdDocType ?? "",
@@ -148,6 +156,7 @@ export function EditContactForm({
     address: contact.address ?? "",
     addressLine2: contact.addressLine2 ?? "",
     occupation: contact.occupation ?? "",
+    occupationEn: contact.occupationEn ?? "",
     maritalStatus: contact.maritalStatus ?? "",
     postalCode: contact.postalCode ?? "",
     city: contact.city ?? "",
@@ -375,16 +384,15 @@ export function EditContactForm({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="mainActivity">Activité principale</Label>
-            <Input
-              id="mainActivity"
-              value={form.mainActivity}
-              onChange={(e) => set("mainActivity", e.target.value)}
-              disabled={disabled}
-              autoComplete="off"
-            />
-          </div>
+          <BilingualField
+            id="mainActivity"
+            label="Activité principale"
+            fr={form.mainActivity}
+            en={form.mainActivityEn}
+            onChangeFr={(v) => set("mainActivity", v)}
+            onChangeEn={(v) => set("mainActivityEn", v)}
+            disabled={disabled}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="registeredOffice">Siège social</Label>
@@ -482,17 +490,16 @@ export function EditContactForm({
                   autoComplete="off"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="repCapacity">Qualité</Label>
-                <Input
-                  id="repCapacity"
-                  placeholder="Gérant, Président…"
-                  value={form.repCapacity}
-                  onChange={(e) => set("repCapacity", e.target.value)}
-                  disabled={disabled}
-                  autoComplete="off"
-                />
-              </div>
+              <BilingualField
+                id="repCapacity"
+                label="Qualité"
+                placeholder="Gérant, Président…"
+                fr={form.repCapacity}
+                en={form.repCapacityEn}
+                onChangeFr={(v) => set("repCapacity", v)}
+                onChangeEn={(v) => set("repCapacityEn", v)}
+                disabled={disabled}
+              />
               <div className="space-y-2">
                 <Label htmlFor="repBirthDate">Date de naissance</Label>
                 <Input
@@ -534,16 +541,15 @@ export function EditContactForm({
                   disabled={disabled}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="repOccupation">Profession</Label>
-                <Input
-                  id="repOccupation"
-                  value={form.repOccupation}
-                  onChange={(e) => set("repOccupation", e.target.value)}
-                  disabled={disabled}
-                  autoComplete="off"
-                />
-              </div>
+              <BilingualField
+                id="repOccupation"
+                label="Profession"
+                fr={form.repOccupation}
+                en={form.repOccupationEn}
+                onChangeFr={(v) => set("repOccupation", v)}
+                onChangeEn={(v) => set("repOccupationEn", v)}
+                disabled={disabled}
+              />
               <div className="space-y-2">
                 <Label htmlFor="repPhone">Téléphone</Label>
                 <Input
@@ -672,16 +678,15 @@ export function EditContactForm({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="occupation">Profession</Label>
-              <Input
-                id="occupation"
-                value={form.occupation}
-                onChange={(e) => set("occupation", e.target.value)}
-                disabled={disabled}
-                autoComplete="off"
-              />
-            </div>
+            <BilingualField
+              id="occupation"
+              label="Profession"
+              fr={form.occupation}
+              en={form.occupationEn}
+              onChangeFr={(v) => set("occupation", v)}
+              onChangeEn={(v) => set("occupationEn", v)}
+              disabled={disabled}
+            />
             <div className="space-y-2">
               <Label htmlFor="maritalStatus">Situation matrimoniale</Label>
               <Select

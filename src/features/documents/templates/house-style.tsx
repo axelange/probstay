@@ -620,6 +620,29 @@ export type AgencyIdentity = {
 };
 
 /**
+ * Whether the document is set in French alone.
+ *
+ * A context rather than a prop on every heading, caption and box: the choice
+ * is the document's, made once, and a label that forgot to pass it on would
+ * print English in the middle of a French contract. Off unless a document
+ * provides it, so every other template is untouched.
+ */
+export const FrenchOnly = React.createContext(false);
+
+/**
+ * A heading in French alone, keeping the number its English half carries.
+ *
+ * The headings are written "4.1 Duration" + "Durée": the numbering sits in the
+ * English. French alone is therefore "4.1 Durée", and a heading with no French
+ * half ("7 - Force majeure", "4.3 Charges") is already the same in both.
+ */
+export function frenchHeading(en: string, fr?: string): string {
+  if (!fr) return en;
+  const number = /^\d+(?:\.\d+)*\s(?:-\s)?/.exec(en);
+  return `${number ? number[0] : ""}${fr}`;
+}
+
+/**
  * Grey caps label rendered as "EN / fr". The masters set the French half in
  * italic on most labels but leave it upright on a few, so the caller says
  * which rather than the component guessing.
@@ -633,6 +656,8 @@ export function Cap({
   fr?: string;
   italicFr?: boolean;
 }) {
+  const frenchOnly = React.useContext(FrenchOnly);
+  if (frenchOnly) return <Text style={h.cap}>{fr ?? en}</Text>;
   if (!fr) return <Text style={h.cap}>{en}</Text>;
   return (
     <Text style={h.cap}>
@@ -677,6 +702,11 @@ export function Section({
    */
   children?: React.ReactNode;
 }) {
+  const frenchOnly = React.useContext(FrenchOnly);
+  if (frenchOnly) {
+    en = frenchHeading(en, fr);
+    fr = undefined;
+  }
   return (
     <View
       style={first ? undefined : tight ? h.sectionTight : h.section}
@@ -716,14 +746,19 @@ export function Tick({
   fr: string;
   checked?: boolean;
 }) {
+  const frenchOnly = React.useContext(FrenchOnly);
   return (
     <View style={h.tickRow}>
       <View style={h.tickBox}>
         {checked ? <View style={h.tickMark} /> : null}
       </View>
-      <Text style={h.tickLabel}>
-        {en} <Text style={h.tickLabelFr}>/ {fr}</Text>
-      </Text>
+      {frenchOnly ? (
+        <Text style={h.tickLabel}>{fr}</Text>
+      ) : (
+        <Text style={h.tickLabel}>
+          {en} <Text style={h.tickLabelFr}>/ {fr}</Text>
+        </Text>
+      )}
     </View>
   );
 }
@@ -816,6 +851,11 @@ export function SubHeading({
    */
   guard?: boolean;
 }) {
+  const frenchOnly = React.useContext(FrenchOnly);
+  if (frenchOnly) {
+    en = frenchHeading(en, fr);
+    fr = undefined;
+  }
   return (
     // Same orphan rule as a section marker: a sub-heading stranded at the foot
     // of a page separates a clause from its title.
@@ -859,6 +899,7 @@ export function Footer({
   templateVersion,
   initials = true,
   pagination = true,
+  frenchOnly = false,
 }: {
   a: AgencyIdentity;
   /**
@@ -903,6 +944,12 @@ export function Footer({
    * separated still names itself.
    */
   pagination?: boolean;
+  /**
+   * Label the initials box in French alone. A prop, not the context the
+   * headings read: the footer's text is drawn by a render callback, which runs
+   * outside the tree a context is read from.
+   */
+  frenchOnly?: boolean;
 }) {
   return (
     <>
@@ -980,7 +1027,9 @@ export function Footer({
                     : initials
                 ) ? (
                   <View style={h.footInitialsRow}>
-                    <Text style={h.footInitialsLabel}>Initials / Paraphes</Text>
+                    <Text style={h.footInitialsLabel}>
+                      {frenchOnly ? "Paraphes" : "Initials / Paraphes"}
+                    </Text>
                     <View style={h.footInitialsBox} />
                   </View>
                 ) : null}
