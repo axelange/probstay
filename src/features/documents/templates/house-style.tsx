@@ -143,6 +143,9 @@ const MONO_HEIGHT = MONO_WIDTH * (57.11 / 77.31);
  * Bundled images. On the server read from disk (absolute path); in the browser
  * served from /public. No node import, so this also bundles for the preview.
  */
+/** The gutter between the cover's photographs, under the hero and between the three. */
+const COVER_PHOTO_GAP = 1.5;
+
 export const h = StyleSheet.create({
   page: {
     paddingTop: 50,
@@ -249,11 +252,22 @@ export const h = StyleSheet.create({
     textTransform: "uppercase",
   },
 
-  // The photographs, full bleed and butted to the band above them.
-  coverHero: { width: "100%", height: 368, objectFit: "cover" },
-  coverThumbRow: { flexDirection: "row", height: 146 },
+  // The photographs, full bleed and butted to the band above them. The
+  // same gutter separates the hero from the row beneath as the three from
+  // each other; it is taken from the hero's height so the cover still fills
+  // one sheet.
+  coverHero: {
+    width: "100%",
+    height: 368 - COVER_PHOTO_GAP,
+    objectFit: "cover",
+  },
+  coverThumbRow: {
+    flexDirection: "row",
+    height: 146,
+    marginTop: COVER_PHOTO_GAP,
+  },
   coverThumb: { flex: 1, height: 146, objectFit: "cover" },
-  coverThumbGap: { width: 1.5 },
+  coverThumbGap: { width: COVER_PHOTO_GAP },
 
   // Masthead — first page only, in flow (no logo repeats on later pages).
   logoWrap: { alignItems: "center", marginBottom: 40 },

@@ -476,7 +476,7 @@ function MoneyTotal({
 /**
  * The cover's photographs: a hero band over a row of three, both full bleed.
  *
- * Butted to the masthead and to each other, with a 1.5 pt white gutter between
+ * Butted to the masthead, with the same 1.5 pt gutter under the hero as between
  * the three — enough to read as three frames rather than one strip, and little
  * enough that the row still reads as a band. Each is cropped to fill rather
  * than fitted, so a portrait photograph does not open a white gap in a band

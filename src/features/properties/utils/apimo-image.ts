@@ -1,10 +1,13 @@
 /**
  * Asking APIMO for a picture at the width it will actually be shown at.
  *
- * Every stored URL ends `_<width>-original.jpg`, and APIMO serves any width
- * from the same key — 1920, 1440, 1024, 400 and so on all resolve. The sync
- * stores the 1920 variant, which is right for the property page and wildly
- * oversized anywhere it is printed small.
+ * Every stored URL ends `_<width>-original.jpg`, and APIMO serves other
+ * widths from the same key — but not every width for every picture. The path
+ * is a cache: 1440 resolves for most photographs and is a 404 for some, with
+ * nothing in the URL to tell them apart. Only the stored variant is certain,
+ * so a resized URL has to be checked before it is relied on; see
+ * `servedApimoImage`. The sync stores the 1920 variant, which is right for the
+ * property page and wildly oversized anywhere it is printed small.
  *
  * This matters most in the generated PDF, where the bytes are embedded in the
  * file rather than fetched: the agreement's three cover thumbnails occupy
@@ -27,4 +30,33 @@ export function apimoImageWidth(url: string, width: number): string {
   const current = Number(match[1]);
   const target = Number.isFinite(current) ? Math.min(current, width) : width;
   return url.replace(APIMO_WIDTH, `_${target}-original.jpg`);
+}
+
+/** Long enough for a CDN to answer a HEAD, short enough not to hold a page. */
+const PROBE_TIMEOUT_MS = 4000;
+
+/**
+ * The picture at `width` if APIMO really serves it there, the stored URL if
+ * not.
+ *
+ * A PDF embeds what it is given: a width the CDN answers with a 404 is a hole
+ * in the cover, not a smaller file. Asked once per picture, on the server,
+ * before the URL is handed to the document. A probe that fails or times out
+ * counts as absent, since the stored variant is the one known to exist.
+ */
+export async function servedApimoImage(
+  url: string,
+  width: number,
+): Promise<string> {
+  const resized = apimoImageWidth(url, width);
+  if (resized === url) return url;
+  try {
+    const res = await fetch(resized, {
+      method: "HEAD",
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    return res.ok ? resized : url;
+  } catch {
+    return url;
+  }
 }

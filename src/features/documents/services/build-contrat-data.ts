@@ -9,7 +9,7 @@ import { documentReference } from "@/features/documents/reference";
 import { currentTemplateClauses } from "@/features/documents/services/template-service";
 import { resolveClause } from "@/features/documents/template-clauses";
 import { idDocLabel } from "@/features/documents/identity";
-import { apimoImageWidth } from "@/features/properties/utils/apimo-image";
+import { servedApimoImage } from "@/features/properties/utils/apimo-image";
 import { descriptionForContract } from "@/features/properties/utils/description";
 import type { ContratData } from "@/features/documents/templates/contrat-location-saisonniere";
 
@@ -319,8 +319,15 @@ export async function buildContratData(
     sleeps: `jusqu'à ${sleeps || guests || "—"} personnes`,
     // Fetched at the width the cover prints them at, not the 1920 px the sync
     // stores. See COVER_HERO_WIDTH for the arithmetic.
-    photos: p.pictures.map((pic, i) =>
-      apimoImageWidth(pic.url, i === 0 ? COVER_HERO_WIDTH : COVER_THUMB_WIDTH)
+    // Each width is checked first: APIMO does not serve every width for every
+    // picture, and a missing one would leave the cover without its photograph.
+    photos: await Promise.all(
+      p.pictures.map((pic, i) =>
+        servedApimoImage(
+          pic.url,
+          i === 0 ? COVER_HERO_WIDTH : COVER_THUMB_WIDTH,
+        ),
+      ),
     ),
     details: propertyDetails,
     // What the stay includes, as the agency maintains it on the property.
