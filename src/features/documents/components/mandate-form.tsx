@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,17 +11,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { BilingualField } from "@/features/contacts/components/bilingual-field";
 import { getMandateData } from "@/features/documents/actions/get-mandate-data";
 import type { PickerOption } from "@/features/documents/components/contrat-preview";
+import { MandateEquipmentDialog } from "@/features/documents/components/mandate-equipment-dialog";
 import {
+  MANDATE_OWNERSHIP,
+  MANDATE_PETS,
+  MANDATE_PROPERTY_KINDS,
   MANDATE_SERVICES,
   MANDATE_UTILITIES,
 } from "@/features/documents/mandate-clauses";
 import type {
+  MandateInput,
   MandateServiceKey,
   MandateUtilityKey,
 } from "@/features/documents/schemas/mandate-schema";
 import type { MandateData } from "@/features/documents/templates/mandat-gestion-locative";
+import { servicesFromCodes } from "@/features/properties/utils/apimo-services";
 
 /** The mandate is set in French with its translation, or in French alone. */
 const LANGUAGES = [
@@ -30,14 +36,28 @@ const LANGUAGES = [
   { value: "FR", label: "Français seul" },
 ];
 
-const EMPTY_MANUAL = {
+type ManualProperty = NonNullable<MandateInput["manualProperty"]>;
+
+const EMPTY_MANUAL: ManualProperty = {
   address: "",
   kind: "",
   surface: "",
   rooms: "",
   bedrooms: "",
-  equipment: [] as string[],
+  equipment: [],
 };
+
+const PROPERTY_KINDS = MANDATE_PROPERTY_KINDS.map((k) => ({
+  value: k.key,
+  label: k.fr,
+}));
+
+const PETS = MANDATE_PETS.map((p) => ({ value: p.key, label: p.fr }));
+
+const OWNERSHIP = MANDATE_OWNERSHIP.map((o) => ({
+  value: o.key,
+  label: o.fr,
+}));
 
 /** What a rent usually covers: the starting point the agent adjusts. */
 const DEFAULT_UTILITIES: Record<MandateUtilityKey, boolean> = {
@@ -109,16 +129,23 @@ export function MandateForm({
   const [useManual, setUseManual] = React.useState(false);
   const [manual, setManual] = React.useState(EMPTY_MANUAL);
   const [mandateNumber, setMandateNumber] = React.useState("");
+  /** The mandate as the server last assembled it. */
+  const [built, setBuilt] = React.useState<MandateData | null>(null);
+  /** Appendix 1: the pricing schedule's sheets, as image data. */
+  const [pricingPages, setPricingPages] = React.useState<string[]>([]);
   const [description, setDescription] = React.useState("");
-  const [ownershipStatus, setOwnershipStatus] = React.useState("");
+  const [descriptionEn, setDescriptionEn] = React.useState("");
+  const [ownershipStatus, setOwnershipStatus] =
+    React.useState<MandateInput["ownershipStatus"]>("");
   const [registrationNumber, setRegistrationNumber] = React.useState("");
   const [condominium, setCondominium] = React.useState(false);
   const [deposit, setDeposit] = React.useState("");
   const [utilities, setUtilities] = React.useState(DEFAULT_UTILITIES);
   const [services, setServices] = React.useState(DEFAULT_SERVICES);
   const [hasPool, setHasPool] = React.useState(true);
-  const [nonSmoking, setNonSmoking] = React.useState(true);
+  const [smoking, setSmoking] = React.useState(false);
   const [bailiff, setBailiff] = React.useState(true);
+  const [pets, setPets] = React.useState<MandateInput["pets"]>("NO");
   const [place, setPlace] = React.useState("Cannes");
   const [signatureDate, setSignatureDate] = React.useState(today);
   const [bilingual, setBilingual] = React.useState(true);
@@ -130,7 +157,7 @@ export function MandateForm({
     if (!contactId && !propertyId) return;
     const timer = setTimeout(() => {
       startTransition(async () => {
-        onData(
+        setBuilt(
           await getMandateData({
             contactId: contactId || null,
             propertyId: useManual ? null : propertyId || null,
@@ -139,6 +166,7 @@ export function MandateForm({
             // A property of ours describes itself, from its own record; only
             // one described by hand has a description to type.
             description: useManual ? description : "",
+            descriptionEn: useManual ? descriptionEn : "",
             ownershipStatus,
             registrationNumber,
             condominium,
@@ -146,8 +174,9 @@ export function MandateForm({
             utilities,
             services,
             hasPool,
-            nonSmoking,
+            smoking,
             bailiff,
+            pets,
             place,
             signatureDate,
             bilingual,
@@ -163,6 +192,7 @@ export function MandateForm({
     manual,
     mandateNumber,
     description,
+    descriptionEn,
     ownershipStatus,
     registrationNumber,
     condominium,
@@ -170,32 +200,53 @@ export function MandateForm({
     utilities,
     services,
     hasPool,
-    nonSmoking,
+    smoking,
     bailiff,
+    pets,
     place,
     signatureDate,
     bilingual,
     startTransition,
-    onData,
   ]);
 
-  /** The equipment line being typed, before it joins the list. */
-  const [equipmentDraft, setEquipmentDraft] = React.useState("");
+  // The pricing schedule is laid over what the server assembled, here: a
+  // file's worth of image data has no business going there and back on every
+  // keystroke.
+  React.useEffect(() => {
+    onData(built ? { ...built, pricingPages } : null);
+  }, [built, pricingPages, onData]);
 
-  function addEquipment() {
-    const value = equipmentDraft.trim();
-    if (!value) return;
-    setManual((m) =>
-      // Typed twice is a slip, not a second item.
-      m.equipment.some((e) => e.toLowerCase() === value.toLowerCase())
-        ? m
-        : { ...m, equipment: [...m.equipment, value] },
+  /** Reads the chosen images as data URLs, in the order they were chosen. */
+  async function choosePricing(files: FileList | null) {
+    const pages = await Promise.all(
+      Array.from(files ?? []).map(
+        (file) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(file);
+          }),
+      ),
     );
-    setEquipmentDraft("");
+    setPricingPages(pages);
   }
 
+  /** The owner the chosen property has on file, who is then the mandate's. */
+  const fileOwner = useManual
+    ? undefined
+    : properties.find((p) => p.id === propertyId)?.ownerName;
+
+  /**
+   * The bailiff's starting answer follows the kind of property: the
+   * inspections by a commissaire de justice are a villa's, so a flat starts
+   * unticked. Only a starting point — set when the property is chosen, and the
+   * box stays the agent's to change afterwards.
+   */
+  const defaultBailiff = (isApartment: boolean) => setBailiff(!isApartment);
+
   const setField =
-    (key: Exclude<keyof typeof EMPTY_MANUAL, "equipment">) =>
+    (key: "address" | "rooms" | "bedrooms") =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setManual((m) => ({ ...m, [key]: e.target.value }));
 
@@ -213,6 +264,12 @@ export function MandateForm({
           value={propertyId || null}
           onValueChange={(v) => {
             setPropertyId(v);
+            // A contact picked before the property must not linger behind an
+            // owner the property brings itself.
+            if (properties.find((p) => p.id === v)?.ownerName) setContactId("");
+            defaultBailiff(
+              properties.find((p) => p.id === v)?.isApartment ?? false,
+            );
             setUseManual(false);
           }}
           placeholder="Rechercher un bien…"
@@ -233,8 +290,8 @@ export function MandateForm({
         </button>
         {!useManual ? (
           <p className="text-muted-foreground text-xs">
-            Adresse, surface, pièces et description viennent de la fiche du
-            bien.
+            Adresse, type, surface, pièces, équipements et description viennent
+            de la fiche du bien.
           </p>
         ) : null}
       </div>
@@ -248,21 +305,51 @@ export function MandateForm({
             aria-label="Adresse du bien"
             autoComplete="off"
           />
-          <Input
-            value={manual.kind}
-            onChange={setField("kind")}
-            placeholder="Type de bien — villa avec piscine"
-            aria-label="Type de bien"
-            autoComplete="off"
-          />
+          <Select
+            value={manual.kind || null}
+            onValueChange={(v) => {
+              if (v === null) return;
+              setManual((m) => ({ ...m, kind: v }));
+              defaultBailiff(v === "APARTMENT");
+            }}
+            items={PROPERTY_KINDS}
+          >
+            <SelectTrigger className="w-full" aria-label="Type de bien">
+              <SelectValue placeholder="Type de bien" />
+            </SelectTrigger>
+            <SelectContent>
+              {PROPERTY_KINDS.map((k) => (
+                <SelectItem key={k.value} value={k.value}>
+                  {k.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="grid grid-cols-3 gap-2">
-            <Input
-              value={manual.surface}
-              onChange={setField("surface")}
-              placeholder="320 m²"
-              aria-label="Surface habitable"
-              autoComplete="off"
-            />
+            <div className="relative">
+              <Input
+                value={manual.surface}
+                // Digits only: the unit is printed beside the field and on the
+                // mandate, so there is nothing else to type here.
+                onChange={(e) =>
+                  setManual((m) => ({
+                    ...m,
+                    surface: e.target.value.replace(/\D/g, "").slice(0, 6),
+                  }))
+                }
+                inputMode="numeric"
+                placeholder="Surface"
+                aria-label="Surface habitable en mètres carrés"
+                autoComplete="off"
+                className="pr-9"
+              />
+              <span
+                aria-hidden
+                className="text-muted-foreground pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm"
+              >
+                m²
+              </span>
+            </div>
             <Input
               value={manual.rooms}
               onChange={setField("rooms")}
@@ -280,96 +367,68 @@ export function MandateForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="md-equipment" className="text-xs font-normal">
-              Équipements
-            </Label>
+            <p className="text-xs">Équipements</p>
             {manual.equipment.length > 0 ? (
-              <ul className="flex flex-wrap gap-1">
-                {manual.equipment.map((item) => (
-                  <li
-                    key={item}
-                    className="bg-muted flex items-center gap-1 rounded-md px-2 py-0.5 text-xs"
-                  >
-                    {item}
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground cursor-pointer"
-                      aria-label={`Retirer ${item}`}
-                      onClick={() =>
-                        setManual((m) => ({
-                          ...m,
-                          equipment: m.equipment.filter((e) => e !== item),
-                        }))
-                      }
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <p className="text-muted-foreground text-xs">
+                {servicesFromCodes(manual.equipment)
+                  .map((e) => e.fr)
+                  .join(", ")}
+              </p>
             ) : null}
-            <div className="flex gap-2">
-              <Input
-                id="md-equipment"
-                value={equipmentDraft}
-                onChange={(e) => setEquipmentDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  // Enter adds the line; it must not submit anything around it.
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addEquipment();
-                  }
-                }}
-                placeholder="Climatisation / Air conditioning"
-                autoComplete="off"
-              />
-              <Button type="button" variant="outline" onClick={addEquipment}>
-                Ajouter
-              </Button>
-            </div>
-            <p className="text-muted-foreground text-xs">
-              Un équipement par ligne. L&apos;anglais est facultatif, après
-              «&nbsp;/&nbsp;»&nbsp;; la liste anglaise ne s&apos;imprime que si
-              chaque ligne en a un.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="md-description" className="text-xs font-normal">
-              Description du bien
-            </Label>
-            <textarea
-              id="md-description"
-              className="border-input bg-background focus-visible:ring-ring/50 w-full rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-[3px] disabled:opacity-50"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={5}
-              placeholder="Texte libre — une ligne vide sépare deux paragraphes."
+            <MandateEquipmentDialog
+              selected={manual.equipment}
+              onChange={(equipment) => setManual((m) => ({ ...m, equipment }))}
             />
           </div>
+
+          <BilingualField
+            id="md-description"
+            label="Description du bien"
+            labelClassName="text-xs font-normal"
+            rows={5}
+            placeholder="Texte libre — une ligne vide sépare deux paragraphes."
+            fr={description}
+            en={descriptionEn}
+            onChangeFr={setDescription}
+            onChangeEn={setDescriptionEn}
+          />
         </div>
       ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="md-owner">Propriétaire</Label>
-        <Combobox
-          id="md-owner"
-          options={contacts.map((c) => ({
-            value: c.id,
-            label: c.label,
-            hint: c.hint,
-          }))}
-          value={contactId || null}
-          onValueChange={setContactId}
-          placeholder="Rechercher un contact…"
-          emptyLabel="Aucun contact."
-        />
-        <p className="text-muted-foreground text-xs">
-          Particulier ou société : la section 1 vient de la fiche du contact, et
-          ce qui y manque s&apos;imprime «&nbsp;[à compléter]&nbsp;». Un bien de
-          l&apos;agence qui a un propriétaire en fiche l&apos;emporte sur ce
-          choix.
-        </p>
+        {fileOwner ? (
+          // Not a choice: the property decides. Offering the picker here would
+          // let a mandate be drawn up in the name of someone who does not own
+          // the property it is about.
+          <>
+            <Input id="md-owner" value={fileOwner} readOnly disabled />
+            <p className="text-muted-foreground text-xs">
+              Propriétaire enregistré sur la fiche du bien. Pour en changer,
+              modifiez la fiche.
+            </p>
+          </>
+        ) : (
+          <>
+            <Combobox
+              id="md-owner"
+              options={contacts.map((c) => ({
+                value: c.id,
+                label: c.label,
+                hint: c.hint,
+              }))}
+              value={contactId || null}
+              onValueChange={setContactId}
+              placeholder="Rechercher un contact…"
+              emptyLabel="Aucun contact."
+            />
+            <p className="text-muted-foreground text-xs">
+              Particulier ou société : la section 1 vient de la fiche du
+              contact, et ce qui y manque s&apos;imprime «&nbsp;[à
+              compléter]&nbsp;».
+            </p>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -406,14 +465,26 @@ export function MandateForm({
 
       <div className="space-y-2">
         <Label htmlFor="md-status">Informations légales</Label>
-        <Input
-          id="md-status"
-          value={ownershipStatus}
-          onChange={(e) => setOwnershipStatus(e.target.value)}
-          placeholder="Qualité du propriétaire — pleine propriété"
-          aria-label="Qualité du propriétaire"
-          autoComplete="off"
-        />
+        <Select
+          value={ownershipStatus || null}
+          onValueChange={(v) => v !== null && setOwnershipStatus(v)}
+          items={OWNERSHIP}
+        >
+          <SelectTrigger
+            id="md-status"
+            className="w-full"
+            aria-label="Qualité du propriétaire"
+          >
+            <SelectValue placeholder="Qualité du propriétaire" />
+          </SelectTrigger>
+          <SelectContent>
+            {OWNERSHIP.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Input
           value={registrationNumber}
           onChange={(e) => setRegistrationNumber(e.target.value)}
@@ -421,6 +492,10 @@ export function MandateForm({
           aria-label="Numéro d'enregistrement du meublé de tourisme"
           autoComplete="off"
         />
+        <p className="text-muted-foreground text-xs">
+          Laissé vide, le mandat indique «&nbsp;Enregistrement en cours, CERFA
+          fourni en annexe&nbsp;».
+        </p>
         <Check
           label="Règlement de copropriété applicable"
           checked={condominium}
@@ -486,17 +561,59 @@ export function MandateForm({
         <legend className="text-sm font-medium">
           Conditions particulières (4.4)
         </legend>
-        <Check
-          label="Bien non-fumeur"
-          checked={nonSmoking}
-          onChange={setNonSmoking}
-        />
+        <Check label="Bien fumeur" checked={smoking} onChange={setSmoking} />
         <Check
           label="Huissier (commissaire de justice)"
           checked={bailiff}
           onChange={setBailiff}
         />
+        <div className="space-y-2">
+          <Label htmlFor="md-pets" className="font-normal">
+            Animaux autorisés
+          </Label>
+          <Select
+            value={pets}
+            onValueChange={(v) => v !== null && setPets(v)}
+            items={PETS}
+          >
+            <SelectTrigger id="md-pets" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PETS.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </fieldset>
+
+      <div className="space-y-2">
+        <Label htmlFor="md-pricing">Grille tarifaire (annexe 1)</Label>
+        <Input
+          id="md-pricing"
+          type="file"
+          accept="image/png,image/jpeg"
+          multiple
+          onChange={(e) => void choosePricing(e.target.files)}
+        />
+        <p className="text-muted-foreground text-xs">
+          {pricingPages.length > 0
+            ? `${pricingPages.length} page${pricingPages.length > 1 ? "s" : ""} en annexe 1.`
+            : "Image PNG ou JPEG, une par page. Sans fichier, l’annexe 1 annonce une grille jointe à part."}
+        </p>
+        {pricingPages.length > 0 ? (
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
+            onClick={() => setPricingPages([])}
+          >
+            Retirer la grille
+          </button>
+        ) : null}
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-2">

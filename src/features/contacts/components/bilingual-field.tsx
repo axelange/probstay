@@ -32,6 +32,7 @@ export function BilingualField({
   className,
   labelClassName,
   inputClassName,
+  rows,
 }: {
   id: string;
   label: string;
@@ -46,9 +47,21 @@ export function BilingualField({
   className?: string;
   labelClassName?: string;
   inputClassName?: string;
+  /** Set for a text of several lines: the field is then a text area. */
+  rows?: number;
 }) {
   const [language, setLanguage] = React.useState<Language>("FR");
   const isFrench = language === "FR";
+
+  const field = {
+    id,
+    lang: isFrench ? "fr" : "en",
+    placeholder: isFrench ? placeholder : "English",
+    value: isFrench ? fr : en,
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      isFrench ? onChangeFr(e.target.value) : onChangeEn(e.target.value),
+    disabled,
+  };
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -81,18 +94,18 @@ export function BilingualField({
           ))}
         </div>
       </div>
-      <Input
-        id={id}
-        lang={isFrench ? "fr" : "en"}
-        placeholder={isFrench ? placeholder : "English"}
-        value={isFrench ? fr : en}
-        onChange={(e) =>
-          isFrench ? onChangeFr(e.target.value) : onChangeEn(e.target.value)
-        }
-        disabled={disabled}
-        autoComplete="off"
-        className={inputClassName}
-      />
+      {rows ? (
+        <textarea
+          {...field}
+          rows={rows}
+          className={cn(
+            "border-input bg-background focus-visible:ring-ring/50 w-full rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-[3px] disabled:opacity-50",
+            inputClassName,
+          )}
+        />
+      ) : (
+        <Input {...field} autoComplete="off" className={inputClassName} />
+      )}
     </div>
   );
 }

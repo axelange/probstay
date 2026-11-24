@@ -1,5 +1,12 @@
 import * as React from "react";
-import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import {
+  Document,
+  Image,
+  Page,
+  View,
+  Text,
+  StyleSheet,
+} from "@react-pdf/renderer";
 import { BstayLogo } from "@/features/documents/templates/logo";
 import {
   Cap,
@@ -10,6 +17,9 @@ import {
   ink,
   paper,
   grey,
+  rule,
+  cardBg,
+  TITLE,
   GAP,
   LABEL_GAP,
   PAIR_GAP,
@@ -21,6 +31,9 @@ import type { Bilingual } from "@/features/documents/concierge-packages";
 import {
   MANDATE_ANNEXES,
   MANDATE_CERFA,
+  MANDATE_FEES,
+  MANDATE_PRICING,
+  MANDATE_PETS,
   MANDATE_NEWSLETTER,
   MANDATE_PREAMBLE,
   MANDATE_REGISTER_NOTE,
@@ -80,24 +93,37 @@ export type MandateData = {
   };
   /** Section 3's description, paragraph by paragraph. */
   description: string[];
-  /**
-   * What the property is equipped with. An item's English is absent when
-   * nobody wrote one; the list is then printed in French alone.
-   */
-  equipment: { fr: string; en?: string }[];
+  /** The same in English, empty when there is none. */
+  descriptionEn: string[];
+  /** What the property is equipped with, in both languages. */
+  equipment: { fr: string; en: string }[];
   legal: {
     ownershipStatus: string;
+    ownershipStatusEn?: string;
     registrationNumber: string;
+    /** Set when the line is a sentence rather than a number. */
+    registrationNumberEn?: string;
     condominium: boolean;
   };
+  /**
+   * The declaration form's pages, as image sources — empty when the property
+   * already has its registration number and Appendix 4 is not attached.
+   */
+  cerfaPages: string[];
+  /**
+   * Appendix 1's sheets, as image sources — empty until the pricing schedule
+   * is handed over, and the appendix is then a page that announces it.
+   */
+  pricingPages: string[];
   /** The security deposit, formatted. */
   deposit: string;
   utilities: Record<MandateUtilityKey, boolean>;
   services: Record<MandateServiceKey, boolean>;
   /** No pool, no pool-maintenance line in 4.3 and no article 9.4.2. */
   hasPool: boolean;
-  nonSmoking: boolean;
+  smoking: boolean;
   bailiff: boolean;
+  pets: (typeof MANDATE_PETS)[number]["key"];
   /**
    * The mandate itself, with its placeholders filled. Passed in rather than
    * imported, as the other agreements' articles are: a revised clause is a
@@ -143,6 +169,72 @@ const s = StyleSheet.create({
 
   // ---- Cards -------------------------------------------------------------
   rowValueEn: { fontStyle: "italic", color: grey },
+  // Beside its label, a value takes the room that is left and wraps in it; the
+  // label keeps its width. Without both, a long address is drawn across the
+  // label and off the card.
+  rowLabelInline: { flexShrink: 0 },
+  rowValueInline: { flex: 1 },
+  feesHead: { alignItems: "center", marginTop: GAP, marginBottom: GAP },
+  feesTitle: {
+    fontFamily: TITLE,
+    fontWeight: 200,
+    fontSize: 15,
+    color: ink,
+    textTransform: "uppercase",
+  },
+  feesDate: { fontSize: 10, color: grey, marginTop: 3, lineHeight: LH },
+  feesBlock: { marginTop: GAP * 1.5 },
+  feesTable: {
+    marginTop: LABEL_GAP,
+    borderTopWidth: 0.5,
+    borderLeftWidth: 0.5,
+    borderColor: rule,
+  },
+  feesRow: { flexDirection: "row" },
+  feesRowHead: { backgroundColor: cardBg },
+  feesCell: {
+    flex: 3,
+    fontSize: 10,
+    color: ink,
+    lineHeight: LH,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRightWidth: 0.5,
+    borderBottomWidth: 0.5,
+    borderColor: rule,
+  },
+  feesCellFee: { flex: 2 },
+  feesCellHead: { fontWeight: 500 },
+  // In points, and a hair under A4 (595.28 × 841.89): an image as tall as the
+  // page or sized in percent is measured as not fitting, cannot be broken
+  // across two, and is pushed onto a sheet of its own behind an empty one.
+  cerfaSheet: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 595,
+    height: 841,
+  },
+  // A sheet of unknown shape: fitted whole inside the page, clear of the line
+  // at the top that names it.
+  pricingSheet: {
+    position: "absolute",
+    top: 28,
+    left: 24,
+    width: 547,
+    height: 790,
+    objectFit: "contain",
+  },
+  cerfaTag: {
+    position: "absolute",
+    top: 8,
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    fontSize: 6.5,
+    color: grey,
+  },
+  rowStacked: { gap: 2, marginBottom: LABEL_GAP },
   choiceRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -177,6 +269,23 @@ const s = StyleSheet.create({
 /** French with its English after a slash, or French alone. */
 const both = (bi: boolean, fr: string, en?: string) =>
   bi && en ? `${fr} / ${en}` : fr;
+
+/**
+ * A French wording and its English, as every line of the mandate sets them:
+ * the French first in the colour of the text around it, the English after a
+ * slash in grey italic. An English that only repeats the French is left out.
+ *
+ * To be placed inside a `Text`. `both` is its plain-string twin, kept for the
+ * cover band, whose white capitals have no grey to step down to.
+ */
+function Pair({ bi, fr, en }: { bi: boolean; fr: string; en?: string }) {
+  return (
+    <>
+      {fr}
+      {bi && en && en !== fr ? <Text style={s.rowValueEn}> / {en}</Text> : null}
+    </>
+  );
+}
 
 /**
  * A paragraph with the draft's `**bold**` runs.
@@ -255,24 +364,49 @@ function Passage({
 }
 
 /** A labelled line of a card: grey caps label, value beside it. */
-function Row({ row, bilingual }: { row: MandateRow; bilingual: boolean }) {
+function Row({
+  row,
+  bilingual,
+  stacked,
+}: {
+  row: MandateRow;
+  bilingual: boolean;
+  /**
+   * Set the value under its label rather than beside it.
+   *
+   * The inline row does not wrap: a long label beside a long value — the
+   * registration number's, once it reads "CERFA fourni en annexe" in two
+   * languages — is drawn over itself and off the card.
+   */
+  stacked?: boolean;
+}) {
+  const label = <Cap en={row.fr} fr={bilingual ? row.en : undefined} />;
+  const value = (
+    <Text style={stacked ? h.infoValue : [h.infoValue, s.rowValueInline]}>
+      {row.value}
+      {bilingual && row.valueEn ? (
+        <Text style={s.rowValueEn}> / {row.valueEn}</Text>
+      ) : null}
+    </Text>
+  );
+  if (stacked) {
+    return (
+      <View style={s.rowStacked}>
+        {label}
+        {value}
+      </View>
+    );
+  }
   return (
     <View style={h.infoRow}>
-      <View style={h.infoLabel}>
-        <Cap en={row.fr} fr={bilingual ? row.en : undefined} />
-      </View>
-      <Text style={h.infoValue}>
-        {row.value}
-        {bilingual && row.valueEn ? (
-          <Text style={s.rowValueEn}> / {row.valueEn}</Text>
-        ) : null}
-      </Text>
+      <View style={[h.infoLabel, s.rowLabelInline]}>{label}</View>
+      {value}
     </View>
   );
 }
 
 /** A box, ticked or not, with its caption. */
-function Box({ checked, label }: { checked: boolean; label: string }) {
+function Box({ checked, label }: { checked: boolean; label: React.ReactNode }) {
   return (
     <View style={s.choiceOption}>
       <View style={h.tickBox}>
@@ -304,6 +438,28 @@ function Choice({
   bilingual: boolean;
 }) {
   return (
+    <Options
+      bilingual={bilingual}
+      label={label}
+      options={[
+        { ...yes, checked: value },
+        { ...no, checked: !value },
+      ]}
+    />
+  );
+}
+
+/** A line and its boxes, however many answers it has. */
+function Options({
+  label,
+  options,
+  bilingual,
+}: {
+  label: Bilingual;
+  options: (Bilingual & { checked: boolean })[];
+  bilingual: boolean;
+}) {
+  return (
     <View style={s.choiceRow}>
       <Text style={s.choiceLabel}>
         {label.fr}
@@ -312,8 +468,13 @@ function Choice({
         ) : null}
       </Text>
       <View style={s.choiceOptions}>
-        <Box checked={value} label={both(bilingual, yes.fr, yes.en)} />
-        <Box checked={!value} label={both(bilingual, no.fr, no.en)} />
+        {options.map((o) => (
+          <Box
+            key={o.fr}
+            checked={o.checked}
+            label={<Pair bi={bilingual} fr={o.fr} en={o.en} />}
+          />
+        ))}
       </View>
     </View>
   );
@@ -384,25 +545,26 @@ function Slot({ slot, data }: { slot: MandateSlot; data: MandateData }) {
               {para}
             </Text>
           ))}
+          {bi
+            ? data.descriptionEn.map((para, i) => (
+                <Text key={`en-${i}`} style={h.paraFr} orphans={3} widows={3}>
+                  {para}
+                </Text>
+              ))
+            : null}
         </View>
       );
 
     case "equipment": {
       // One sentence, as the draft sets it: items run on, separated by commas.
-      // The English line is printed only when every item has one — a list
-      // half translated reads as a list with things missing.
       const items = data.equipment;
       const sentence = (parts: string[]) =>
         parts.length > 0 ? `${parts.join(", ")}.` : "[à compléter]";
-      const translated =
-        items.length > 0 && items.every((item) => item.en !== undefined);
       return (
         <View style={[{ gap: PAIR_GAP }, s.block]}>
           <Text style={h.paraEn}>{sentence(items.map((i) => i.fr))}</Text>
-          {bi && translated ? (
-            <Text style={h.paraFr}>
-              {sentence(items.map((i) => i.en ?? i.fr))}
-            </Text>
+          {bi && items.length > 0 ? (
+            <Text style={h.paraFr}>{sentence(items.map((i) => i.en))}</Text>
           ) : null}
         </View>
       );
@@ -414,18 +576,22 @@ function Slot({ slot, data }: { slot: MandateSlot; data: MandateData }) {
           <View>
             <Row
               bilingual={bi}
+              stacked
               row={{
                 fr: "Qualité du propriétaire",
                 en: "Property ownership status",
                 value: data.legal.ownershipStatus,
+                valueEn: data.legal.ownershipStatusEn,
               }}
             />
             <Row
               bilingual={bi}
+              stacked
               row={{
                 fr: "Numéro d’enregistrement du meublé de tourisme",
                 en: "Registration number",
                 value: data.legal.registrationNumber,
+                valueEn: data.legal.registrationNumberEn,
               }}
             />
           </View>
@@ -501,8 +667,8 @@ function Slot({ slot, data }: { slot: MandateSlot; data: MandateData }) {
         <View style={[...card, { gap: LABEL_GAP }]} wrap={false}>
           <Choice
             bilingual={bi}
-            label={{ fr: "Bien non-fumeur", en: "Non-smoking property" }}
-            value={data.nonSmoking}
+            label={{ fr: "Bien fumeur", en: "Smoking property" }}
+            value={data.smoking}
             yes={YES}
             no={NO}
           />
@@ -510,11 +676,20 @@ function Slot({ slot, data }: { slot: MandateSlot; data: MandateData }) {
             bilingual={bi}
             label={{
               fr: "Huissier (commissaire de justice)",
-              en: "Bailiff (commissaire de justice)",
+              en: "Bailiff (judicial officer)",
             }}
             value={data.bailiff}
             yes={YES}
             no={NO}
+          />
+          <Options
+            bilingual={bi}
+            label={{ fr: "Animaux autorisés", en: "Pets allowed" }}
+            options={MANDATE_PETS.map((p) => ({
+              fr: p.fr,
+              en: p.en,
+              checked: p.key === data.pets,
+            }))}
           />
         </View>
       );
@@ -522,7 +697,11 @@ function Slot({ slot, data }: { slot: MandateSlot; data: MandateData }) {
     case "annexList":
       return (
         <View style={[...card, { gap: PAIR_GAP }]} wrap={false}>
-          {MANDATE_ANNEXES.map((a, i) => (
+          {/* The CERFA is listed only when it is attached. */}
+          {MANDATE_ANNEXES.slice(
+            0,
+            data.cerfaPages.length > 0 ? undefined : 3,
+          ).map((a, i) => (
             <Text key={i} style={h.paraEn}>
               {a.fr}
               {bi ? <Text style={s.rowValueEn}> / {a.en}</Text> : null}
@@ -597,7 +776,7 @@ function Blocks({
 }
 
 /** A caption and a rule to write on, for the withdrawal form. */
-function Blank({ label }: { label: string }) {
+function Blank({ label }: { label: React.ReactNode }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
       <Text style={h.paraEn}>{label} :</Text>
@@ -613,6 +792,23 @@ export function MandatGestionLocative({ data }: { data: MandateData }) {
    * A section marker. The number rides on the French title, which is the one
    * the clauses refer to; the English follows as its caption.
    */
+  // The body of the mandate carries the shared footer whole: page count and
+  // the box for initials.
+  const footer = (
+    <Footer a={a} reference={data.mandateNumber} frenchOnly={!bi} />
+  );
+  // The appendices keep the agency's lines and the mandate number only: they
+  // are attachments, counted and initialled with the mandate they follow.
+  const annexFooter = (
+    <Footer
+      a={a}
+      reference={data.mandateNumber}
+      frenchOnly={!bi}
+      initials={false}
+      pagination={false}
+    />
+  );
+
   const head = (label: string, en: string, first = false) => (
     <Section en={label} fr={bi ? en : undefined} first={first} stacked />
   );
@@ -665,10 +861,13 @@ export function MandatGestionLocative({ data }: { data: MandateData }) {
             </View>
             <Text style={h.infoValue}>
               {data.mandateNumber}
-              <Text style={s.rowValueEn}>
-                {"  "}(
-                {both(bi, MANDATE_REGISTER_NOTE.fr, MANDATE_REGISTER_NOTE.en)})
-              </Text>
+              {"  "}(
+              <Pair
+                bi={bi}
+                fr={MANDATE_REGISTER_NOTE.fr}
+                en={MANDATE_REGISTER_NOTE.en}
+              />
+              )
             </Text>
           </View>
         </View>
@@ -701,8 +900,8 @@ export function MandatGestionLocative({ data }: { data: MandateData }) {
           </View>
 
           <Text style={[h.paraEn, { marginTop: GAP * 2 }]}>
-            {both(bi, "Fait à", "Signed at")} {data.place},{" "}
-            {both(bi, "le", "on")} {data.signatureDate}
+            <Pair bi={bi} fr="Fait à" en="Signed at" /> {data.place},{" "}
+            <Pair bi={bi} fr="le" en="on" /> {data.signatureDate}
           </Text>
 
           <View style={s.signRow}>
@@ -723,20 +922,90 @@ export function MandatGestionLocative({ data }: { data: MandateData }) {
               />
               <Text style={s.signName}>BSTAY — {data.signatory.name}</Text>
               <Text style={s.signLine}>
-                {both(
-                  bi,
-                  data.signatory.capacity.fr,
-                  data.signatory.capacity.en === data.signatory.capacity.fr
-                    ? undefined
-                    : data.signatory.capacity.en,
-                )}
+                <Pair
+                  bi={bi}
+                  fr={data.signatory.capacity.fr}
+                  en={data.signatory.capacity.en}
+                />
               </Text>
             </View>
           </View>
         </View>
 
-        {/* The withdrawal form opens its own page: it is detached and sent
-            back, so it must not share a sheet with the signatures. */}
+        {footer}
+      </Page>
+
+      {/* Every appendix opens a page of its own, in order. The first is the
+          pricing schedule: the sheets handed over with the form, or, until
+          there are any, a page that announces it. */}
+      {data.pricingPages.length > 0 ? (
+        data.pricingPages.map((src, i) => (
+          <Page key={i} size="A4">
+            <Image src={src} style={s.pricingSheet} />
+            <Text style={s.cerfaTag}>
+              <Pair
+                bi={bi}
+                fr={MANDATE_PRICING.title.fr}
+                en={MANDATE_PRICING.title.en}
+              />
+              {` · ${data.mandateNumber} · ${i + 1}/${data.pricingPages.length}`}
+            </Text>
+          </Page>
+        ))
+      ) : (
+        <Page size="A4" style={h.page}>
+          {head(MANDATE_PRICING.title.fr, MANDATE_PRICING.title.en, true)}
+          <Passage
+            fr={[MANDATE_PRICING.note.fr]}
+            en={[MANDATE_PRICING.note.en]}
+            bilingual={bi}
+          />
+          {annexFooter}
+        </Page>
+      )}
+
+      <Page size="A4" style={h.page}>
+        <View>
+          {head(MANDATE_FEES.title.fr, MANDATE_FEES.title.en, true)}
+          <View style={s.feesHead}>
+            <Text style={s.feesTitle}>{MANDATE_FEES.heading}</Text>
+            <Text style={s.feesDate}>{MANDATE_FEES.applicable}</Text>
+          </View>
+          {MANDATE_FEES.tables.map((table) => (
+            <View key={table.title} style={s.feesBlock} wrap={false}>
+              <Cap en={table.title} />
+              <View style={s.feesTable}>
+                <View style={[s.feesRow, s.feesRowHead]}>
+                  <Text style={[s.feesCell, s.feesCellHead]}>
+                    {table.columns[0]}
+                  </Text>
+                  <Text style={[s.feesCell, s.feesCellHead, s.feesCellFee]}>
+                    {table.columns[1]}
+                  </Text>
+                </View>
+                {table.rows.map((r) => (
+                  <View key={r[0]} style={s.feesRow}>
+                    <Text style={s.feesCell}>{r[0]}</Text>
+                    <Text style={[s.feesCell, s.feesCellFee]}>{r[1]}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
+          <View style={s.feesBlock}>
+            <Cap en={MANDATE_FEES.legalTitle} />
+            <View style={[h.proseGroup, { marginTop: LABEL_GAP }]}>
+              {MANDATE_FEES.legal.map((para) => (
+                <Text key={para} style={h.paraEn}>
+                  {para}
+                </Text>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* The withdrawal form is detached and sent back, so it must not
+            share a sheet with anything else. */}
         <View break>
           {head(MANDATE_WITHDRAWAL.title.fr, MANDATE_WITHDRAWAL.title.en, true)}
         </View>
@@ -768,6 +1037,7 @@ export function MandatGestionLocative({ data }: { data: MandateData }) {
         <View style={[h.card, s.block]} wrap={false}>
           <Row
             bilingual={bi}
+            stacked
             row={{
               fr: "Adresse du bien",
               en: "Property address",
@@ -776,6 +1046,7 @@ export function MandatGestionLocative({ data }: { data: MandateData }) {
           />
           <Row
             bilingual={bi}
+            stacked
             row={{
               fr: "Date de signature du mandat",
               en: "Date of signature of the mandate",
@@ -784,6 +1055,7 @@ export function MandatGestionLocative({ data }: { data: MandateData }) {
           />
           <Row
             bilingual={bi}
+            stacked
             row={{
               fr: "Nom du Propriétaire",
               en: "Name of the Owner",
@@ -792,6 +1064,7 @@ export function MandatGestionLocative({ data }: { data: MandateData }) {
           />
           <Row
             bilingual={bi}
+            stacked
             row={{
               fr: "Adresse du Propriétaire",
               en: "Address of the Owner",
@@ -802,28 +1075,35 @@ export function MandatGestionLocative({ data }: { data: MandateData }) {
         <View style={{ marginTop: GAP * 3, gap: GAP * 3 }}>
           <Blank label="Date" />
           <Blank
-            label={both(
-              bi,
-              "Signature du Propriétaire",
-              "Signature of the Owner",
-            )}
+            label={
+              <Pair
+                bi={bi}
+                fr="Signature du Propriétaire"
+                en="Signature of the Owner"
+              />
+            }
           />
         </View>
 
-        <View style={{ marginTop: GAP * 2 }} wrap={false}>
-          {head(MANDATE_CERFA.title.fr, MANDATE_CERFA.title.en)}
-          <Passage
-            fr={[MANDATE_CERFA.note.fr]}
-            en={[MANDATE_CERFA.note.en]}
-            bilingual={bi}
-          />
-        </View>
-
-        {/* Initials on every page, the appendices included: they are part of
-            the mandate, and they come after the signatures, so the signed
-            page cannot be singled out by position. */}
-        <Footer a={a} reference={data.mandateNumber} frenchOnly={!bi} />
+        {annexFooter}
       </Page>
+
+      {/* Appendix 4, when attached: the form itself, a sheet per page and
+          nothing of ours over it but the line that says which appendix of
+          which mandate it is. No footer — the form fills its own sheet. */}
+      {data.cerfaPages.map((src, i) => (
+        <Page key={src} size="A4">
+          <Image src={src} style={s.cerfaSheet} />
+          <Text style={s.cerfaTag}>
+            <Pair
+              bi={bi}
+              fr={MANDATE_CERFA.title.fr}
+              en={MANDATE_CERFA.title.en}
+            />
+            {` · ${data.mandateNumber} · ${i + 1}/${data.cerfaPages.length}`}
+          </Text>
+        </Page>
+      ))}
     </Document>
   );
 }

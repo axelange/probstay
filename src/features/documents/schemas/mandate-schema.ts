@@ -1,9 +1,13 @@
 import { z } from "zod";
 
 import {
+  MANDATE_OWNERSHIP,
+  MANDATE_PETS,
+  MANDATE_PROPERTY_KINDS,
   MANDATE_SERVICES,
   MANDATE_UTILITIES,
 } from "@/features/documents/mandate-clauses";
+import { isApimoService } from "@/features/properties/utils/apimo-services";
 
 const line = (max: number) => z.string().trim().max(max);
 /** yyyy-mm-dd as a date field sends it, or empty while it is being filled. */
@@ -30,23 +34,30 @@ export const mandateSchema = z.object({
   manualProperty: z
     .object({
       address: line(240),
-      kind: line(120),
-      surface: line(40),
+      /** Empty until one is chosen. */
+      kind: z.union([
+        z.literal(""),
+        z.enum(MANDATE_PROPERTY_KINDS.map((k) => k.key)),
+      ]),
+      /** Square metres, as a whole number; the unit is the document's. */
+      surface: z.string().regex(/^\d{0,6}$/),
       rooms: line(20),
       bedrooms: line(20),
-      /**
-       * What the property is equipped with, one item per entry. French, with
-       * an optional English after " / " — "Portail électrique / Electric gate".
-       */
-      equipment: z.array(line(120)).max(40),
+      /** What the property is equipped with, as APIMO's equipment codes. */
+      equipment: z.array(z.number().int().refine(isApimoService)).max(200),
     })
     .nullable(),
   /** The number the mandate carries in the register of mandates. */
   mandateNumber: line(40),
   /** Section 3's free description. Empty falls back to the property's own. */
   description: z.string().trim().max(6000),
-  /** "Pleine propriété", "Usufruitier"… as the owner holds the property. */
-  ownershipStatus: line(120),
+  /** Its English, for a property described by hand. */
+  descriptionEn: z.string().trim().max(6000),
+  /** In what capacity the owner holds the property. Empty until chosen. */
+  ownershipStatus: z.union([
+    z.literal(""),
+    z.enum(MANDATE_OWNERSHIP.map((o) => o.key)),
+  ]),
   /** The furnished tourist accommodation's registration number. */
   registrationNumber: line(60),
   condominium: z.boolean(),
@@ -56,8 +67,9 @@ export const mandateSchema = z.object({
   services: flags(MANDATE_SERVICES.map((s) => s.key)),
   /** Whether the property has a swimming pool — see article 9.4.2. */
   hasPool: z.boolean(),
-  nonSmoking: z.boolean(),
+  smoking: z.boolean(),
   bailiff: z.boolean(),
+  pets: z.enum(MANDATE_PETS.map((p) => p.key)),
   place: line(80),
   signatureDate: day,
   bilingual: z.boolean(),

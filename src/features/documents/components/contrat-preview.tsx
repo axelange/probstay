@@ -54,7 +54,15 @@ registerDocumentFontsBrowser();
 
 export type RentalOption = { id: string; label: string };
 /** A contact or a property, as the concierge agreement's pickers list them. */
-export type PickerOption = { id: string; label: string; hint?: string };
+export type PickerOption = {
+  id: string;
+  label: string;
+  hint?: string;
+  /** Properties only: whether it is a flat — see the mandate's bailiff box. */
+  isApartment?: boolean;
+  /** Properties only: the owner on file, when there is one to name. */
+  ownerName?: string;
+};
 
 const DOC_TYPES = [
   { value: "CONTRAT", label: "Contrat de location saisonnière" },

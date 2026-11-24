@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
 import { listContacts } from "@/features/contacts/services/contact-service";
 import { DocumentPreviewLoader } from "@/features/documents/components/document-preview-loader";
-import { listProperties } from "@/features/properties/services/property-service";
+import {
+  listProperties,
+  listPropertyOwnerNames,
+} from "@/features/properties/services/property-service";
 import { listRentals } from "@/features/rentals/services/rental-service";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -26,9 +29,10 @@ export default async function DocumentPreviewPage() {
   // for a residence, which may not even be one the agency manages. So it takes
   // a contact and, optionally, a property — both listed here rather than
   // fetched from the client, which has no session of its own.
-  const [contacts, properties] = await Promise.all([
+  const [contacts, properties, ownerNames] = await Promise.all([
     listContacts(user),
     listProperties(),
+    listPropertyOwnerNames(user),
   ]);
 
   const contactOptions = contacts.map((c) => ({
@@ -42,6 +46,10 @@ export default async function DocumentPreviewPage() {
     id: p.id,
     label: p.marketingName ?? p.city ?? "Bien",
     hint: p.marketingName ? (p.city ?? undefined) : undefined,
+    // APIMO's type 1. The mandate starts from different defaults for a flat.
+    isApartment: p.type === 1,
+    // A property with an owner on file brings that owner to the mandate.
+    ownerName: ownerNames[p.id],
   }));
 
   return (

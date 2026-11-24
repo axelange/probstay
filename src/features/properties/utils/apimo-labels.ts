@@ -33,6 +33,17 @@ const PRICE_PERIODS: Record<number, string> = {
   4: "mois",
 };
 
+/** The same types in English, for the documents that print both. */
+const PROPERTY_TYPES_EN: Record<number, string> = {
+  1: "Apartment",
+  2: "Villa",
+};
+
+export function propertyTypeLabelEn(type: number | null): string | null {
+  if (type === null) return null;
+  return PROPERTY_TYPES_EN[type] ?? null;
+}
+
 export function propertyTypeLabel(type: number | null): string | null {
   if (type === null) return null;
   return PROPERTY_TYPES[type] ?? `Type ${type}`;
@@ -56,7 +67,7 @@ export function pricePeriodLabel(period: number | null): string | null {
 export function formatPrice(
   value: number | null,
   currency: string | null,
-  period: number | null
+  period: number | null,
 ): string {
   if (value === null) return "Prix sur demande";
 
@@ -77,7 +88,7 @@ export function formatPrice(
  */
 export function formatAmount(
   value: number | null,
-  currency: string | null
+  currency: string | null,
 ): string {
   if (value === null) return "—";
 

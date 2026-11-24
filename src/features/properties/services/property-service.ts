@@ -163,3 +163,35 @@ export async function getPropertyDetail(id: string, user: CurrentUser) {
     confidential,
   };
 }
+
+/**
+ * The name of each property's owner, for the properties whose owner this user
+ * may know — see `canSeePropertyConfidential`. Keyed by property id; a
+ * property with no owner on file, or a confidential one, is simply absent.
+ *
+ * Apart from `listProperties` on purpose: that projection leaves the owner out
+ * so it cannot reach a client by accident, and this one is asked for by name.
+ */
+export async function listPropertyOwnerNames(
+  user: CurrentUser,
+): Promise<Record<string, string>> {
+  const properties = await prisma.property.findMany({
+    where: { archivedAt: null, ownerId: { not: null } },
+    select: {
+      id: true,
+      agentId: true,
+      owner: { select: { firstName: true, lastName: true } },
+    },
+  });
+  return Object.fromEntries(
+    properties
+      .filter((p) => p.owner && canSeePropertyConfidential(user, p))
+      .map((p) => [
+        p.id,
+        [p.owner?.firstName, p.owner?.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || "Sans nom",
+      ]),
+  );
+}

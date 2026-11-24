@@ -10,6 +10,10 @@ import {
 } from "@/features/documents/concierge-schedule";
 import {
   MANDATE_ARTICLES,
+  MANDATE_CERFA_PAGES,
+  MANDATE_NO_REGISTRATION,
+  MANDATE_OWNERSHIP,
+  MANDATE_PROPERTY_KINDS,
   type MandateArticle,
 } from "@/features/documents/mandate-clauses";
 import type { MandateInput } from "@/features/documents/schemas/mandate-schema";
@@ -17,11 +21,15 @@ import type {
   MandateData,
   MandateRow,
 } from "@/features/documents/templates/mandat-gestion-locative";
-import { propertyTypeLabel } from "@/features/properties/utils/apimo-labels";
+import {
+  propertyTypeLabel,
+  propertyTypeLabelEn,
+} from "@/features/properties/utils/apimo-labels";
+import { servicesFromCodes } from "@/features/properties/utils/apimo-services";
 import { descriptionForContract } from "@/features/properties/utils/description";
 import { canSeePropertyConfidential } from "@/features/properties/utils/property-access";
 import type { CurrentUser } from "@/lib/auth";
-import { birthPlaceLabel, nationalitiesLabel } from "@/lib/countries";
+import { birthPlaceIn, nationalitiesIn } from "@/lib/countries";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -126,6 +134,8 @@ export async function buildMandateData(
           rooms: true,
           bedrooms: true,
           descriptionFr: true,
+          descriptionEn: true,
+          services: true,
           ownerId: true,
           agentId: true,
         },
@@ -221,12 +231,14 @@ export async function buildMandateData(
         row(
           "Lieu de naissance",
           "Place of birth",
-          birthPlaceLabel(contact.birthCity, contact.birthCountry),
+          birthPlaceIn(contact.birthCity, contact.birthCountry, "fr"),
+          birthPlaceIn(contact.birthCity, contact.birthCountry, "en"),
         ),
         row(
           "Nationalité",
           "Nationality",
-          nationalitiesLabel(contact.nationalities),
+          nationalitiesIn(contact.nationalities, "fr"),
+          nationalitiesIn(contact.nationalities, "en"),
         ),
         row("Adresse", "Address", ownerAddress),
         row("Email", undefined, contact.email),
@@ -243,12 +255,14 @@ export async function buildMandateData(
         [picked.zipcode, picked.city].filter(Boolean).join(" "),
       )
     : (clean(manual?.address) ?? "");
+  const manualKind = MANDATE_PROPERTY_KINDS.find((k) => k.key === manual?.kind);
   const propertyRows: MandateRow[] = [
     row("Adresse du bien", "Property address", propertyAddress),
     row(
       "Type de bien",
       "Type of property",
-      picked ? propertyTypeLabel(picked.type) : manual?.kind,
+      picked ? propertyTypeLabel(picked.type) : manualKind?.fr,
+      picked ? propertyTypeLabelEn(picked.type) : manualKind?.en,
     ),
     row(
       "Surface habitable",
@@ -257,7 +271,9 @@ export async function buildMandateData(
         ? picked.areaValue
           ? `${picked.areaValue} m²`
           : null
-        : manual?.surface,
+        : manual?.surface
+          ? `${manual.surface} m²`
+          : null,
     ),
     row(
       "Nombre de pièces",
@@ -271,27 +287,31 @@ export async function buildMandateData(
     ),
   ];
 
-  // Section 3's equipment. A property described by hand lists what was typed
-  // for it, each item French with an optional English after " / ".
-  const equipment = (manual?.equipment ?? [])
-    .map((item) => {
-      const at = item.indexOf(" / ");
-      const fr = clean(at === -1 ? item : item.slice(0, at));
-      const en = at === -1 ? null : clean(item.slice(at + 3));
-      return fr ? { fr, en: en ?? undefined } : null;
-    })
-    .filter((item): item is { fr: string; en: string | undefined } => !!item);
+  // Section 3's equipment, from APIMO's codes either way: those the sync
+  // stored for a property of ours, those ticked for one described by hand.
+  // Both languages come from the referentiel, so the list is always whole.
+  const equipment = servicesFromCodes(
+    picked ? picked.services : (manual?.equipment ?? []),
+  ).map(({ fr, en }) => ({ fr, en }));
 
   // What was typed wins. Left empty, a property of ours describes itself: its
-  // own text, without the advertising notices a contract has no use for.
-  const typed = input.description
-    .split(/\n\s*\n/)
-    .map((p) => clean(p.replace(/\s*\n\s*/g, " ")))
-    .filter((p): p is string => p !== null);
+  // own text, without the advertising notices a contract has no use for. The
+  // English is never a stand-in for the French — it is printed beside it, so
+  // one without the other is simply absent.
+  const paragraphs = (text: string) =>
+    text
+      .split(/\n\s*\n/)
+      .map((p) => clean(p.replace(/\s*\n\s*/g, " ")))
+      .filter((p): p is string => p !== null);
+  const typed = paragraphs(input.description);
   const description =
     typed.length > 0
       ? typed
       : descriptionForContract(picked?.descriptionFr).map(pdfSafe);
+  const descriptionEn =
+    typed.length > 0
+      ? paragraphs(input.descriptionEn)
+      : descriptionForContract(picked?.descriptionEn).map(pdfSafe);
 
   const representative = clean(agency.representedBy) ?? "Valentine Claitte";
   const capacity = clean(agency.capacity) ?? "Présidente";
@@ -301,6 +321,10 @@ export async function buildMandateData(
   const capacityEn = /^présidente?$/i.test(capacity) ? "President" : capacity;
 
   const mandateNumber = clean(input.mandateNumber);
+  const ownership = MANDATE_OWNERSHIP.find(
+    (o) => o.key === input.ownershipStatus,
+  );
+  const registration = clean(input.registrationNumber);
   const deposit = clean(input.deposit);
 
   return {
@@ -331,18 +355,30 @@ export async function buildMandateData(
       rows: propertyRows,
     },
     description,
+    descriptionEn,
     equipment,
     legal: {
-      ownershipStatus: clean(input.ownershipStatus) ?? MISSING,
-      registrationNumber: clean(input.registrationNumber) ?? MISSING,
+      ownershipStatus: ownership?.fr ?? MISSING,
+      ownershipStatusEn: ownership?.en,
+      // No number yet is the ordinary case, not a gap: the declaration that
+      // obtains one is attached, and the line says so.
+      registrationNumber: registration ?? MANDATE_NO_REGISTRATION.fr,
+      registrationNumberEn: registration
+        ? undefined
+        : MANDATE_NO_REGISTRATION.en,
       condominium: input.condominium,
     },
+    cerfaPages: registration ? [] : [...MANDATE_CERFA_PAGES],
+    // The schedule is a file chosen in the browser; it joins the mandate
+    // there and never comes through here.
+    pricingPages: [],
     deposit: deposit ? inProse(typedEuros(deposit)) : MISSING,
     utilities: input.utilities,
     services: input.services,
     hasPool: input.hasPool,
-    nonSmoking: input.nonSmoking,
+    smoking: input.smoking,
     bailiff: input.bailiff,
+    pets: input.pets,
     articles: fillArticles(
       {
         agentRep: { fr: representative, en: representative },

@@ -396,3 +396,32 @@ export function nationalitiesLabel(
   const fr = found.map((c) => c.demonymFrF || c.fr).join(", ");
   return `${en} / ${fr}`;
 }
+
+/**
+ * "Vladikavkaz, Russie" or "Vladikavkaz, Russia" — a birthplace in one
+ * language, for the documents that set French and English apart rather than
+ * on one slashed line. The city is as typed and never translated.
+ */
+export function birthPlaceIn(
+  city: string | null | undefined,
+  code: string | null | undefined,
+  lang: "fr" | "en"
+): string | null {
+  const parts = [city?.trim() || null, countryName(code, lang)].filter(Boolean);
+  return parts.length ? parts.join(", ") : null;
+}
+
+/**
+ * "Française, Suisse" or "French, Swiss" — the nationalities in one language.
+ * The French takes the feminine, as `nationalityLabel` explains.
+ */
+export function nationalitiesIn(
+  codes: readonly string[] | null | undefined,
+  lang: "fr" | "en"
+): string | null {
+  const found = (codes ?? []).map(country).filter((c): c is Country => c !== null);
+  if (found.length === 0) return null;
+  return found
+    .map((c) => (lang === "fr" ? c.demonymFrF || c.fr : c.demonymEn || c.en))
+    .join(", ");
+}

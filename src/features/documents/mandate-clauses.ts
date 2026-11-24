@@ -85,6 +85,48 @@ export const MANDATE_REGISTER_NOTE: Bilingual = {
   en: "entered in the register of mandates",
 };
 
+/**
+ * What a property described by hand can be. A closed list, not a typed line:
+ * the mandate prints the type in two languages, and only a known type has a
+ * known translation.
+ */
+export const MANDATE_PROPERTY_KINDS = [
+  { key: "APARTMENT", fr: "Appartement", en: "Apartment" },
+  { key: "VILLA", fr: "Villa", en: "Villa" },
+  { key: "CHALET", fr: "Chalet", en: "Chalet" },
+] as const;
+
+/**
+ * In what capacity the owner holds the property — the ways French law lets a
+ * person hold one and let it. Closed for the same reason as the type.
+ */
+export const MANDATE_OWNERSHIP = [
+  { key: "FULL", fr: "Plein propriétaire", en: "Full owner" },
+  { key: "USUFRUCT", fr: "Usufruitier", en: "Usufructuary" },
+  {
+    key: "UNDIVIDED",
+    fr: "Propriétaire indivis",
+    en: "Joint owner (undivided ownership)",
+  },
+  { key: "BARE", fr: "Nu-propriétaire", en: "Bare owner" },
+] as const;
+
+/** 4.4's answers on pets: the one line there with a third box. */
+export const MANDATE_PETS = [
+  { key: "YES", fr: "Oui", en: "Yes" },
+  { key: "NO", fr: "Non", en: "No" },
+  { key: "ON_REQUEST", fr: "Sur demande", en: "On request" },
+] as const;
+
+/**
+ * What the registration number's line says while there is no number yet: the
+ * declaration that obtains one is Appendix 4.
+ */
+export const MANDATE_NO_REGISTRATION = {
+  fr: "Enregistrement en cours, CERFA fourni en annexe",
+  en: "Registration in progress, CERFA form provided in appendix",
+} as const;
+
 /** What section 4's boxes offer, in the order the draft lists them. */
 export const MANDATE_UTILITIES = [
   { key: "electricity", fr: "Électricité", en: "Electricity" },
@@ -192,10 +234,10 @@ export const MANDATE_ARTICLES: MandateArticle[] = [
       {
         kind: "p",
         fr: [
-          "Le propriétaire s’engage à fournir un système de climatisation en parfait état de fonctionnement pendant toute la durée de la location. En cas de dysfonctionnement pendant le séjour, il devra faire le nécessaire pour procéder à la réparation ou au remplacement dans les meilleurs délais afin d’assurer le confort des occupants.",
+          "Le propriétaire s’engage à fournir l’ensemble des équipements énumérés ci-dessus en parfait état de fonctionnement pendant toute la durée de la location. En cas de dysfonctionnement de l’un d’eux pendant le séjour, il devra faire le nécessaire pour procéder à sa réparation ou à son remplacement dans les meilleurs délais afin d’assurer le confort des occupants.",
         ],
         en: [
-          "The owner undertakes to provide an air conditioning system in perfect working order throughout the rental period. In the event of any malfunction during the stay, the owner shall take the necessary steps to repair or replace the system as soon as possible in order to ensure the comfort of the occupants.",
+          "The owner undertakes to provide all the equipment listed above in perfect working order throughout the rental period. In the event of a malfunction of any item during the stay, the owner shall take the necessary steps to repair or replace it as soon as possible in order to ensure the comfort of the occupants.",
         ],
       },
       { kind: "minor", fr: "Informations légales", en: "Legal information" },
@@ -245,7 +287,7 @@ export const MANDATE_ARTICLES: MandateArticle[] = [
           "**États des lieux d’entrée et de sortie.** Pour les villas, les états des lieux d’entrée et de sortie sont réalisés par un commissaire de justice (huissier de justice) (article 5.2).",
         ],
         en: [
-          "**Check-in and check-out inspections.** For villas, the check-in and check-out inspections are carried out by a commissaire de justice (bailiff) (Article 5.2).",
+          "**Check-in and check-out inspections.** For villas, the check-in and check-out inspections are carried out by a judicial officer (bailiff) (Article 5.2).",
         ],
       },
     ],
@@ -299,7 +341,7 @@ export const MANDATE_ARTICLES: MandateArticle[] = [
           "– Personalized welcome of tenants.",
           "– Check-in inspection, drawn up and signed in the name and on behalf of the Owner.",
           "– Check-out inspection, drawn up and signed in the name and on behalf of the Owner.",
-          "– For villas, the check-in and check-out inspections are systematically carried out by a commissaire de justice (bailiff): the check-in inspection is borne by the Owner and the check-out inspection is borne by the tenant.",
+          "– For villas, the check-in and check-out inspections are systematically carried out by a judicial officer (bailiff): the check-in inspection is borne by the Owner and the check-out inspection is borne by the tenant.",
           "– Concierge services (private chef, housekeeping, shopping, reservations, etc.), subject to additional fees payable by the tenant.",
           "– Advice and assistance for preparing the property for rental.",
           "– Organization of cleaning during the stay (2 to 4 hours for an apartment, 4 to 6 hours for a house, minimum per week); this service is optional and is carried out only at the tenant’s request.",
@@ -892,16 +934,82 @@ export const MANDATE_WITHDRAWAL = {
   },
 } as const;
 
-export const MANDATE_CERFA: {
-  title: Bilingual;
-  note: Bilingual;
-} = {
+/**
+ * Appendix 1, which the agency attaches as a document of its own. Its page
+ * announces it, so the appendices are in their place and in order.
+ */
+export const MANDATE_PRICING: { title: Bilingual; note: Bilingual } = {
+  title: {
+    fr: "Annexe 1 – Grille Tarifaire",
+    en: "Appendix 1 – Pricing Schedule",
+  },
+  note: {
+    fr: "Grille Tarifaire jointe en annexe du document.",
+    en: "Pricing Schedule attached as an appendix to the document.",
+  },
+};
+
+/**
+ * Appendix 2: the agency's fee schedule, as it posts it.
+ *
+ * In French alone, in a bilingual mandate too: it is the schedule the agency
+ * is required to display, reproduced, not a clause of the mandate.
+ */
+export const MANDATE_FEES = {
+  title: {
+    fr: "Annexe 2 – Barème d’honoraires du Mandataire",
+    en: "Appendix 2 – Agent’s fee schedule",
+  },
+  heading: "Barème des honoraires",
+  applicable: "Applicable à compter du 01/04/2026",
+  tables: [
+    {
+      title: "Transaction immobilière",
+      columns: ["Type de mandat / Bien", "Honoraires HT"],
+      rows: [
+        ["Villa / Appartement", "5 %"],
+        ["Commerce", "10 %"],
+        ["Garage", "8,33 % (minimum 5 000 € TTC)"],
+      ],
+    },
+    {
+      title: "Location saisonnière",
+      columns: ["Prestation", "Honoraires HT"],
+      rows: [
+        [
+          "Commercialisation et gestion locative saisonnière",
+          "25 % des loyers encaissés",
+        ],
+      ],
+    },
+    {
+      title: "Conciergerie privée",
+      columns: ["Prestation", "Honoraires"],
+      rows: [["Prestations de conciergerie", "Sur devis personnalisé"]],
+    },
+  ],
+  legalTitle: "Mentions légales",
+  legal: [
+    "Les honoraires de transaction sont à la charge du vendeur, sauf stipulation contraire prévue au mandat.",
+    "Les honoraires de location saisonnière sont exprimés hors taxes et sont soumis à la TVA au taux en vigueur. Les prestations de conciergerie font l’objet d’un devis préalable accepté par le client.",
+    "Conformément à la loi n° 70-9 du 2 janvier 1970 dite « Loi Hoguet » et à son décret d’application n° 72-678 du 20 juillet 1972.",
+  ],
+} as const;
+
+/**
+ * Appendix 4: the declaration form itself, page by page, as images served
+ * from /public. Attached only while the property has no registration number —
+ * the form is how it gets one.
+ */
+export const MANDATE_CERFA_PAGES = [
+  "/img/cerfa/cerfa-14004-04-1.png",
+  "/img/cerfa/cerfa-14004-04-2.png",
+  "/img/cerfa/cerfa-14004-04-3.png",
+] as const;
+
+export const MANDATE_CERFA: { title: Bilingual } = {
   title: {
     fr: "Annexe 4 – CERFA n° 14004*04",
     en: "Appendix 4 – CERFA no. 14004*04",
-  },
-  note: {
-    fr: "Formulaire CERFA n° 14004*04 joint en annexe du document.",
-    en: "CERFA form no. 14004*04 attached as an appendix to the document.",
   },
 };
