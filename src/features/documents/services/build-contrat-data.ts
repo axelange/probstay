@@ -317,11 +317,15 @@ export async function buildContratData(
       label: { en: "Number of rooms, bedrooms", fr: "Nombre de pièces, chambres" },
       value: `${p.rooms} pièces${bedrooms ? `, ${bedrooms} chambres` : ""}`,
     });
-  if (sleeps || guests)
-    propertyDetails.push({
-      label: { en: "Maximum occupancy", fr: "Capacité maximale" },
-      value: `${sleeps || guests} personnes`,
-    });
+  // The property's capacity, never the party's size. The two were once
+  // interchangeable here, so a property with no capacity on record printed
+  // the number of guests as its maximum — and clause 5.2 then capped the stay
+  // at whatever the booking happened to say. Missing, the row stays and shows
+  // the gap: the clause points at this line.
+  propertyDetails.push({
+    label: { en: "Maximum occupancy", fr: "Capacité maximale" },
+    value: sleeps ? `${sleeps} personnes` : "—",
+  });
 
   const property = {
     name: p.marketingName ?? "Le bien loué",
@@ -334,7 +338,7 @@ export async function buildContratData(
     rooms: p.rooms
       ? `${p.rooms} pièces${bedrooms ? ` dont ${bedrooms} chambres` : ""}`
       : "plusieurs pièces",
-    sleeps: `jusqu'à ${sleeps || guests || "—"} personnes`,
+    sleeps: `jusqu'à ${sleeps || "—"} personnes`,
     // Fetched at the width the cover prints them at, not the 1920 px the sync
     // stores. See COVER_HERO_WIDTH for the arithmetic.
     // Each width is checked first: APIMO does not serve every width for every
