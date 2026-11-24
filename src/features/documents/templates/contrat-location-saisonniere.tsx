@@ -9,13 +9,12 @@ import {
 } from "@react-pdf/renderer";
 import { BstayLogo } from "@/features/documents/templates/logo";
 import {
-  Cap,
+  Cap as HouseCap,
   Footer,
-  FrenchOnly,
-  Section,
-  SubHeading,
-  Tick,
-  TitledBlock,
+  Section as HouseSection,
+  SubHeading as HouseSubHeading,
+  Tick as HouseTick,
+  TitledBlock as HouseTitledBlock,
   h,
   ink,
   paper,
@@ -163,7 +162,6 @@ export type ContratData = {
   };
 };
 
-
 /**
  * The only rate a rent carries here: the para-hotel regime's, which is the one
  * case in which the builder reports any VAT at all.
@@ -179,9 +177,27 @@ const s = StyleSheet.create({
 
   // Parties
   partyLabel: { marginTop: GAP },
-  partyName: { fontFamily: TITLE, fontWeight: 200, fontSize: 14, color: ink, lineHeight: LH, marginTop: LABEL_GAP },
-  partyDetail: { fontSize: 10, color: ink, lineHeight: LH, marginTop: PAIR_GAP },
-  lead: { fontSize: 10, color: grey, fontStyle: "italic", lineHeight: LH, marginTop: GAP },
+  partyName: {
+    fontFamily: TITLE,
+    fontWeight: 200,
+    fontSize: 14,
+    color: ink,
+    lineHeight: LH,
+    marginTop: LABEL_GAP,
+  },
+  partyDetail: {
+    fontSize: 10,
+    color: ink,
+    lineHeight: LH,
+    marginTop: PAIR_GAP,
+  },
+  lead: {
+    fontSize: 10,
+    color: grey,
+    fontStyle: "italic",
+    lineHeight: LH,
+    marginTop: GAP,
+  },
 
   // Articles
   article: { marginTop: GAP },
@@ -229,7 +245,12 @@ const s = StyleSheet.create({
     padding: 12,
     marginTop: 2,
   },
-  finTotalLabel: { fontSize: 10, color: ink, textTransform: "uppercase", lineHeight: LH },
+  finTotalLabel: {
+    fontSize: 10,
+    color: ink,
+    textTransform: "uppercase",
+    lineHeight: LH,
+  },
   finTotalAmt: { fontSize: 12, color: ink, lineHeight: LH },
 
   // Signatures
@@ -293,8 +314,13 @@ function Article({
 // broken, instead of vanishing.
 const KEEP_LINES = 3;
 
-function Prose({ clause }: { clause?: { en: string[]; fr: string[] } }) {
-  const frenchOnly = React.useContext(FrenchOnly);
+function BaseProse({
+  clause,
+  frenchOnly,
+}: {
+  clause?: { en: string[]; fr: string[] };
+  frenchOnly?: boolean;
+}) {
   if (!clause) return null;
   if (frenchOnly) {
     // The French as the document's one voice: in ink, not as the grey italic
@@ -304,7 +330,12 @@ function Prose({ clause }: { clause?: { en: string[]; fr: string[] } }) {
     return (
       <View style={h.proseGroup}>
         {paragraphs.map((para, i) => (
-          <Text key={i} style={h.paraEn} orphans={KEEP_LINES} widows={KEEP_LINES}>
+          <Text
+            key={i}
+            style={h.paraEn}
+            orphans={KEEP_LINES}
+            widows={KEEP_LINES}
+          >
             {para}
           </Text>
         ))}
@@ -315,14 +346,24 @@ function Prose({ clause }: { clause?: { en: string[]; fr: string[] } }) {
     <View style={{ gap: PAIR_GAP }}>
       <View style={h.proseGroup}>
         {clause.en.map((para, i) => (
-          <Text key={`e${i}`} style={h.paraEn} orphans={KEEP_LINES} widows={KEEP_LINES}>
+          <Text
+            key={`e${i}`}
+            style={h.paraEn}
+            orphans={KEEP_LINES}
+            widows={KEEP_LINES}
+          >
             {para}
           </Text>
         ))}
       </View>
       <View style={h.proseGroup}>
         {clause.fr.map((para, i) => (
-          <Text key={`f${i}`} style={h.paraFr} orphans={KEEP_LINES} widows={KEEP_LINES}>
+          <Text
+            key={`f${i}`}
+            style={h.paraFr}
+            orphans={KEEP_LINES}
+            widows={KEEP_LINES}
+          >
             {para}
           </Text>
         ))}
@@ -336,8 +377,13 @@ function Prose({ clause }: { clause?: { en: string[]; fr: string[] } }) {
  * since the sync stores the French comment only — the French is printed as the
  * primary voice instead of greyed out as a translation of nothing.
  */
-function Description({ description }: { description: { en: string[]; fr: string[] } }) {
-  const frenchOnly = React.useContext(FrenchOnly);
+function BaseDescription({
+  description,
+  frenchOnly,
+}: {
+  description: { en: string[]; fr: string[] };
+  frenchOnly?: boolean;
+}) {
   const hasEn = description.en.length > 0;
   if (!hasEn || (frenchOnly && description.fr.length > 0)) {
     return (
@@ -350,21 +396,22 @@ function Description({ description }: { description: { en: string[]; fr: string[
       </View>
     );
   }
-  return <Prose clause={description} />;
+  return <BaseProse clause={description} frenchOnly={frenchOnly} />;
 }
 
 /** A grey caps label running inline with its value, as the master sets them. */
-function InfoRow({
+function BaseInfoRow({
   label,
   value,
   valueEn,
+  frenchOnly = false,
 }: {
   label: { en: string; fr?: string };
   value: string;
   /** The value in English, when it has one — see `ContratData.tenant.details`. */
   valueEn?: string;
+  frenchOnly?: boolean;
 }) {
-  const frenchOnly = React.useContext(FrenchOnly);
   return (
     // The label is a direct child of the row, not wrapped in a View.
     //
@@ -378,7 +425,7 @@ function InfoRow({
     // was there to carry.
     <View style={h.infoRow}>
       <View style={h.infoLabel}>
-        <Cap en={label.en} fr={label.fr} />
+        <HouseCap en={label.en} fr={label.fr} frenchOnly={frenchOnly} />
       </View>
       <Text style={h.infoValue}>
         {valueEn ? (
@@ -396,13 +443,14 @@ function InfoRow({
  * wording and the date beneath. Used for the deposit, the balance and the
  * security deposit, which the master lays out identically.
  */
-function Instalment({
+function BaseInstalment({
   capEn,
   capFr,
   amount,
   dueEn,
   dueFr,
   dueDate,
+  frenchOnly = false,
 }: {
   capEn: string;
   capFr: string;
@@ -410,8 +458,8 @@ function Instalment({
   dueEn: string;
   dueFr: string;
   dueDate: string;
+  frenchOnly?: boolean;
 }) {
-  const frenchOnly = React.useContext(FrenchOnly);
   return (
     <View style={[h.card, { marginTop: GAP }]} wrap={false}>
       <View
@@ -421,7 +469,7 @@ function Instalment({
           justifyContent: "space-between",
         }}
       >
-        <Cap en={capEn} fr={capFr} />
+        <HouseCap en={capEn} fr={capFr} frenchOnly={frenchOnly} />
         <Text style={h.infoValue}>{amount}</Text>
       </View>
       <View
@@ -473,12 +521,13 @@ function Pair({
 }
 
 /** One line of a financial table: label left, amount right. */
-function MoneyRow({
+function BaseMoneyRow({
   en,
   fr,
   note,
   amount,
   sub,
+  frenchOnly = false,
 }: {
   en: string;
   fr?: string;
@@ -499,8 +548,8 @@ function MoneyRow({
    * longer land between the rent and its own explanation.
    */
   sub?: { en: string; fr?: string; amount: string };
+  frenchOnly?: boolean;
 }) {
-  const frenchOnly = React.useContext(FrenchOnly);
   return (
     // Atomic. The block around it is allowed to break so a long list of billed
     // services can run onto a second page; a row is the smallest thing that
@@ -526,16 +575,17 @@ function MoneyRow({
 }
 
 /** The bordered total closing a financial table. */
-function MoneyTotal({
+function BaseMoneyTotal({
   en,
   fr,
   amount,
+  frenchOnly = false,
 }: {
   en: string;
   fr?: string;
   amount: string;
+  frenchOnly?: boolean;
 }) {
-  const frenchOnly = React.useContext(FrenchOnly);
   return (
     <View style={s.finTotal} wrap={false}>
       <Text style={s.finTotalLabel}>
@@ -576,6 +626,43 @@ function CoverPhotos({ photos }: { photos: string[] }) {
   );
 }
 
+/**
+ * The document's components with its language already decided.
+ *
+ * Not a React context, which is what this replaced: the agreement is also
+ * rendered on the server, and the React a server module is given has neither
+ * `createContext` nor `useContext` — importing the template was enough to
+ * bring the rental page down. Binding the choice once still spares every
+ * heading, caption and box from passing it on, and a label cannot forget to.
+ *
+ * Built once per language rather than per render, so a component keeps its
+ * identity from one render of the preview to the next.
+ */
+function inLanguage(frenchOnly: boolean) {
+  const bind = <P extends { frenchOnly?: boolean }>(
+    Component: (props: P) => React.ReactNode,
+  ) =>
+    function Bound(props: Omit<P, "frenchOnly">) {
+      return <Component {...(props as P)} frenchOnly={frenchOnly} />;
+    };
+  return {
+    Cap: bind(HouseCap),
+    Section: bind(HouseSection),
+    SubHeading: bind(HouseSubHeading),
+    Tick: bind(HouseTick),
+    TitledBlock: bind(HouseTitledBlock),
+    Prose: bind(BaseProse),
+    Description: bind(BaseDescription),
+    InfoRow: bind(BaseInfoRow),
+    Instalment: bind(BaseInstalment),
+    MoneyRow: bind(BaseMoneyRow),
+    MoneyTotal: bind(BaseMoneyTotal),
+  };
+}
+
+const BILINGUAL = inLanguage(false);
+const FRENCH = inLanguage(true);
+
 export function ContratLocationSaisonniere({
   data,
   bilingual = true,
@@ -591,14 +678,24 @@ export function ContratLocationSaisonniere({
   const a = data.agency;
   const t = data.tenant;
   const frenchOnly = !bilingual;
+  const {
+    Cap,
+    Section,
+    SubHeading,
+    Tick,
+    TitledBlock,
+    Prose,
+    Description,
+    InfoRow,
+    Instalment,
+    MoneyRow,
+    MoneyTotal,
+  } = frenchOnly ? FRENCH : BILINGUAL;
   return (
     <Document
       title={`Contrat de location saisonnière — ${data.reference}`}
       author={a.legalName}
     >
-      {/* Not indented under the provider: it wraps the whole document, and
-          moving every page in a level would bury the change that added it. */}
-      <FrenchOnly.Provider value={frenchOnly}>
       {/* Page 1 — the cover.
           Three full-bleed bands and no footer: the page carries no padding of
           its own and the agreement proper starts overleaf. See `coverPage`. */}
@@ -612,7 +709,9 @@ export function ContratLocationSaisonniere({
           <View style={h.coverHead}>
             <View style={h.coverTitleWrap}>
               {frenchOnly ? (
-                <Text style={h.coverTitle}>Contrat de location saisonnière</Text>
+                <Text style={h.coverTitle}>
+                  Contrat de location saisonnière
+                </Text>
               ) : (
                 <>
                   <Text style={h.coverTitle}>Seasonal Rental Agreement</Text>
@@ -699,9 +798,20 @@ export function ContratLocationSaisonniere({
                   <Cap en="Type & reference" fr="Type & référence" />
                   <Text style={h.name}>{data.property.name}</Text>
                 </View>
-                <View style={{ flex: 1, alignItems: "flex-end", justifyContent: "center" }}>
+                <View
+                  style={{
+                    flex: 1,
+                    alignItems: "flex-end",
+                    justifyContent: "center",
+                  }}
+                >
                   <Cap en="Property address" fr="Adresse de la propriété" />
-                  <Text style={[h.infoValue, { marginTop: LABEL_GAP, textAlign: "right" }]}>
+                  <Text
+                    style={[
+                      h.infoValue,
+                      { marginTop: LABEL_GAP, textAlign: "right" },
+                    ]}
+                  >
                     {data.property.address}
                   </Text>
                 </View>
@@ -731,7 +841,10 @@ export function ContratLocationSaisonniere({
           <Prose clause={data.clauses.use} />
         </View>
 
-        <SubHeading en="2.4 Standard of equipment" fr="Standing de l'équipement" />
+        <SubHeading
+          en="2.4 Standard of equipment"
+          fr="Standing de l'équipement"
+        />
         <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.equipment} />
         </View>
@@ -780,16 +893,25 @@ export function ContratLocationSaisonniere({
               <Cap en="Rental period" fr="Période de location" />
               <View style={{ marginTop: GAP }}>
                 <View style={{ flexDirection: "row", gap: GAP }}>
-                  <InfoRow label={{ en: "From", fr: "Du" }} value={data.stay.checkIn} />
+                  <InfoRow
+                    label={{ en: "From", fr: "Du" }}
+                    value={data.stay.checkIn}
+                  />
                   <InfoRow
                     label={{ en: "Check-in from", fr: "À partir de" }}
                     value={data.stay.checkInTime}
                   />
                 </View>
                 <View style={{ flexDirection: "row", gap: GAP }}>
-                  <InfoRow label={{ en: "To", fr: "Au" }} value={data.stay.checkOut} />
                   <InfoRow
-                    label={{ en: "Check-out no later than", fr: "Départ au plus tard à" }}
+                    label={{ en: "To", fr: "Au" }}
+                    value={data.stay.checkOut}
+                  />
+                  <InfoRow
+                    label={{
+                      en: "Check-out no later than",
+                      fr: "Départ au plus tard à",
+                    }}
                     value={data.stay.checkOutTime}
                   />
                 </View>
@@ -907,7 +1029,11 @@ export function ContratLocationSaisonniere({
             </View>
           ) : null}
           <View style={[h.card, { flex: 1 }]}>
-            <Cap en="Excluded charges" fr="Charges non incluses" italicFr={false} />
+            <Cap
+              en="Excluded charges"
+              fr="Charges non incluses"
+              italicFr={false}
+            />
             <View style={{ marginTop: LABEL_GAP, gap: PAIR_GAP }}>
               {(data.clauses.chargesExcluded?.en ?? []).map((item, i) => (
                 <Text key={i} style={h.paraEn}>
@@ -952,21 +1078,39 @@ export function ContratLocationSaisonniere({
         <View style={[h.card, { marginTop: GAP }]} wrap={false}>
           <Cap en="Transfer details" fr="Détails de virement" />
           <View style={{ marginTop: GAP }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", gap: GAP }}>
-              <InfoRow label={{ en: "Bank", fr: "Banque" }} value={a.bankName} />
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                gap: GAP,
+              }}
+            >
+              <InfoRow
+                label={{ en: "Bank", fr: "Banque" }}
+                value={a.bankName}
+              />
               <InfoRow
                 label={{ en: "Account name", fr: "Nom du bénéficiaire" }}
                 value={a.bankAccountName}
               />
             </View>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", gap: GAP }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                gap: GAP,
+              }}
+            >
               <InfoRow label={{ en: "IBAN" }} value={a.bankIban} />
               <InfoRow label={{ en: "BIC" }} value={a.bankBic} />
             </View>
           </View>
         </View>
 
-        <SubHeading en="Important security notice" fr="Avis de sécurité important" />
+        <SubHeading
+          en="Important security notice"
+          fr="Avis de sécurité important"
+        />
         <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.securityNotice} />
         </View>
@@ -1043,7 +1187,10 @@ export function ContratLocationSaisonniere({
           </Text>
         ) : null}
 
-        <TitledBlock en="Security deposit amount" fr="Montant du dépôt de garantie">
+        <TitledBlock
+          en="Security deposit amount"
+          fr="Montant du dépôt de garantie"
+        >
           <View style={{ marginTop: GAP }} wrap={false}>
             <MoneyRow
               en="Security deposit"
@@ -1102,7 +1249,10 @@ export function ContratLocationSaisonniere({
           <Prose clause={data.clauses.liability} />
         </View>
 
-        <SubHeading en="5.6 Additional services" fr="Prestations complémentaires" />
+        <SubHeading
+          en="5.6 Additional services"
+          fr="Prestations complémentaires"
+        />
         <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.additionalServices} />
         </View>
@@ -1115,14 +1265,23 @@ export function ContratLocationSaisonniere({
           <Prose clause={data.clauses.nonCircumvention} />
         </View>
 
-        <Section en="6 - Cancellation conditions" fr="Conditions d'annulation" />
+        <Section
+          en="6 - Cancellation conditions"
+          fr="Conditions d'annulation"
+        />
         <Prose clause={data.clauses.cancellationIntro} />
-        <SubHeading en="6.1 Cancellation by the Tenant" fr="Annulation par le locataire" />
+        <SubHeading
+          en="6.1 Cancellation by the Tenant"
+          fr="Annulation par le locataire"
+        />
         <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.cancellationTenant} />
         </View>
 
-        <SubHeading en="6.2 Cancellation by the Owner" fr="Annulation par le propriétaire" />
+        <SubHeading
+          en="6.2 Cancellation by the Owner"
+          fr="Annulation par le propriétaire"
+        />
         <View style={{ marginTop: GAP }}>
           <Prose clause={data.clauses.cancellationOwner} />
         </View>
@@ -1229,7 +1388,6 @@ export function ContratLocationSaisonniere({
           frenchOnly={frenchOnly}
         />
       </Page>
-      </FrenchOnly.Provider>
     </Document>
   );
 }

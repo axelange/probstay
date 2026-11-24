@@ -620,16 +620,6 @@ export type AgencyIdentity = {
 };
 
 /**
- * Whether the document is set in French alone.
- *
- * A context rather than a prop on every heading, caption and box: the choice
- * is the document's, made once, and a label that forgot to pass it on would
- * print English in the middle of a French contract. Off unless a document
- * provides it, so every other template is untouched.
- */
-export const FrenchOnly = React.createContext(false);
-
-/**
  * A heading in French alone, keeping the number its English half carries.
  *
  * The headings are written "4.1 Duration" + "Durée": the numbering sits in the
@@ -651,12 +641,14 @@ export function Cap({
   en,
   fr,
   italicFr = true,
+  frenchOnly = false,
 }: {
   en: string;
   fr?: string;
   italicFr?: boolean;
+  /** Set the label in French alone — the document's choice, passed down. */
+  frenchOnly?: boolean;
 }) {
-  const frenchOnly = React.useContext(FrenchOnly);
   if (frenchOnly) return <Text style={h.cap}>{fr ?? en}</Text>;
   if (!fr) return <Text style={h.cap}>{en}</Text>;
   return (
@@ -678,6 +670,7 @@ export function Section({
   tight,
   stacked,
   children,
+  frenchOnly = false,
 }: {
   en: string;
   fr?: string;
@@ -701,8 +694,9 @@ export function Section({
    * much the block needs. Omit for a section that opens on long prose.
    */
   children?: React.ReactNode;
+  /** Set the label in French alone — the document's choice, passed down. */
+  frenchOnly?: boolean;
 }) {
-  const frenchOnly = React.useContext(FrenchOnly);
   if (frenchOnly) {
     en = frenchHeading(en, fr);
     fr = undefined;
@@ -721,7 +715,9 @@ export function Section({
       <View style={stacked ? undefined : h.sectionRow}>
         <Text style={h.sectionEn}>{en}</Text>
         {fr ? (
-          <Text style={stacked ? [h.sectionFr, h.sectionFrStacked] : h.sectionFr}>
+          <Text
+            style={stacked ? [h.sectionFr, h.sectionFrStacked] : h.sectionFr}
+          >
             {fr}
           </Text>
         ) : null}
@@ -741,12 +737,14 @@ export function Tick({
   en,
   fr,
   checked,
+  frenchOnly = false,
 }: {
   en: string;
   fr: string;
   checked?: boolean;
+  /** Set the label in French alone — the document's choice, passed down. */
+  frenchOnly?: boolean;
 }) {
-  const frenchOnly = React.useContext(FrenchOnly);
   return (
     <View style={h.tickRow}>
       <View style={h.tickBox}>
@@ -782,6 +780,7 @@ export function TitledBlock({
   first,
   tight,
   breakable,
+  frenchOnly = false,
   children,
 }: {
   en: string;
@@ -800,6 +799,8 @@ export function TitledBlock({
    * allowed to break, and only the pieces that must stay together are bound.
    */
   breakable?: boolean;
+  /** Set the heading in French alone — the document's choice, passed down. */
+  frenchOnly?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -818,6 +819,7 @@ export function TitledBlock({
         first={first}
         tight={tight}
         guard={breakable ?? false}
+        frenchOnly={frenchOnly}
       />
       {children}
     </View>
@@ -838,6 +840,7 @@ export function SubHeading({
   first,
   tight,
   guard = true,
+  frenchOnly = false,
 }: {
   en: string;
   fr?: string;
@@ -850,8 +853,9 @@ export function SubHeading({
    * then asks for room the pair does not need, and costs a page.
    */
   guard?: boolean;
+  /** Set the label in French alone — the document's choice, passed down. */
+  frenchOnly?: boolean;
 }) {
-  const frenchOnly = React.useContext(FrenchOnly);
   if (frenchOnly) {
     en = frenchHeading(en, fr);
     fr = undefined;
