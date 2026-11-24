@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
+import { MandateForm } from "@/features/documents/components/mandate-form";
 import { AgentContractForm } from "@/features/documents/components/agent-contract-form";
 import { getConciergeData } from "@/features/documents/actions/get-concierge-data";
 import { getContratData } from "@/features/documents/actions/get-contrat-data";
@@ -41,6 +42,10 @@ import {
   ContratAgentCommercial,
   type AgentContractData,
 } from "@/features/documents/templates/contrat-agent-commercial";
+import {
+  MandatGestionLocative,
+  type MandateData,
+} from "@/features/documents/templates/mandat-gestion-locative";
 import { documentFileName } from "@/features/documents/reference";
 import type { DocumentType } from "@/features/documents/services/document-readiness";
 
@@ -56,6 +61,7 @@ const DOC_TYPES = [
   { value: "CONFIRMATION", label: "Confirmation de location (propriétaire)" },
   { value: "CONCIERGERIE", label: "Contrat de Property Management" },
   { value: "AGENT", label: "Contrat d'agent commercial" },
+  { value: "MANDAT", label: "Mandat de gestion locative" },
 ];
 
 /** The agreement is set in both languages, or in French alone. */
@@ -109,8 +115,8 @@ async function photoDataUrl(file: File): Promise<string | null> {
  * (property, contacts, dates, amounts). The same template renders here and
  * on the server, so the preview is the final document.
  */
-/** The documents the preview can draw, including the two with no rental. */
-type PreviewType = DocumentType | "CONCIERGERIE" | "AGENT";
+/** The documents the preview can draw, including those with no rental. */
+type PreviewType = DocumentType | "CONCIERGERIE" | "AGENT" | "MANDAT";
 
 export default function ContratPreview({
   rentals,
@@ -163,6 +169,8 @@ export default function ContratPreview({
   // back only the assembled contract — see AgentContractForm.
   const [agentContract, setAgentContract] =
     React.useState<AgentContractData | null>(null);
+  // The rental management mandate does the same — see MandateForm.
+  const [mandate, setMandate] = React.useState<MandateData | null>(null);
 
   // Both documents are driven by the selected rental; fetch the one on screen.
   // The render guards on `!rentalId`, so no synchronous reset is needed here.
@@ -227,17 +235,21 @@ export default function ContratPreview({
   ]);
 
   const data =
-    docType === "AGENT"
-      ? agentContract
-      : docType === "CONCIERGERIE"
-        ? concierge
-        : docType === "CONFIRMATION"
-          ? confirmation
-          : contrat;
+    docType === "MANDAT"
+      ? mandate
+      : docType === "AGENT"
+        ? agentContract
+        : docType === "CONCIERGERIE"
+          ? concierge
+          : docType === "CONFIRMATION"
+            ? confirmation
+            : contrat;
 
   // The same element the viewer shows, so the saved file is the preview.
   const doc =
-    docType === "AGENT" ? (
+    docType === "MANDAT" ? (
+      <MandatGestionLocative data={mandate!} />
+    ) : docType === "AGENT" ? (
       <ContratAgentCommercial data={agentContract!} />
     ) : docType === "CONCIERGERIE" ? (
       <ContratConciergerie data={concierge!} />
@@ -251,17 +263,21 @@ export default function ContratPreview({
     );
 
   const fileName =
-    docType === "AGENT"
-      ? agentContract
-        ? `Contrat agent commercial — ${agentContract.agentName}.pdf`
+    docType === "MANDAT"
+      ? mandate
+        ? `Mandat de gestion locative — ${mandate.owner.name}.pdf`
         : ""
-      : docType === "CONCIERGERIE"
-        ? concierge
-          ? `Contrat Property Management — ${concierge.client.name}.pdf`
+      : docType === "AGENT"
+        ? agentContract
+          ? `Contrat agent commercial — ${agentContract.agentName}.pdf`
           : ""
-        : data && "tenant" in data
-          ? documentFileName(docType, data.reference, data.tenant.name)
-          : "";
+        : docType === "CONCIERGERIE"
+          ? concierge
+            ? `Contrat Property Management — ${concierge.client.name}.pdf`
+            : ""
+          : data && "tenant" in data
+            ? documentFileName(docType, data.reference, data.tenant.name)
+            : "";
 
   const [isSaving, setIsSaving] = React.useState(false);
 
@@ -306,6 +322,7 @@ export default function ContratPreview({
               // The agent form starts empty each time it is opened, so the
               // contract drawn from its last visit must not outlive it.
               setAgentContract(null);
+              setMandate(null);
             }}
             items={DOC_TYPES}
           >
@@ -322,7 +339,14 @@ export default function ContratPreview({
           </Select>
         </div>
 
-        {docType === "AGENT" ? (
+        {docType === "MANDAT" ? (
+          <MandateForm
+            contacts={contacts}
+            properties={properties}
+            startTransition={startTransition}
+            onData={setMandate}
+          />
+        ) : docType === "AGENT" ? (
           <AgentContractForm
             contacts={contacts}
             startTransition={startTransition}
@@ -710,7 +734,11 @@ export default function ContratPreview({
       </div>
 
       <div className="bg-muted/30 h-[82vh] overflow-hidden rounded-lg border">
-        {docType === "AGENT" && !agentContract && !isPending ? (
+        {docType === "MANDAT" && !mandate && !isPending ? (
+          <div className="text-muted-foreground p-8 text-sm">
+            Choisissez un bien ou un propriétaire pour prévisualiser le mandat.
+          </div>
+        ) : docType === "AGENT" && !agentContract && !isPending ? (
           <div className="text-muted-foreground p-8 text-sm">
             Choisissez un contact, ou saisissez l&apos;agent à la main, pour
             prévisualiser le contrat.
@@ -719,7 +747,10 @@ export default function ContratPreview({
           <div className="text-muted-foreground p-8 text-sm">
             Choisissez un client pour prévisualiser le contrat.
           </div>
-        ) : docType !== "CONCIERGERIE" && docType !== "AGENT" && !rentalId ? (
+        ) : docType !== "CONCIERGERIE" &&
+          docType !== "AGENT" &&
+          docType !== "MANDAT" &&
+          !rentalId ? (
           <div className="text-muted-foreground p-8 text-sm">
             Choisissez une location pour prévisualiser le document.
           </div>

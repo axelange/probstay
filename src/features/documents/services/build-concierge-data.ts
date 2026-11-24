@@ -12,7 +12,7 @@ import {
   ARTICLES_HEYMANN,
   HEYMANN_SERVICES,
 } from "@/features/documents/concierge-clauses-heymann";
-import { apimoImageWidth } from "@/features/properties/utils/apimo-image";
+import { servedApimoImage } from "@/features/properties/utils/apimo-image";
 import {
   servicesFor,
   TIERS,
@@ -288,10 +288,15 @@ export async function buildConciergeData(
         [clean(p.address), [p.zipcode, p.city].filter(Boolean).join(" ")]
           .filter(Boolean)
           .join(", ") || undefined,
-      photos: p.pictures.map((pic, i) =>
-        apimoImageWidth(
-          pic.url,
-          i === 0 ? COVER_HERO_WIDTH : COVER_THUMB_WIDTH,
+      // Each width is checked first, as the rental agreement's cover does:
+      // APIMO does not serve every width for every picture, and a missing one
+      // would leave the cover without its photograph.
+      photos: await Promise.all(
+        p.pictures.map((pic, i) =>
+          servedApimoImage(
+            pic.url,
+            i === 0 ? COVER_HERO_WIDTH : COVER_THUMB_WIDTH,
+          ),
         ),
       ),
       details: [
