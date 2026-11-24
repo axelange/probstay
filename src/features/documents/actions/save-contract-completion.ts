@@ -43,6 +43,7 @@ const companyBlock = z.object({
   repFirstName: optionalText(120),
   repLastName: optionalText(120),
   repCapacity: optionalText(120),
+  repCapacityEn: optionalText(120),
 });
 
 /**
@@ -55,7 +56,11 @@ const schema = z.object({
   rentalId: z.uuid(),
   tenant: z.object({
     firstName: optionalText(120),
-    lastName: z.string().trim().min(1, "Le nom du locataire est obligatoire.").max(160),
+    lastName: z
+      .string()
+      .trim()
+      .min(1, "Le nom du locataire est obligatoire.")
+      .max(160),
     phone: optionalText(40),
     address: optionalText(300),
     birthDate: optionalDate,
@@ -91,11 +96,10 @@ const schema = z.object({
 });
 
 export type SaveContractCompletionResult =
-  | { status: "success" }
-  | { status: "error"; message: string };
+  { status: "success" } | { status: "error"; message: string };
 
 export async function saveContractCompletion(
-  input: unknown
+  input: unknown,
 ): Promise<SaveContractCompletionResult> {
   const user = await getCurrentUser();
   if (!user) return { status: "error", message: "Session expirée." };
@@ -131,13 +135,15 @@ export async function saveContractCompletion(
       },
     },
   });
-  if (!rental) return { status: "error", message: "Cette location n'existe plus." };
+  if (!rental)
+    return { status: "error", message: "Cette location n'existe plus." };
   if (!canManageRental(user, rental)) {
     return { status: "error", message: "Vous ne gérez pas ce bien." };
   }
 
   const tenant = rental.tenants[0]?.contact;
-  if (!tenant) return { status: "error", message: "Aucun locataire principal." };
+  if (!tenant)
+    return { status: "error", message: "Aucun locataire principal." };
   const ownerContact = rental.owner ?? rental.property.owner;
 
   const t = data.tenant;
@@ -175,6 +181,7 @@ export async function saveContractCompletion(
     repFirstName: c.repFirstName ?? null,
     repLastName: c.repLastName ?? null,
     repCapacity: c.repCapacity ?? null,
+    repCapacityEn: c.repCapacityEn ?? null,
   });
 
   try {
@@ -193,11 +200,7 @@ export async function saveContractCompletion(
       // An individual owner's contact block. Name follows the APIMO rule
       // (locked when synced); address is BSTAY's own; email/phone are
       // completable and survive a sync that carries none.
-      if (
-        data.owner &&
-        ownerContact &&
-        ownerContact.kind === "INDIVIDUAL"
-      ) {
+      if (data.owner && ownerContact && ownerContact.kind === "INDIVIDUAL") {
         const ownerLocked = ownerContact.apimoId !== null;
         await tx.contact.update({
           where: { id: ownerContact.id },

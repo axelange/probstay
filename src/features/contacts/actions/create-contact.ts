@@ -24,7 +24,7 @@ export type CreateContactResult =
  * matching rule agreed first.
  */
 export async function createContact(
-  input: unknown
+  input: unknown,
 ): Promise<CreateContactResult> {
   const user = await getCurrentUser();
   if (!user) {
@@ -89,7 +89,8 @@ export async function createContact(
         types,
         kind,
         // Civil identity — only for an individual.
-        birthDate: !isCompany && data.birthDate ? new Date(data.birthDate) : null,
+        birthDate:
+          !isCompany && data.birthDate ? new Date(data.birthDate) : null,
         birthCountry: isCompany ? null : (data.birthCountry ?? null),
         birthCity: isCompany ? null : (data.birthCity ?? null),
         // An array column, so the empty case is [] and never null.
@@ -116,6 +117,7 @@ export async function createContact(
                   repFirstName: data.repFirstName ?? null,
                   repLastName: data.repLastName ?? null,
                   repCapacity: data.repCapacity ?? null,
+                  repCapacityEn: data.repCapacityEn ?? null,
                   repBirthDate: data.repBirthDate
                     ? new Date(data.repBirthDate)
                     : null,

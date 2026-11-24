@@ -11,6 +11,7 @@ export type CompanyBlock = {
   repFirstName: string | null;
   repLastName: string | null;
   repCapacity: string | null;
+  repCapacityEn: string | null;
 };
 
 type Party = {
@@ -50,6 +51,7 @@ const companySelect = {
     repFirstName: true,
     repLastName: true,
     repCapacity: true,
+    repCapacityEn: true,
   },
 } as const;
 
@@ -100,7 +102,7 @@ const party = (c: PartyRow): Party => ({
  */
 export async function buildCompletionData(
   rentalId: string,
-  user: CurrentUser
+  user: CurrentUser,
 ): Promise<CompletionData | null> {
   const rental = await prisma.rental.findFirst({
     where: { id: rentalId, archivedAt: null },

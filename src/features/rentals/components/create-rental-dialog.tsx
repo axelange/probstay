@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { BilingualField } from "@/features/contacts/components/bilingual-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ContactKind } from "@/generated/prisma/enums";
@@ -37,7 +38,6 @@ export type TenantCandidate = {
   types: string[];
 };
 
-
 function tenantLabel(t: TenantCandidate): string {
   const name = [t.firstName, t.lastName].filter(Boolean).join(" ");
   return t.email ? `${name} — ${t.email}` : name;
@@ -55,6 +55,7 @@ const EMPTY_NEW = {
   repFirstName: "",
   repLastName: "",
   repCapacity: "",
+  repCapacityEn: "",
   repBirthDate: "",
   repBirthCountry: "",
   repBirthCity: "",
@@ -73,7 +74,7 @@ export function CreateRentalDialog({
   // No contact yet on file is the very case this exists for, so an empty
   // candidate list starts on the "new tenant" tab.
   const [tenantMode, setTenantMode] = React.useState<"existing" | "new">(
-    tenants.length > 0 ? "existing" : "new"
+    tenants.length > 0 ? "existing" : "new",
   );
   const [tenantId, setTenantId] = React.useState("");
   const [newTenant, setNewTenant] = React.useState(EMPTY_NEW);
@@ -205,7 +206,10 @@ export function CreateRentalDialog({
                       className="size-4 cursor-pointer"
                       checked={tenantMode === mode}
                       onChange={() => setTenantMode(mode)}
-                      disabled={isPending || (mode === "existing" && tenants.length === 0)}
+                      disabled={
+                        isPending ||
+                        (mode === "existing" && tenants.length === 0)
+                      }
                     />
                     {label}
                   </label>
@@ -336,19 +340,16 @@ export function CreateRentalDialog({
                             autoComplete="off"
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="nt-repcap">Qualité</Label>
-                          <Input
-                            id="nt-repcap"
-                            placeholder="Gérant, Président…"
-                            value={newTenant.repCapacity}
-                            onChange={(e) =>
-                              setNt("repCapacity", e.target.value)
-                            }
-                            disabled={isPending}
-                            autoComplete="off"
-                          />
-                        </div>
+                        <BilingualField
+                          id="nt-repcap"
+                          label="Qualité"
+                          placeholder="Gérant, Président…"
+                          fr={newTenant.repCapacity}
+                          en={newTenant.repCapacityEn}
+                          onChangeFr={(v) => setNt("repCapacity", v)}
+                          onChangeEn={(v) => setNt("repCapacityEn", v)}
+                          disabled={isPending}
+                        />
                         <div className="space-y-2">
                           <Label htmlFor="nt-repbirth">Naissance</Label>
                           <Input

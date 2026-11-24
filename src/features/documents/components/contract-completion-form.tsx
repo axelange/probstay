@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CircleAlert, CircleCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { BilingualField } from "@/features/contacts/components/bilingual-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -47,7 +48,7 @@ export function ContractCompletionForm({
 
   // Apart from `form`, which holds strings — see the note in the contact form.
   const [nationalities, setNationalities] = React.useState<string[]>(
-    t.nationalities
+    t.nationalities,
   );
 
   const [form, setForm] = React.useState({
@@ -67,6 +68,7 @@ export function ContractCompletionForm({
     repFirstName: t.company?.repFirstName ?? "",
     repLastName: t.company?.repLastName ?? "",
     repCapacity: t.company?.repCapacity ?? "",
+    repCapacityEn: t.company?.repCapacityEn ?? "",
     // Owner — individual contact block.
     oFirstName: data.owner?.firstName ?? "",
     oLastName: data.owner?.lastName ?? "",
@@ -80,6 +82,7 @@ export function ContractCompletionForm({
     oRepFirstName: data.owner?.company?.repFirstName ?? "",
     oRepLastName: data.owner?.company?.repLastName ?? "",
     oRepCapacity: data.owner?.company?.repCapacity ?? "",
+    oRepCapacityEn: data.owner?.company?.repCapacityEn ?? "",
   });
   const [isPending, startTransition] = React.useTransition();
   const set = (k: keyof typeof form, v: string) =>
@@ -116,6 +119,7 @@ export function ContractCompletionForm({
                   repFirstName: form.repFirstName,
                   repLastName: form.repLastName,
                   repCapacity: form.repCapacity,
+                  repCapacityEn: form.repCapacityEn,
                 },
               }
             : {}),
@@ -140,6 +144,7 @@ export function ContractCompletionForm({
                 repFirstName: form.oRepFirstName,
                 repLastName: form.oRepLastName,
                 repCapacity: form.oRepCapacity,
+                repCapacityEn: form.oRepCapacityEn,
               },
             }
           : {}),
@@ -162,7 +167,7 @@ export function ContractCompletionForm({
       placeholder?: string;
       mono?: boolean;
       disabled?: boolean;
-    } = {}
+    } = {},
   ) => (
     <div className="space-y-1.5">
       <Label htmlFor={`cc-${id}`} className="text-xs">
@@ -183,6 +188,28 @@ export function ContractCompletionForm({
         ].join(" ")}
       />
     </div>
+  );
+
+  // The representative's capacity, in the two languages the contact page
+  // keeps it in — the same field, so the same pair of values.
+  const capacity = (
+    key: string,
+    fr: keyof typeof form,
+    en: keyof typeof form,
+  ) => (
+    <BilingualField
+      id={`cc-${fr}`}
+      label="Qualité"
+      placeholder="Gérant, Président…"
+      fr={form[fr]}
+      en={form[en]}
+      onChangeFr={(v) => set(fr, v)}
+      onChangeEn={(v) => set(en, v)}
+      disabled={isPending}
+      className="space-y-1.5"
+      labelClassName="text-xs"
+      inputClassName={`h-8 text-sm ${missCls(key)}`}
+    />
   );
 
   return (
@@ -254,20 +281,18 @@ export function ContractCompletionForm({
               "tenant.registrationNumber",
               "registrationNumber",
               "N° d'immatriculation",
-              { mono: true }
+              { mono: true },
             )}
             <div className="sm:col-span-2">
               {field(
                 "tenant.registeredOffice",
                 "registeredOffice",
-                "Siège social"
+                "Siège social",
               )}
             </div>
             {field("tenant.rep", "repFirstName", "Représentant — prénom")}
             {field("tenant.rep", "repLastName", "Représentant — nom")}
-            {field("tenant.repCapacity", "repCapacity", "Qualité", {
-              placeholder: "Gérant, Président…",
-            })}
+            {capacity("tenant.repCapacity", "repCapacity", "repCapacityEn")}
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -306,12 +331,18 @@ export function ContractCompletionForm({
               <Select
                 value={form.idDocType || null}
                 onValueChange={(v) => v !== null && set("idDocType", v)}
-                items={PERSON_ID_DOC_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+                items={PERSON_ID_DOC_TYPES.map((t) => ({
+                  value: t.value,
+                  label: t.label,
+                }))}
                 disabled={isPending}
               >
                 <SelectTrigger
                   id="cc-idDocType"
-                  className={["h-8 w-full text-sm", missCls("tenant.idDocType")].join(" ")}
+                  className={[
+                    "h-8 w-full text-sm",
+                    missCls("tenant.idDocType"),
+                  ].join(" ")}
                 >
                   <SelectValue placeholder="Choisir…" />
                 </SelectTrigger>
@@ -351,20 +382,18 @@ export function ContractCompletionForm({
                 "owner.registrationNumber",
                 "oRegistrationNumber",
                 "N° d'immatriculation",
-                { mono: true }
+                { mono: true },
               )}
               <div className="sm:col-span-2">
                 {field(
                   "owner.registeredOffice",
                   "oRegisteredOffice",
-                  "Siège social"
+                  "Siège social",
                 )}
               </div>
               {field("owner.rep", "oRepFirstName", "Représentant — prénom")}
               {field("owner.rep", "oRepLastName", "Représentant — nom")}
-              {field("owner.repCapacity", "oRepCapacity", "Qualité", {
-                placeholder: "Gérant, Président…",
-              })}
+              {capacity("owner.repCapacity", "oRepCapacity", "oRepCapacityEn")}
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -378,7 +407,9 @@ export function ContractCompletionForm({
                   onChange={(e) => set("oFirstName", e.target.value)}
                   disabled={isPending}
                   autoComplete="off"
-                  className={["h-8 text-sm", missCls("owner.firstName")].join(" ")}
+                  className={["h-8 text-sm", missCls("owner.firstName")].join(
+                    " ",
+                  )}
                 />
               </div>
               <div className="space-y-1.5">

@@ -29,6 +29,9 @@ export function BilingualField({
   onChangeEn,
   placeholder,
   disabled,
+  className,
+  labelClassName,
+  inputClassName,
 }: {
   id: string;
   label: string;
@@ -39,14 +42,20 @@ export function BilingualField({
   /** Shown for the French line only: the examples are French words. */
   placeholder?: string;
   disabled?: boolean;
+  /** For a form set tighter than a fiche: the wrapper, label and input. */
+  className?: string;
+  labelClassName?: string;
+  inputClassName?: string;
 }) {
   const [language, setLanguage] = React.useState<Language>("FR");
   const isFrench = language === "FR";
 
   return (
-    <div className="space-y-2">
+    <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={id}>{label}</Label>
+        <Label htmlFor={id} className={labelClassName}>
+          {label}
+        </Label>
         <div
           role="group"
           aria-label={`Langue du champ ${label}`}
@@ -82,6 +91,7 @@ export function BilingualField({
         }
         disabled={disabled}
         autoComplete="off"
+        className={inputClassName}
       />
     </div>
   );

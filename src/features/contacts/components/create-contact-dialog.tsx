@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createContact } from "@/features/contacts/actions/create-contact";
+import { BilingualField } from "@/features/contacts/components/bilingual-field";
 import {
   CONTACT_TYPES,
   contactTypeLabel,
@@ -44,6 +45,7 @@ const EMPTY = {
   repFirstName: "",
   repLastName: "",
   repCapacity: "",
+  repCapacityEn: "",
   repBirthDate: "",
   repBirthPlace: "",
   repNationality: "",
@@ -72,7 +74,7 @@ export function CreateContactDialog() {
     setSpecialties((current) =>
       current.includes(specialty)
         ? current.filter((s) => s !== specialty)
-        : [...current, specialty]
+        : [...current, specialty],
     );
   }
 
@@ -340,17 +342,16 @@ export function CreateContactDialog() {
                       autoComplete="off"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contact-repcap">Qualité</Label>
-                    <Input
-                      id="contact-repcap"
-                      placeholder="Gérant, Président…"
-                      value={form.repCapacity}
-                      onChange={(e) => set("repCapacity", e.target.value)}
-                      disabled={isPending}
-                      autoComplete="off"
-                    />
-                  </div>
+                  <BilingualField
+                    id="contact-repcap"
+                    label="Qualité"
+                    placeholder="Gérant, Président…"
+                    fr={form.repCapacity}
+                    en={form.repCapacityEn}
+                    onChangeFr={(v) => set("repCapacity", v)}
+                    onChangeEn={(v) => set("repCapacityEn", v)}
+                    disabled={isPending}
+                  />
                   <div className="space-y-2">
                     <Label htmlFor="contact-repbirth">Naissance</Label>
                     <Input
@@ -410,8 +411,8 @@ export function CreateContactDialog() {
             <fieldset className="space-y-2">
               <legend className="text-sm font-medium">Spécialités</legend>
               <p className="text-muted-foreground text-xs">
-                Le métier du contact. Facultatif — un propriétaire ou un
-                client n&apos;en a pas.
+                Le métier du contact. Facultatif — un propriétaire ou un client
+                n&apos;en a pas.
               </p>
               <div className="flex flex-wrap gap-x-3 gap-y-1.5">
                 {CONTACT_SPECIALTIES.map((specialty) => (

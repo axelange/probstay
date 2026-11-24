@@ -19,7 +19,7 @@ export type CreateRentalResult =
 /** Add CLIENT, drop PROSPECT (which cannot coexist), keep the rest. */
 function clientTypes(types: ContactType[]): ContactType[] {
   return Array.from(
-    new Set([...types.filter((t) => t !== "PROSPECT"), "CLIENT" as const])
+    new Set([...types.filter((t) => t !== "PROSPECT"), "CLIENT" as const]),
   );
 }
 
@@ -34,7 +34,7 @@ function clientTypes(types: ContactType[]): ContactType[] {
  * contract signature; the creating agent becomes the tenant-side agent.
  */
 export async function createRental(
-  input: unknown
+  input: unknown,
 ): Promise<CreateRentalResult> {
   const user = await getCurrentUser();
   if (!user) return { status: "error", message: "Session expirée." };
@@ -86,8 +86,7 @@ export async function createRental(
   //   new       -> a brand-new CLIENT contact
   const tenant = data.tenant;
   let resolved:
-    | { kind: "promote"; id: string; types: ContactType[] }
-    | { kind: "create" };
+    { kind: "promote"; id: string; types: ContactType[] } | { kind: "create" };
 
   if (tenant.mode === "existing") {
     const contact = await prisma.contact.findFirst({
@@ -156,6 +155,7 @@ export async function createRental(
                       repFirstName: t.repFirstName ?? null,
                       repLastName: t.repLastName ?? null,
                       repCapacity: t.repCapacity ?? null,
+                      repCapacityEn: t.repCapacityEn ?? null,
                       repBirthDate: t.repBirthDate
                         ? new Date(t.repBirthDate)
                         : null,
@@ -189,7 +189,9 @@ export async function createRental(
           securityDepositAmount: property.defaultSecurityDeposit,
           checkIn: new Date(data.checkIn),
           checkOut: new Date(data.checkOut),
-          tenants: { create: [{ contactId: tenantContactId, isPrimary: true }] },
+          tenants: {
+            create: [{ contactId: tenantContactId, isPrimary: true }],
+          },
         },
         select: { id: true },
       });
