@@ -1,6 +1,5 @@
 import { enFr } from "@/features/documents/bilingual-text";
 import "server-only";
-import { birthPlaceLabel, nationalitiesLabel } from "@/lib/countries";
 
 import type { CurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
@@ -9,7 +8,6 @@ import { getAgency } from "@/features/documents/agency";
 import { documentReference } from "@/features/documents/reference";
 import { currentTemplateClauses } from "@/features/documents/services/template-service";
 import { resolveClause } from "@/features/documents/template-clauses";
-import { idDocLabel } from "@/features/documents/identity";
 import type {
   ConfirmationData,
   Bilingual,
@@ -153,17 +151,8 @@ export async function buildConfirmationData(
               email: true,
               phone: true,
               address: true,
-              birthDate: true,
-              birthCountry: true,
-              birthCity: true,
-              nationalities: true,
-              idDocType: true,
-              idDocNumber: true,
               company: {
                 select: {
-                  legalForm: true,
-                  registrationNumber: true,
-                  registeredOffice: true,
                   repFirstName: true,
                   repLastName: true,
                   repCapacity: true,
@@ -357,37 +346,16 @@ export async function buildConfirmationData(
   const ownerName =
     owner?.kind === "COMPANY" ? owner.lastName : fullName(owner);
 
-  // Tenant identity as labelled rows (individual: born/nationality/ID; company:
-  // legal form/registration/office/representative).
-  const co = tenant?.company ?? null;
-  const tenantDetails: { label: Bilingual; value: string }[] = [];
-  let tenantName = fullName(tenant);
-  if (tenant?.kind === "COMPANY") {
-    tenantName = tenant.lastName;
-    if (co?.legalForm)
-      tenantDetails.push({ label: { en: "Legal form", fr: "Forme sociale" }, value: co.legalForm });
-    if (co?.registrationNumber)
-      tenantDetails.push({ label: { en: "Registration", fr: "Immatriculation" }, value: `n° ${co.registrationNumber}` });
-    if (co?.registeredOffice)
-      tenantDetails.push({ label: { en: "Registered office", fr: "Siège social" }, value: co.registeredOffice });
-    const rep = co ? [co.repFirstName, co.repLastName].filter(Boolean).join(" ") : "";
-    if (rep)
-      tenantDetails.push({ label: { en: "Represented by", fr: "Représenté par" }, value: co?.repCapacity ? `${rep}, ${enFr(co.repCapacity, co.repCapacityEn)}` : rep });
-  } else if (tenant) {
-    const birthPlace = birthPlaceLabel(tenant.birthCity, tenant.birthCountry);
-    if (tenant.birthDate)
-      tenantDetails.push({
-        label: { en: "Born in", fr: "Né(e) le" },
-        value: birthPlace
-          ? `${shortDate(tenant.birthDate)}, ${birthPlace}`
-          : shortDate(tenant.birthDate),
-      });
-    const nationalities = nationalitiesLabel(tenant.nationalities);
-    if (nationalities)
-      tenantDetails.push({ label: { en: "Nationality", fr: "Nationalité" }, value: nationalities });
-    if (tenant.idDocType && tenant.idDocNumber)
-      tenantDetails.push({ label: idDocLabel(tenant.idDocType), value: `n° ${tenant.idDocNumber}` });
-  }
+  // The tenant is named and nothing more: a person by first and last name, a
+  // company by its name and its legal representative's. The rest of their
+  // identity belongs to the tenant's own contract, not to the owner's copy.
+  const isCompanyTenant = tenant?.kind === "COMPANY";
+  const tenantName = isCompanyTenant ? tenant.lastName : fullName(tenant);
+  const tenantRep = isCompanyTenant
+    ? [tenant.company?.repFirstName, tenant.company?.repLastName]
+        .filter(Boolean)
+        .join(" ") || undefined
+    : undefined;
 
   // The wording comes from the current template version when one exists, and
   // from the shipped defaults otherwise. The Confirmation's clauses carry no
@@ -414,7 +382,7 @@ export async function buildConfirmationData(
       representedBy: ownerRep(owner),
       contact: contactLine(owner),
     },
-    tenant: { name: tenantName, details: tenantDetails },
+    tenant: { name: tenantName, representedBy: tenantRep },
     property: {
       name: p.marketingName ?? "Le bien loué",
       address:

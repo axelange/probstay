@@ -174,11 +174,6 @@ export const sampleConfirmation: ConfirmationData = {
   },
   tenant: {
     name: "Mme Lucie DUBOIS",
-    details: [
-      { label: { en: "Born in", fr: "Né(e) le" }, value: "10/12/1995, Cannes" },
-      { label: { en: "Nationality", fr: "Nationalité" }, value: "Française" },
-      { label: { en: "ID card", fr: "CNI" }, value: "n° 22HB032" },
-    ],
   },
   property: {
     name: "Villa Solea",

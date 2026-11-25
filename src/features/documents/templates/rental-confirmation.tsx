@@ -47,7 +47,8 @@ export type ConfirmationData = {
   };
   tenant: {
     name: string;
-    details: { label: Bilingual; value: string }[];
+    /** A company's legal representative, first and last name. */
+    representedBy?: string;
   };
   property: {
     name: string;
@@ -390,19 +391,12 @@ export function RentalConfirmation({ data }: { data: ConfirmationData }) {
           <View style={[h.card, { flex: 1 }]}>
             <Cap en="Tenant" fr="Locataire" italicFr={false} />
             <Text style={h.name}>{data.tenant.name}</Text>
-            {data.tenant.details.length > 0 ? (
+            {data.tenant.representedBy ? (
               <View style={{ marginTop: GAP }}>
-                <Cap en="Informations" />
-                {data.tenant.details.map((d, i) => (
-                  // Label as a direct child: the row aligns on baselines and
-                  // only a Text has one. See the note on the contract's
-                  // InfoRow, which carried the same wrapper and the same
-                  // floating value.
-                  <View key={i} style={h.infoRow}>
-                    <Cap en={d.label.en} fr={d.label.fr} />
-                    <Text style={h.infoValue}>{d.value}</Text>
-                  </View>
-                ))}
+                <Cap en="Represented by" fr="Représenté par" />
+                <Text style={[s.detailVal, { marginTop: LABEL_GAP }]}>
+                  {data.tenant.representedBy}
+                </Text>
               </View>
             ) : null}
           </View>
