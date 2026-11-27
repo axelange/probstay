@@ -17,6 +17,7 @@ import type { PickerOption } from "@/features/documents/components/contrat-previ
 import { MandateEquipmentDialog } from "@/features/documents/components/mandate-equipment-dialog";
 import {
   MANDATE_OWNERSHIP,
+  MANDATE_FEES_PAYERS,
   MANDATE_PETS,
   MANDATE_PROPERTY_KINDS,
   MANDATE_SERVICES,
@@ -53,6 +54,11 @@ const PROPERTY_KINDS = MANDATE_PROPERTY_KINDS.map((k) => ({
 }));
 
 const PETS = MANDATE_PETS.map((p) => ({ value: p.key, label: p.fr }));
+
+const FEES_PAYERS = MANDATE_FEES_PAYERS.map((p) => ({
+  value: p.key,
+  label: p.label,
+}));
 
 const OWNERSHIP = MANDATE_OWNERSHIP.map((o) => ({
   value: o.key,
@@ -146,6 +152,8 @@ export function MandateForm({
   const [smoking, setSmoking] = React.useState(false);
   const [bailiff, setBailiff] = React.useState(true);
   const [pets, setPets] = React.useState<MandateInput["pets"]>("NO");
+  const [feesPayer, setFeesPayer] =
+    React.useState<MandateInput["feesPayer"]>("OWNER");
   const [place, setPlace] = React.useState("Cannes");
   const [signatureDate, setSignatureDate] = React.useState(today);
   const [bilingual, setBilingual] = React.useState(true);
@@ -177,6 +185,7 @@ export function MandateForm({
             smoking,
             bailiff,
             pets,
+            feesPayer,
             place,
             signatureDate,
             bilingual,
@@ -203,6 +212,7 @@ export function MandateForm({
     smoking,
     bailiff,
     pets,
+    feesPayer,
     place,
     signatureDate,
     bilingual,
@@ -589,6 +599,28 @@ export function MandateForm({
           </Select>
         </div>
       </fieldset>
+
+      <div className="space-y-2">
+        <Label htmlFor="md-fees-payer">
+          Honoraires à la charge du (art. 6)
+        </Label>
+        <Select
+          value={feesPayer}
+          onValueChange={(v) => v !== null && setFeesPayer(v)}
+          items={FEES_PAYERS}
+        >
+          <SelectTrigger id="md-fees-payer" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {FEES_PAYERS.map((p) => (
+              <SelectItem key={p.value} value={p.value}>
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="md-pricing">Grille tarifaire (annexe 1)</Label>

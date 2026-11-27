@@ -15,6 +15,7 @@ import {
   MANDATE_OWNERSHIP,
   MANDATE_PROPERTY_KINDS,
   type MandateArticle,
+  type MandateCondition,
 } from "@/features/documents/mandate-clauses";
 import type { MandateInput } from "@/features/documents/schemas/mandate-schema";
 import type {
@@ -78,7 +79,7 @@ const oneLine = (...parts: (string | null | undefined)[]) =>
  */
 function fillArticles(
   values: Record<string, Bilingual>,
-  hasPool: boolean,
+  met: ReadonlySet<MandateCondition>,
 ): MandateArticle[] {
   const fill = (text: string, lang: "fr" | "en") =>
     text.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
@@ -90,7 +91,7 @@ function fillArticles(
       // Dropped here rather than hidden in the template: a clause the mandate
       // does not carry should not reach the component that draws it.
       .filter(
-        (blk) => !("onlyWhen" in blk) || blk.onlyWhen !== "pool" || hasPool,
+        (blk) => !("onlyWhen" in blk) || !blk.onlyWhen || met.has(blk.onlyWhen),
       )
       .map((blk) =>
         blk.kind === "p"
@@ -384,7 +385,10 @@ export async function buildMandateData(
         agentRep: { fr: representative, en: representative },
         agentCapacity: { fr: capacity, en: capacityEn },
       },
-      input.hasPool,
+      new Set<MandateCondition>([
+        ...(input.hasPool ? (["pool"] as const) : []),
+        input.feesPayer === "TENANT" ? "feesTenant" : "feesOwner",
+      ]),
     ),
     place: clean(input.place) ?? MISSING,
     signatureDate: shortDay(input.signatureDate) ?? MISSING,

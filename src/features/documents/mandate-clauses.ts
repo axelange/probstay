@@ -48,7 +48,7 @@ export type MandateSlot =
  * Article 9.4.2 has the owner attest that the pool carries a safety cover. An
  * owner whose property has no pool must not sign that.
  */
-export type MandateCondition = "pool";
+export type MandateCondition = "pool" | "feesOwner" | "feesTenant";
 
 export type MandateBlock =
   /** A numbered sub-section: "4.1 Tarifs de location" / "Rental pricing". */
@@ -112,6 +112,12 @@ export const MANDATE_OWNERSHIP = [
 ] as const;
 
 /** 4.4's answers on pets: the one line there with a third box. */
+/** Who bears the Agent's management fees — article 6 has a clause for each. */
+export const MANDATE_FEES_PAYERS = [
+  { key: "OWNER", label: "Propriétaire" },
+  { key: "TENANT", label: "Locataire" },
+] as const;
+
 export const MANDATE_PETS = [
   { key: "YES", fr: "Oui", en: "Yes" },
   { key: "NO", fr: "Non", en: "No" },
@@ -372,8 +378,10 @@ export const MANDATE_ARTICLES: MandateArticle[] = [
     n: 6,
     title: { fr: "Rémunération du Mandataire", en: "Agent’s fees" },
     blocks: [
+      // Who bears the fees is agreed owner by owner; one of the two follows.
       {
         kind: "p",
+        onlyWhen: "feesOwner",
         fr: [
           "En rémunération de sa mission, le Mandataire perçoit des honoraires de gestion égaux à **25 % HT (TVA en sus au taux en vigueur)** du montant des loyers encaissés, conformément à son barème d’honoraires en vigueur, annexé au présent mandat (Annexe 2). Ce taux est fixé pour toute la durée du mandat.",
           "Ces honoraires sont directement déduits des sommes encaissées pour le compte du Propriétaire et sont exigibles après encaissement effectif des loyers.",
@@ -381,6 +389,18 @@ export const MANDATE_ARTICLES: MandateArticle[] = [
         en: [
           "In consideration for its services, the Agent shall receive management fees equal to **25 % (excluding VAT, VAT payable in addition at the rate in force)** of the amount of the rents collected, in accordance with the Agent’s fee schedule in force, attached to this mandate (Appendix 2). This rate is fixed for the entire term of the mandate.",
           "These fees shall be deducted directly from the amounts collected on behalf of the Owner and become payable upon effective receipt of the rental funds.",
+        ],
+      },
+      {
+        kind: "p",
+        onlyWhen: "feesTenant",
+        fr: [
+          "En rémunération de sa mission d’entremise, de négociation et de gestion de la location saisonnière, le Mandataire perçoit des honoraires fixés à **25 % HT, soit 30 % TTC (au taux de TVA en vigueur de 20 %)**, calculés sur le montant total des loyers, hors frais de ménage et taxe de séjour.",
+          "Ces honoraires sont intégralement à la charge du locataire. Le Propriétaire autorise expressément le Mandataire à facturer et encaisser ses honoraires directement auprès du locataire, en sus du loyer net propriétaire, lors de la réservation.",
+        ],
+        en: [
+          "In consideration for its services of intermediation, negotiation and management of the seasonal rental, the Agent shall receive fees set at **25 % excluding VAT, i.e. 30 % including VAT (at the VAT rate in force of 20 %)**, calculated on the total amount of the rents, excluding cleaning fees and tourist tax.",
+          "These fees are borne in full by the tenant. The Owner expressly authorizes the Agent to invoice and collect its fees directly from the tenant, in addition to the net rent due to the Owner, at the time of booking.",
         ],
       },
     ],
@@ -575,7 +595,7 @@ export const MANDATE_ARTICLES: MandateArticle[] = [
           "– Proposer, présenter, visiter et faire visiter les biens à toute personne qu’il jugera utile.",
           "– Faire toute la publicité qu’il jugera utile (commerciale, petites annonces, etc.), ces frais restant à la charge exclusive du Mandataire. Il l’autorise notamment à diffuser des photos concernant les biens sur des sites internet.",
           "– Communiquer le dossier de l’opération à tout confrère qu’il jugera susceptible de concourir à la location.",
-          "– Signer tout bail et convention de location sur les biens, après avoir recueilli l’accord du Propriétaire sur le projet de bail ou de convention de location, le Propriétaire s’engageant à répondre au Mandataire dans les 8 jours de la transmission du projet qui lui sera faite à l’adresse e-mail du Mandataire. À défaut de réponse du Propriétaire dans les 8 jours ainsi visés, il sera considéré comme acceptant le bail ou la convention de location et autorisant le Mandataire à la régulariser et signer avec le locataire, la présente disposition ayant pour objet, dans l’intérêt commun des Parties, de ne pas dissuader le locataire pressenti par de trop longs délais de régularisation du bail ou de la convention de location.",
+          "– Signer tout bail et convention de location sur les biens, après avoir recueilli l’accord exprès du Propriétaire sur le projet de bail ou de convention de location. Aucun bail ni convention de location n’est signé sans cet accord.",
           "– Établir et signer, au nom et pour le compte du Propriétaire, les états des lieux d’entrée et de sortie ainsi que les inventaires.",
           "– Encaisser les loyers, acomptes, charges et dépôts de garantie et en donner quittance, restituer les dépôts de garantie aux locataires, collecter et reverser la taxe de séjour.",
           "– Faire exécuter, en cas d’urgence, les interventions et réparations conservatoires nécessaires, à charge d’en informer le Propriétaire sans délai.",
@@ -585,7 +605,7 @@ export const MANDATE_ARTICLES: MandateArticle[] = [
           "– To view the premises, to propose and present the premises to any person as it sees fit and to accompany such persons on visits to the premises.",
           "– To undertake such advertising as it may deem appropriate (commercial, classifieds, etc.), the cost of such advertising being for the exclusive account of the Agent. In particular, the Agent is authorised to disseminate photographs of the premises on websites.",
           "– To pass the operating dossier to any fellow agent that it deems likely to help rent the premises.",
-          "– To sign any lease or rental agreement in respect of the premises, after receiving the Landlord’s agreement to the draft lease or rental agreement, in which respect the Landlord undertakes to reply to the Agent within eight days of the draft being sent to him or her to the email address of the Agent. In the absence of a response from the Landlord within the aforementioned eight days, the Landlord shall be deemed to have accepted the lease or rental agreement and to have authorised the Agent to formalise and sign it with the tenant, the purpose of this provision being, in the Parties’ common interest, to avoid the prospective tenant being put off by overly long delays in formalising the lease or rental agreement.",
+          "– To sign any lease or rental agreement in respect of the premises, after receiving the Landlord’s express agreement to the draft lease or rental agreement. No lease or rental agreement is signed without that agreement.",
           "– To draw up and sign, in the name and on behalf of the Owner, the check-in and check-out inspection reports and the inventories.",
           "– To collect rents, down payments, charges and security deposits and give receipt for them, to refund security deposits to tenants, and to collect and remit the tourist tax.",
           "– In an emergency, to have the necessary protective interventions and repairs carried out, informing the Owner without delay.",

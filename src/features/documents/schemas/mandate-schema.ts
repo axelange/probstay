@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   MANDATE_OWNERSHIP,
+  MANDATE_FEES_PAYERS,
   MANDATE_PETS,
   MANDATE_PROPERTY_KINDS,
   MANDATE_SERVICES,
@@ -70,6 +71,8 @@ export const mandateSchema = z.object({
   smoking: z.boolean(),
   bailiff: z.boolean(),
   pets: z.enum(MANDATE_PETS.map((p) => p.key)),
+  /** Who bears the management fees of article 6. */
+  feesPayer: z.enum(MANDATE_FEES_PAYERS.map((p) => p.key)),
   place: line(80),
   signatureDate: day,
   bilingual: z.boolean(),
